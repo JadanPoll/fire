@@ -46,6 +46,7 @@ public final class MainActivity extends Activity {
     private TextView status, detail, keyLog;
     private Button install;
     private Release release;
+    private File verifiedApk;
     private boolean busy;
 
     private static final class Release {
@@ -88,6 +89,9 @@ public final class MainActivity extends Activity {
                 startActivity(new Intent(this, CatalogActivity.class)));
         action("INPUT LAB — VIRTUAL POINTER", root, () ->
                 startActivity(new Intent(this, InputLabActivity.class)));
+        action("ON-FIRE CODEX — SPEAK, TYPE, WORK", root, () ->
+                startActivity(new Intent(this, CodexDeskActivity.class)));
+        action("RETRY LAST VERIFIED APK (NO DOWNLOAD)", root, this::retryInstall);
         action("SHARE LOCAL DIAGNOSTICS", root, this::shareDiagnostics);
         root.addView(label("REMOTE INPUT EVENTS (this app only)", 17, 0xFF55C4FF));
         keyLog = label("Press remote buttons to observe key-down events.", 15, 0xFFFFFFFF);
@@ -205,16 +209,6 @@ public final class MainActivity extends Activity {
 
     private void downloadRelease() {
         if (busy || release == null) return;
-        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-            status.setText("Permit the bridge to install unknown apps, then select Install again.");
-            try {
-                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:" + getPackageName())));
-            } catch (ActivityNotFoundException e) {
-                startActivity(new Intent(Settings.ACTION_SETTINGS));
-            }
-            return;
-        }
         final Release expected = release;
         setBusy(true);
         status.setText("Downloading verified APK…");
@@ -250,12 +244,13 @@ public final class MainActivity extends Activity {
                 if (!pending.renameTo(apk)) throw new Exception("Cannot finalize download");
                 runOnUiThread(() -> {
                     setBusy(false);
-                    status.setText("Verified. Android installer will request confirmation.");
+                    verifiedApk = apk;
+                    status.setText("APK verified. Opening installer; Fire OS may require a one-time install permission.");
                     try {
                         Uri file = FileProvider.getUriForFile(this,
                                 getPackageName() + ".fileprovider", apk);
-                        Intent intent = new Intent(Intent.ACTION_VIEW);
-                        intent.setDataAndType(file, "application/vnd.android.package-archive");
+                        Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                        intent.setData(file);
                         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         startActivity(intent);
                     } catch (Exception ex) {
@@ -267,6 +262,23 @@ public final class MainActivity extends Activity {
                 showError("Download failed", ex);
             }
         });
+    }
+
+    private void retryInstall() {
+        if (verifiedApk == null || !verifiedApk.isFile()) {
+            status.setText("No verified APK is pending. Check and download a release first.");
+            return;
+        }
+        try {
+            Uri file = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", verifiedApk);
+            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            intent.setData(file);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(intent);
+            status.setText("Reopened Android installer without downloading again. If permission is blocked, allow 'Fire TV Dev Bridge' once.");
+        } catch (Exception ex) {
+            showError("Installer unavailable", ex);
+        }
     }
 
     private void showError(String operation, Exception ex) {

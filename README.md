@@ -12,7 +12,9 @@ Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 
 - Local-only diagnostic capture, shareable only when the user selects Share.
 - **App Catalog** pulled on demand from [catalog.json](catalog.json): install, update, or launch approved APKs, verifying each checksum and Android package identity.
 - **Remote Canvas**: separately installed sample Android app proving that multiple apps can be shipped from this repository.
-- **Voice Preflight**: read-only enumeration of Android audio inputs and speech services; optional system speech-intent test and copyable results. Does not try to intercept Alexa's system microphone button.
+- **Codex on Fire**: Fire TV keyboard dictation/typing, one intention draft, clipboard handoff to Codex Cloud on the TV, native-runner CPU/ABI/RAM precheck. This is a working TV-side control surface, not yet a locally executing native Codex binary.
+- **Voice Preflight**: read-only audio-device/standard recognizer probe. Keyboard dictation is independently tested in Codex on Fire.
+- **Installer recovery**: Android installer instead of automatically opening Developer Options; retry last verified APK without a second download. Fire OS may still require one per-source permission grant and an explicit install confirmation.
 
 ### Install
 

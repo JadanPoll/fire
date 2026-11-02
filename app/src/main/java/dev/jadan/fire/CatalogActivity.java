@@ -47,6 +47,7 @@ public final class CatalogActivity extends Activity {
     private LinearLayout list;
     private TextView status;
     private boolean busy;
+    private File verifiedApk;
 
     private static final class App {
         final String name, description, packageId, tag, asset;
@@ -74,6 +75,7 @@ public final class CatalogActivity extends Activity {
         status=label("Catalog not yet loaded.",17,0xFFCADBE8);
         root.addView(status);
         addButton(root,"REFRESH CATALOG",this::loadCatalog).requestFocus();
+        addButton(root,"RETRY VERIFIED INSTALL (NO DOWNLOAD)",this::retryInstall);
         list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);
         root.addView(list);
         root.addView(label("No unattended installs. Source: JadanPoll/fire. BACK to return.",14,0xFF95B2C9));
@@ -149,13 +151,6 @@ public final class CatalogActivity extends Activity {
     }
     private void download(App app) {
         if(busy)return;
-        if(Build.VERSION.SDK_INT>=26 && !getPackageManager().canRequestPackageInstalls()) {
-            status.setText("Allow Install Unknown Apps for Fire TV Dev Bridge, then choose Install again.");
-            try{startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:"+getPackageName())));}
-            catch(ActivityNotFoundException e){startActivity(new Intent(Settings.ACTION_SETTINGS));}
-            return;
-        }
         busy=true;status.setText("Checking release for "+app.name+"…");
         worker.execute(()->{
             File partial=null;
@@ -200,11 +195,12 @@ public final class CatalogActivity extends Activity {
                     throw new Exception("APK package does not match catalog");
                 runOnUiThread(()->{
                     busy=false;
-                    status.setText("Verified "+app.name+". Android will ask for installation confirmation.");
+                    verifiedApk = apk;
+                    status.setText("Verified "+app.name+". Android will request installation confirmation.");
                     try {
                         Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",apk);
-                        Intent install=new Intent(Intent.ACTION_VIEW);
-                        install.setDataAndType(uri,"application/vnd.android.package-archive");
+                        Intent install=new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                        install.setData(uri);
                         install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         startActivity(install);
                     }catch(Exception e){status.setText("Installer failed: "+e.getMessage());}
@@ -213,6 +209,20 @@ public final class CatalogActivity extends Activity {
                 if(partial!=null)partial.delete();fail(e);
             }
         });
+    }
+    private void retryInstall() {
+        if(verifiedApk==null || !verifiedApk.isFile()) {
+            status.setText("No verified APK cached in this session. Select Install / Update first.");
+            return;
+        }
+        try {
+            Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",verifiedApk);
+            Intent intent=new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            intent.setData(uri);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(intent);
+            status.setText("Installer reopened. If Fire OS blocks this source, permit Fire TV Dev Bridge once.");
+        } catch(Exception e) {status.setText("Installer failed: "+e.getMessage());}
     }
     @Override protected void onDestroy(){worker.shutdownNow();super.onDestroy();}
 }
