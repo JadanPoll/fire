@@ -74,3 +74,5 @@ https://developer.amazon.com/docs/fire-tv/connecting-adb-to-device.html
 https://github.com/Genymobile/scrcpy
 https://community.amazondeveloper.com/t/live-device-interaction-with-virtual-devices-is-now-available/28664
 https://github.com/HereIamGosu/android-tv-adb-control-center
+
+The smoke command also accepts --latest instead of --apk to fetch and SHA-256 verify the current rolling browser release automatically. This makes the common edit/build/release/device-test loop one host command, once ADB is authorized.
