@@ -7,6 +7,7 @@ on:
       - 'app/**'
       - 'canvas/**'
       - 'browser/**'
+      - 'tools/**'
       - 'catalog.json'
       - 'signing/**'
       - '*.gradle'
@@ -34,6 +35,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Check remote test helper
+        run: |
+          python3 -m py_compile tools/firetv_test.py
+          python3 tools/firetv_test.py --help >/dev/null
       - name: Build APK and release notes
         shell: bash
         run: |

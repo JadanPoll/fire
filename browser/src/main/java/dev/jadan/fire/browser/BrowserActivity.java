@@ -181,7 +181,8 @@ public final class BrowserActivity extends Activity {
         }
         String fromLink=getIntent().getDataString();
         String restore=b==null?"":b.getString("url","");
-        if(fromLink!=null && fromLink.startsWith("https://"))loadUrl(fromLink);
+        if(getIntent().getBooleanExtra("test_lab",false))loadProbe();
+        else if(fromLink!=null && fromLink.startsWith("https://"))loadUrl(fromLink);
         else if(restore.startsWith("https://"))loadUrl(restore);
         else loadUrl(prefs.getString("last_url",HOME));
         address.requestFocus();
@@ -546,7 +547,8 @@ public final class BrowserActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         String url=intent.getDataString();
-        if(url!=null && url.startsWith("https://"))loadUrl(url);
+        if(intent.getBooleanExtra("test_lab",false))loadProbe();
+        else if(url!=null && url.startsWith("https://"))loadUrl(url);
     }
     @Override protected void onSaveInstanceState(Bundle out){
         out.putString("draft",draft.getText().toString());

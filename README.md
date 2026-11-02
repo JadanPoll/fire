@@ -79,3 +79,11 @@ The browser also maintains its own **RECENT** (16 recent HTTPS pages, stored on 
 Source research: TV Bro (cursor and browser UI), Comet (lightweight WebView, tab state/renderer recovery), Arrowz Browser (text zoom, text-native overlay, renderer recovery), and mrowser (TV Launcher and recent/history). We intentionally haven't copied their media, ads, multi-tab or permission frameworks, which aren't necessary for the current experiment loop.
 
 Browser text controls separate text scaling (A+/A−, remembered across launches) from page layout zoom (PAGE+/PAGE−, for fixed-size layouts). The Codex desk launches the standalone browser if installed, otherwise falls back to the original lab. This preserves the existing on-device workflow while the independent browser is being adopted.
+
+### Browser scaling, submission and remote tests
+
+In standalone Fire Browser, the default web text and page scale are now 85% each, with compact controls and a collapsible TOOLS panel. A−/A+ allows 55%-200% text size; PAGE−/PAGE+ allows 50%-160% page scale, FIT restores both to 100%. Your previously saved text size is retained until you change it.
+
+Fire TV keyboard dictation is supported in the native SPEAK field, rather than relying on ChatGPT's rich web editor. A separate SEND button inserts the draft and requests the ChatGPT send action. The browser also requests IME_ACTION_SEND, though the actual Fire TV keyboard may continue to show Previous. Drafts are preserved on uncertain outcomes.
+
+From a trusted LAN-connected computer, use Python 3 + official Android platform-tools: python tools/firetv_test.py --connect FIRE_TV_IP:5555 doctor, followed by smoke --apk path/to/firetv-browser.apk, live (scrcpy), or shot. One ADB authorization on the TV is required. See [the testing loop](docs/TEST_LOOP.md).
