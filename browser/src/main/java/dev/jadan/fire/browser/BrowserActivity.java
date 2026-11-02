@@ -45,7 +45,9 @@ public final class BrowserActivity extends Activity {
     private static final String HOME = "https://chatgpt.com/";
     private static final String PREFS = "browser_state";
     private SharedPreferences prefs;
-    private int textZoom = 135;
+    private int textZoom = 85;
+    private int pageZoom = 85;
+    private long lastSend;
     private int heldKey = -1;
     private long heldSince, lastMove;
     private int rendererRecoveries;
@@ -73,11 +75,12 @@ public final class BrowserActivity extends Activity {
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
         prefs=getSharedPreferences(PREFS,MODE_PRIVATE);
-        textZoom=Math.max(100,Math.min(200,prefs.getInt("text_zoom",135)));
+        textZoom=Math.max(55,Math.min(200,prefs.getInt("text_zoom",85)));
+        pageZoom=Math.max(50,Math.min(160,prefs.getInt("page_zoom",85)));
         LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFF0F1C29);
-        root.setPadding(dp(9),dp(5),dp(9),dp(5));
+        root.setPadding(dp(5),dp(3),dp(5),dp(3));
         setContentView(root);
 
         LinearLayout line=new LinearLayout(this);
@@ -85,17 +88,30 @@ public final class BrowserActivity extends Activity {
         root.addView(line,new LinearLayout.LayoutParams(-1,-2));
         address=new EditText(this);
         address.setSingleLine(true);
-        address.setTextSize(15);
+        address.setTextSize(13);
         address.setHint("https://...");
         address.setTextColor(0xFF112233);
         address.setBackgroundColor(0xFFD7EAF6);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
-        line.addView(address,new LinearLayout.LayoutParams(0,dp(48),1));
+        address.setOnEditorActionListener((v,action,event)->{
+            if(action==EditorInfo.IME_ACTION_GO){goAddress();return true;}
+            return false;
+        });
+        line.addView(address,new LinearLayout.LayoutParams(0,dp(42),1));
         button(line,"GO",this::goAddress);
+        LinearLayout toolsPanel=new LinearLayout(this);
+        toolsPanel.setOrientation(LinearLayout.VERTICAL);
+        root.addView(toolsPanel,new LinearLayout.LayoutParams(-1,-2));
+        toolsPanel.setVisibility(View.GONE);
+        button(line,"TOOLS",()->{
+            boolean expanding=toolsPanel.getVisibility()!=View.VISIBLE;
+            toolsPanel.setVisibility(expanding?View.VISIBLE:View.GONE);
+            status.setText(expanding?"Browser tools shown. Change zoom, navigate, or open Recent.":"Browser tools hidden. More room for the page.");
+        });
 
         LinearLayout bar=new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
-        root.addView(bar,new LinearLayout.LayoutParams(-1,-2));
+        toolsPanel.addView(bar,new LinearLayout.LayoutParams(-1,-2));
         button(bar,"INPUT LAB",this::loadProbe);
         button(bar,"CHATGPT",()->loadUrl(HOME));
         button(bar,"BACK",()->{if(web.canGoBack())web.goBack();else finish();});
@@ -103,27 +119,37 @@ public final class BrowserActivity extends Activity {
         button(bar,"POINTER",this::togglePointer);
         LinearLayout reading=new LinearLayout(this);
         reading.setOrientation(LinearLayout.HORIZONTAL);
-        root.addView(reading,new LinearLayout.LayoutParams(-1,-2));
+        toolsPanel.addView(reading,new LinearLayout.LayoutParams(-1,-2));
         button(reading,"RECENT",this::showRecent);
         button(reading,"A −",()->changeTextZoom(-15));
         button(reading,"A +",()->changeTextZoom(15));
         button(reading,"PAGE −",()->zoomPage(false));
         button(reading,"PAGE +",()->zoomPage(true));
+        button(reading,"FIT",this::resetZoom);
         button(reading,"HOME",()->loadUrl(HOME));
 
         LinearLayout composing=new LinearLayout(this);
         composing.setOrientation(LinearLayout.HORIZONTAL);
         root.addView(composing,new LinearLayout.LayoutParams(-1,-2));
         draft=new EditText(this);
-        draft.setTextSize(15);
+        draft.setTextSize(13);
         draft.setTextColor(0xFF132436);
         draft.setBackgroundColor(0xFFDFEAF3);
         draft.setSingleLine(true);
         draft.setHint("Speak/type a draft here; then paste into selected web editor");
-        draft.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_DONE);
-        composing.addView(draft,new LinearLayout.LayoutParams(0,dp(52),1));
+        draft.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_SEND);
+        draft.setOnEditorActionListener((v,action,event)->{
+            if(action==EditorInfo.IME_ACTION_SEND ||
+                    (event!=null && event.getKeyCode()==KeyEvent.KEYCODE_ENTER &&
+                     event.getAction()==KeyEvent.ACTION_UP)){
+                sendDraft();return true;
+            }
+            return false;
+        });
+        composing.addView(draft,new LinearLayout.LayoutParams(0,dp(44),1));
         button(composing,"SPEAK",()->showKeyboard(draft));
         button(composing,"PASTE",this::pasteDraft);
+        button(composing,"SEND",this::sendDraft);
 
         viewport=new FrameLayout(this);
         root.addView(viewport,new LinearLayout.LayoutParams(-1,0,1));
@@ -145,8 +171,8 @@ public final class BrowserActivity extends Activity {
         viewport.addView(cursor,new FrameLayout.LayoutParams(-1,-1));
 
         status=new TextView(this);
-        status.setTextSize(14);status.setTextColor(0xFFDBE7EE);
-        root.addView(status,new LinearLayout.LayoutParams(-1,dp(48)));
+        status.setTextSize(11);status.setTextColor(0xFFDBE7EE);
+        root.addView(status,new LinearLayout.LayoutParams(-1,dp(30)));
         status.setText("Fire WebView probe. POINTER toggles D-pad cursor; OK taps web elements.");
         if(b!=null) draft.setText(b.getString("draft",""));
         else {
@@ -171,7 +197,7 @@ public final class BrowserActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setTextZoom(textZoom);
-        settings.setDefaultFontSize(18);
+        settings.setDefaultFontSize(16);
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setSupportZoom(true);
@@ -191,7 +217,8 @@ public final class BrowserActivity extends Activity {
                 lastPage=url;
                 address.setText(url.equals(PROBE)?"local:input-lab":url);
                 if(url.startsWith("https://")) rememberPage(url);
-                status.setText("Ready: "+url+"  |  Text "+textZoom+"%  |  OK toggles text focus.");
+                applyPageZoom();
+                status.setText("Ready: "+url+"  |  text "+textZoom+"%, page "+pageZoom+"%. Native SPEAK→SEND bypasses web IME.");
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest req,WebResourceError err) {
                 if(req.isForMainFrame()) status.setText("Main page error: "+err.getDescription()+" ("+err.getErrorCode()+")");
@@ -235,13 +262,13 @@ public final class BrowserActivity extends Activity {
     private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
     private void button(LinearLayout bar,String name,Runnable run) {
         Button b=new Button(this);
-        b.setText(name);b.setAllCaps(false);b.setTextSize(16);
+        b.setText(name);b.setAllCaps(false);b.setTextSize(13);
         b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xFF255477);
-        b.setMinHeight(dp(48));b.setMinWidth(0);
-        b.setPadding(dp(13),0,dp(13),0);
+        b.setMinHeight(dp(40));b.setMinWidth(0);
+        b.setPadding(dp(7),0,dp(7),0);
         b.setOnFocusChangeListener((v,focus)->b.setBackgroundColor(focus?0xFF1786BD:0xFF255477));
         b.setOnClickListener(v->run.run());
-        bar.addView(b,new LinearLayout.LayoutParams(-2,dp(48)));
+        bar.addView(b,new LinearLayout.LayoutParams(-2,dp(40)));
     }
     private void showKeyboard(View view){
         stopMotion();pointerMode=false;cursor.invalidate();
@@ -344,27 +371,88 @@ public final class BrowserActivity extends Activity {
                     });
         },200);
     }
-    private void pasteDraft(){
-        final String value=draft.getText().toString();
-        if(value.trim().isEmpty()){
-            status.setText("Enter or dictate a draft in native field first.");return;
-        }
-        // Explicit user action only; insert editable text, no automatic click/send.
-        String script="(function(){"+
+    private static String insertTextScript(String value){
+        // Keep the old working execCommand path for rich editors. The input path
+        // uses its native setter to notify controlled frameworks of the change.
+        return "(function(){"+
             "var el=document.activeElement;"+
             "if(!el||!(el.isContentEditable||el.tagName==='INPUT'||el.tagName==='TEXTAREA'))"+
-            "el=document.querySelector('[contenteditable=\"true\"],textarea,input:not([type=\"hidden\"])');"+
+            "el=document.querySelector('#prompt-textarea,[contenteditable=\"true\"],textarea,input:not([type=\"hidden\"])');"+
             "if(!el)return 'NO_EDITABLE';el.focus();"+
             "var value="+JSONObject.quote(value)+";"+
             "if(el.isContentEditable){var ok=document.execCommand('insertText',false,value);"+
             "return ok?'INSERTED_RICH':'RICH_EDITOR_REJECTED';}"+
-            "var start=el.selectionStart==null?el.value.length:el.selectionStart;"+
-            "var end=el.selectionEnd==null?start:el.selectionEnd;"+
-            "el.setRangeText(value,start,end,'end');"+
-            "el.dispatchEvent(new Event('input',{bubbles:true}));"+
+            "var setter=Object.getOwnPropertyDescriptor(el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value');"+
+            "if(setter&&setter.set){setter.set.call(el,(el.value||'')+value);}else{el.value+=value;}"+
+            "el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));"+
             "return 'INSERTED_INPUT';})()";
-        web.evaluateJavascript(script,response->
-                status.setText("Paste result: "+response+" — verify visibly before sending. No message submitted automatically."));
+    }
+    private void pasteDraft(){
+        final String value=draft.getText().toString();
+        if(value.trim().isEmpty()){
+            status.setText("Dictate or type a draft into the native field first.");return;
+        }
+        if(web==null){status.setText("Browser renderer recovering. Try again.");return;}
+        web.evaluateJavascript(insertTextScript(value),
+            result->status.setText("Paste: "+result+" — check the webpage. Nothing was sent."));
+    }
+    private boolean isChatGPT(){
+        if(web==null || web.getUrl()==null)return false;
+        try {
+            android.net.Uri url=android.net.Uri.parse(web.getUrl());
+            String host=url.getHost();
+            return "https".equalsIgnoreCase(url.getScheme()) &&
+                ("chatgpt.com".equalsIgnoreCase(host) ||
+                 (host!=null&&host.endsWith(".chatgpt.com")));
+        }catch(Exception ex){return false;}
+    }
+    private void sendDraft(){
+        if(web==null){status.setText("Browser recovering; no message was sent.");return;}
+        if(!isChatGPT()){
+            status.setText("SEND is ChatGPT-specific. PASTE works on other sites; nothing submitted.");
+            return;
+        }
+        long now=SystemClock.uptimeMillis();
+        if(lastSend>0 && now-lastSend<1200){
+            status.setText("Send already requested. Check the conversation before sending again.");
+            return;
+        }
+        lastSend=now;
+        InputMethodManager imm=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        if(imm!=null)imm.hideSoftInputFromWindow(draft.getWindowToken(),0);
+        String text=draft.getText().toString();
+        if(text.trim().isEmpty()){
+            clickSendButton();
+            return;
+        }
+        status.setText("Inserting draft into ChatGPT…");
+        web.evaluateJavascript(insertTextScript(text),result->{
+            if(result==null || !result.startsWith("\"INSERTED_")){
+                status.setText("Text insertion not confirmed ("+result+"). Nothing sent; draft retained.");
+                return;
+            }
+            // Give the site's controlled editor time to reconcile after input.
+            web.postDelayed(this::clickSendButton,350);
+        });
+    }
+    private void clickSendButton(){
+        if(!isChatGPT()){
+            status.setText("ChatGPT is no longer active. Nothing sent; draft retained.");return;
+        }
+        final String script="(function(){"+
+            "var selectors=['button[data-testid=\"send-button\"]','button[data-testid=\"fruitjuice-send-button\"]',"+
+            "'button[aria-label=\"Send prompt\"]','button[aria-label=\"Send message\"]',"+
+            "'button[aria-label=\"Send\"]','form button[type=\"submit\"]'];"+
+            "for(var s of selectors){var btn=document.querySelector(s);"+
+            "if(btn&&!btn.disabled&&btn.getAttribute('aria-disabled')!=='true'){btn.click();return 'CLICKED_SEND';}}"+
+            "return 'SEND_BUTTON_UNAVAILABLE';})()";
+        web.evaluateJavascript(script,result->{
+            if("\"CLICKED_SEND\"".equals(result)){
+                status.setText("Clicked ChatGPT Send. Check the message appears; draft retained for recovery.");
+            }else{
+                status.setText("No enabled Send button ("+result+"). Draft retained; select ChatGPT's arrow if needed.");
+            }
+        });
     }
 
     private void stopMotion(){heldKey=-1;if(cursor!=null)cursor.removeCallbacks(pointerTick);}
@@ -377,16 +465,34 @@ public final class BrowserActivity extends Activity {
         if(key==KeyEvent.KEYCODE_DPAD_DOWN)y=Math.min(.98f,y+delta/h);
         cursor.invalidate();
     }
+    private void applyPageZoom(){
+        if(web==null)return;
+        // The WebView zoomOut() control may refuse to go below its internal floor.
+        // CSS zoom is a separate, reversible site-scale setting; unlike transforms,
+        // it participates in layout. Some complex pages may still override styling.
+        String script="(function(){if(!document.documentElement)return 'NO_ROOT';"+
+            "document.documentElement.style.zoom='"+(pageZoom/100.0)+"';"+
+            "return document.documentElement.style.zoom;})()";
+        web.evaluateJavascript(script,null);
+    }
     private void zoomPage(boolean larger){
-        if(web==null){status.setText("Browser is recovering; try again.");return;}
-        boolean ok=larger?web.zoomIn():web.zoomOut();
-        status.setText(ok?"Page zoom adjusted. A+ / A− persist text size.":"Page zoom at browser limit. Try A+ / A−.");
+        pageZoom=Math.max(50,Math.min(160,pageZoom+(larger?10:-10)));
+        prefs.edit().putInt("page_zoom",pageZoom).apply();
+        applyPageZoom();
+        status.setText("Page scale "+pageZoom+"% (saved). Below 100% is supported. FIT restores 100%.");
+    }
+    private void resetZoom(){
+        textZoom=100;pageZoom=100;
+        prefs.edit().putInt("text_zoom",100).putInt("page_zoom",100).apply();
+        if(web!=null)web.getSettings().setTextZoom(100);
+        applyPageZoom();
+        status.setText("Restored text and page to 100%. Use A− and PAGE− for smaller layout.");
     }
     private void changeTextZoom(int delta){
-        textZoom=Math.max(100,Math.min(200,textZoom+delta));
+        textZoom=Math.max(55,Math.min(200,textZoom+delta));
         prefs.edit().putInt("text_zoom",textZoom).apply();
         if(web!=null)web.getSettings().setTextZoom(textZoom);
-        status.setText("Web text size "+textZoom+"% (saved). Some sites use fixed CSS sizes.");
+        status.setText("Text size "+textZoom+"% (saved); fixed CSS text may require PAGE−.");
     }
     private void rememberPage(String url){
         if(url.length()>1500)return;
