@@ -3,13 +3,16 @@
 
 Typical:
   python tools/firetv_test.py --connect 192.168.1.42:5555 doctor
-  python tools/firetv_test.py --serial 192.168.1.42:5555 smoke --apk firetv-browser.apk
+  python tools/firetv_test.py --serial 192.168.1.42:5555 smoke --latest
   python tools/firetv_test.py --serial 192.168.1.42:5555 live
 
 The first ADB connection needs one authorization on the TV itself. Keep ADB
 on a trusted LAN: never expose TCP/5555 directly to the internet.
 """
 import argparse
+import hashlib
+import json
+import urllib.request
 import datetime
 import os
 from pathlib import Path
@@ -23,6 +26,9 @@ COMPONENT = PACKAGE + "/.BrowserActivity"
 KEYS = {"up":19, "down":20, "left":21, "right":22, "ok":23,
         "back":4, "home":3, "menu":82}
 OUTPUT = Path(".fire-tests")
+RELEASE = "https://api.github.com/repos/JadanPoll/fire/releases/tags/firetv-dev-bridge-latest"
+ASSET = "firetv-browser.apk"
+MAX_SIZE = 64 * 1024 * 1024
 
 def run(cmd, *, timeout=25, binary=False, check=True):
     try:
@@ -58,6 +64,57 @@ def screenshot(cmd, dest):
     dest.write_bytes(data)
     print("Screenshot:", dest.resolve())
 
+def latest_browser():
+    """Get the published browser using the same GitHub release checksum as Fire."""
+    req = urllib.request.Request(RELEASE, headers={
+        "User-Agent": "FireTV-Lab-Test/1", "Accept": "application/vnd.github+json"
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as conn:
+            meta = conn.read(256 * 1024 + 1)
+        if len(meta) > 256 * 1024:
+            raise RuntimeError("Release metadata too large")
+        release = json.loads(meta)
+        expected = None
+        for line in release.get("body", "").splitlines():
+            if line.startswith("SHA256 " + ASSET + ": "):
+                expected = line.split(": ", 1)[1].strip()
+        if expected is None or len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
+            raise RuntimeError("Browser SHA-256 absent/invalid in release")
+        url = None
+        for asset in release.get("assets", []):
+            if asset.get("name") == ASSET:
+                url = asset.get("browser_download_url")
+        prefix = "https://github.com/JadanPoll/fire/releases/download/firetv-dev-bridge-latest/"
+        if not isinstance(url, str) or not url.startswith(prefix):
+            raise RuntimeError("Unexpected browser release URL")
+        OUTPUT.mkdir(parents=True, exist_ok=True)
+        path = OUTPUT / ("firetv-browser-" + expected[:12] + ".apk")
+        if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == expected:
+            print("Using cached verified browser:", path)
+            return path
+        tmp = OUTPUT / (ASSET + ".part")
+        digest = hashlib.sha256()
+        size = 0
+        with urllib.request.urlopen(urllib.request.Request(url,
+               headers={"User-Agent": "FireTV-Lab-Test/1"}), timeout=40) as response:
+            with tmp.open("wb") as out:
+                while True:
+                    part = response.read(16384)
+                    if not part: break
+                    size += len(part)
+                    if size > MAX_SIZE: raise RuntimeError("APK exceeds size limit")
+                    digest.update(part); out.write(part)
+        if digest.hexdigest() != expected:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError("Browser APK SHA-256 mismatch; refused to install")
+        tmp.replace(path)
+        print("Downloaded verified browser:", path, "bytes:", size)
+        return path
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Release download failed: " + str(exc)) from exc
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -69,7 +126,9 @@ def main():
     install = subs.add_parser("install")
     install.add_argument("apk", type=Path)
     smoke = subs.add_parser("smoke")
-    smoke.add_argument("--apk", type=Path)
+    source = smoke.add_mutually_exclusive_group()
+    source.add_argument("--apk", type=Path)
+    source.add_argument("--latest", action="store_true", help="Download current verified GitHub Release APK")
     smoke.add_argument("--output", type=Path)
     shot = subs.add_parser("shot")
     shot.add_argument("--output", type=Path)
@@ -93,7 +152,7 @@ def main():
             res = run(cmd + argv, check=False)
             print(label + ": " + (res.stdout.strip() or "not found"))
     elif args.action in ("smoke", "install"):
-        apk = args.apk
+        apk = latest_browser() if args.action == "smoke" and args.latest else args.apk
         if apk is not None:
             if not apk.is_file(): raise RuntimeError("Missing APK: " + str(apk))
             print("Installing", apk)
