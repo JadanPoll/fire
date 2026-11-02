@@ -27,7 +27,8 @@ A stable development appliance on a Fire TV: the operator requests **build**, **
 | --- | --- |
 | Android API 28 native APK build | CI pending first verified build |
 | Launcher tile, D-pad focus | pending physical TV test |
-| Local key timing, OK repeat | pending TV test |
+| Local key timing, OK repeat | implemented; pending TV test |
+| Pointer normalization experiment (app-local) | implemented; pending TV test |
 | GitHub release lookup and APK download | pending TV test |
 | Fire OS package installer confirmation | pending TV test |
 | Network ADB from remote desktop | **not assumed** |

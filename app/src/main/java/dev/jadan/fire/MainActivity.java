@@ -82,6 +82,8 @@ public final class MainActivity extends Activity {
         Button check = action("CHECK LATEST GITHUB BUILD", root, this::checkRelease);
         install = action("DOWNLOAD & INSTALL (SYSTEM CONFIRMATION)", root, this::downloadRelease);
         install.setEnabled(false);
+        action("INPUT LAB — VIRTUAL POINTER", root, () ->
+                startActivity(new Intent(this, InputLabActivity.class)));
         action("SHARE LOCAL DIAGNOSTICS", root, this::shareDiagnostics);
         root.addView(label("REMOTE INPUT EVENTS (this app only)", 17, 0xFF55C4FF));
         keyLog = label("Press remote buttons to observe key-down events.", 15, 0xFFFFFFFF);

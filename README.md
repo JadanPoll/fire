@@ -6,6 +6,7 @@ Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 
 
 - Fire TV Leanback-compatible app with D-pad focus and remote key timing/automatic repeat observations.
 - Device/OS summary and human-readable network errors.
+- **Input Lab**: visible virtual pointer, D-pad hold normalization independent of raw key-repeat frequency, OK release activation with cooldown, raw/accepted/suppressed event counters.
 - On-demand check for latest [GitHub Release](https://github.com/JadanPoll/fire/releases/tag/firetv-dev-bridge-latest), download and SHA-256 check.
 - Native installation confirmation through Fire OS (not silent).
 - Local-only diagnostic capture, shareable only when the user selects Share.
