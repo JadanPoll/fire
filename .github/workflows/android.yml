@@ -1,0 +1,57 @@
+name: Build and publish Fire TV lab APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'signing/**'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: |
+          SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMGR"
+          "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build APK and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d signing/lab.keystore.base64 > signing/lab.keystore
+          gradle --no-daemon :app:assembleRelease
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
+          printf 'Version code: %s\nSHA256: %s\n' "$GITHUB_RUN_NUMBER" "$(sha256sum dist/firetv-dev-bridge.apk | cut -d' ' -f1)" > dist/release-notes.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firetv-dev-bridge
+          path: dist/firetv-dev-bridge.apk
+      - name: Publish rolling dev release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: firetv-dev-bridge-latest
+          name: Fire TV Dev Bridge (lab)
+          prerelease: true
+          make_latest: false
+          files: dist/firetv-dev-bridge.apk
+          body_path: dist/release-notes.txt
+          fail_on_unmatched_files: true
