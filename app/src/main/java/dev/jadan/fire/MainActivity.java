@@ -82,6 +82,8 @@ public final class MainActivity extends Activity {
         Button check = action("CHECK LATEST GITHUB BUILD", root, this::checkRelease);
         install = action("DOWNLOAD & INSTALL (SYSTEM CONFIRMATION)", root, this::downloadRelease);
         install.setEnabled(false);
+        action("VOICE PREFLIGHT — CHECK MICROPHONE", root, () ->
+                startActivity(new Intent(this, VoiceProbeActivity.class)));
         action("APP CATALOG — INSTALL & LAUNCH", root, () ->
                 startActivity(new Intent(this, CatalogActivity.class)));
         action("INPUT LAB — VIRTUAL POINTER", root, () ->

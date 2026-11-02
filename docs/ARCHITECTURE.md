@@ -36,6 +36,6 @@ A stable development appliance on a Fire TV: the operator requests **build**, **
 
 ## Stop/expand criteria
 
-Stage 1 stops when first APK installs and releases update with reliable error displays. No service or backend yet.
+Stage 1 stops when first APK installs and releases update with reliable error displays. A read-only Voice Preflight now distinguishes device audio capability from unsupported assumptions about the Alexa remote. No service or backend yet.
 Stage 2 stops when the separately built Remote Canvas app is installed from the catalog and launched/updated with explicit consent. Implementation is present; physical-TV validation remains pending.
 Stage 3 adds an authenticated telemetry/diagnostics channel only if staging experiments show it is needed. Prefer simple pull/short-lived channels over permanent services.

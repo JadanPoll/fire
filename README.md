@@ -12,6 +12,7 @@ Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 
 - Local-only diagnostic capture, shareable only when the user selects Share.
 - **App Catalog** pulled on demand from [catalog.json](catalog.json): install, update, or launch approved APKs, verifying each checksum and Android package identity.
 - **Remote Canvas**: separately installed sample Android app proving that multiple apps can be shipped from this repository.
+- **Voice Preflight**: read-only enumeration of Android audio inputs and speech services; optional system speech-intent test and copyable results. Does not try to intercept Alexa's system microphone button.
 
 ### Install
 
