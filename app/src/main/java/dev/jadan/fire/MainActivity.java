@@ -89,6 +89,7 @@ public final class MainActivity extends Activity {
                 startActivity(new Intent(this, CatalogActivity.class)));
         action("INPUT LAB — VIRTUAL POINTER", root, () ->
                 startActivity(new Intent(this, InputLabActivity.class)));
+        action("OPEN STANDALONE FIRE BROWSER", root, this::openStandaloneBrowser);
         action("FIRE BROWSER LAB — WEBVIEW + REMOTE POINTER", root, () ->
                 startActivity(new Intent(this, FireBrowserActivity.class)));
         action("ON-FIRE CODEX — SPEAK, TYPE, WORK", root, () ->
@@ -101,6 +102,18 @@ public final class MainActivity extends Activity {
         root.addView(label("No background polling, no privileged system access, and no automatic telemetry upload.",
                 13, 0xFF9FB0C0));
         check.requestFocus();
+    }
+
+    private void openStandaloneBrowser() {
+        Intent launch=getPackageManager().getLaunchIntentForPackage("dev.jadan.fire.browser");
+        if(launch==null) {
+            status.setText("Fire Browser is not installed yet. Open APP CATALOG and install Fire Browser.");
+            return;
+        }
+        try {
+            startActivity(launch);
+            status.setText("Opened standalone Fire Browser.");
+        } catch(Exception ex){showError("Open Fire Browser failed",ex);}
     }
 
     private int dp(int value) {

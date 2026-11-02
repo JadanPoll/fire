@@ -8,3 +8,4 @@ dependencyResolutionManagement {
 rootProject.name = 'FireTVDevBridge'
 include ':app'
 include ':canvas'
+include ':browser'

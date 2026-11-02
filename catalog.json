@@ -16,6 +16,14 @@
       "package": "dev.jadan.fire.canvas",
       "tag": "firetv-dev-bridge-latest",
       "asset": "firetv-remote-canvas.apk"
+    },
+    {
+      "id": "browser",
+      "name": "Fire Browser",
+      "description": "Standalone TV browser with its own launcher icon, recent pages and readable text",
+      "package": "dev.jadan.fire.browser",
+      "tag": "firetv-dev-bridge-latest",
+      "asset": "firetv-browser.apk"
     }
   ]
 }

@@ -69,3 +69,11 @@ The native draft avoids dependence on web IME for dictation, which was already c
 **Login warning:** ChatGPT may not support embedded WebViews, particularly Google-account sign-in. Do not enter credentials into an untrusted browser, use an unsupported OAuth workaround, or assume a good local input-probe test proves remote ChatGPT will load. For dependable Codex work, the eventual native app-server bridge remains the primary architecture.
 
 The external browser selector now shows an actual list of eligible installed browsers, even if there is only one. Android's ordinary chooser can directly launch the only handler. Our built-in browser appears as another explicit choice.
+
+### Standalone Fire Browser
+
+`browser/` is now a separate Android/Fire OS application, not merely an Activity inside the Fire TV Dev Bridge. Install **Fire Browser** using the bridge's **APP CATALOG**, or install `firetv-browser.apk` directly from the rolling GitHub Release. Its independent package `dev.jadan.fire.browser`, Leanback launcher, browser icon and banner mean it appears as an ordinary Fire TV app. Amazon documents that sideloaded launched applications can appear in its Recent row, although exact ordering/placement remains under Fire OS control.
+
+The browser also maintains its own **RECENT** (16 recent HTTPS pages, stored on device), resumes the last visited page after relaunch, and supports clearing local recent pages. Text zoom starts at 135% and is adjustable and remembered using A− and A+. The WebView recovers if the renderer is killed by the system; in a true renderer crash it shows the input lab instead of repeatedly crashing the same URL. The original browser experiment remains in the bridge for A/B comparisons, and both APKs coexist.
+
+Source research: TV Bro (cursor and browser UI), Comet (lightweight WebView, tab state/renderer recovery), Arrowz Browser (text zoom, text-native overlay, renderer recovery), and mrowser (TV Launcher and recent/history). We intentionally haven't copied their media, ads, multi-tab or permission frameworks, which aren't necessary for the current experiment loop.

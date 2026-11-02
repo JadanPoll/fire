@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/**'
       - 'canvas/**'
+      - 'browser/**'
       - 'catalog.json'
       - 'signing/**'
       - '*.gradle'
@@ -38,19 +39,22 @@ jobs:
         run: |
           set -euo pipefail
           base64 -d signing/lab.keystore.base64 > signing/lab.keystore
-          gradle --no-daemon :app:assembleRelease :canvas:assembleRelease
+          gradle --no-daemon :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
           cp canvas/build/outputs/apk/release/canvas-release.apk dist/firetv-remote-canvas.apk
+          cp browser/build/outputs/apk/release/browser-release.apk dist/firetv-browser.apk
           BRIDGE_SHA="$(sha256sum dist/firetv-dev-bridge.apk | cut -d' ' -f1)"
           CANVAS_SHA="$(sha256sum dist/firetv-remote-canvas.apk | cut -d' ' -f1)"
-          printf 'Version code: %s\nSHA256: %s\nSHA256 firetv-dev-bridge.apk: %s\nSHA256 firetv-remote-canvas.apk: %s\n' "$GITHUB_RUN_NUMBER" "$BRIDGE_SHA" "$BRIDGE_SHA" "$CANVAS_SHA" > dist/release-notes.txt
+          BROWSER_SHA="$(sha256sum dist/firetv-browser.apk | cut -d' ' -f1)"
+          printf 'Version code: %s\nSHA256: %s\nSHA256 firetv-dev-bridge.apk: %s\nSHA256 firetv-remote-canvas.apk: %s\nSHA256 firetv-browser.apk: %s\n' "$GITHUB_RUN_NUMBER" "$BRIDGE_SHA" "$BRIDGE_SHA" "$CANVAS_SHA" "$BROWSER_SHA" > dist/release-notes.txt
       - uses: actions/upload-artifact@v4
         with:
           name: firetv-dev-bridge
           path: |
             dist/firetv-dev-bridge.apk
             dist/firetv-remote-canvas.apk
+            dist/firetv-browser.apk
       - name: Publish rolling dev release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -62,5 +66,6 @@ jobs:
           files: |
             dist/firetv-dev-bridge.apk
             dist/firetv-remote-canvas.apk
+            dist/firetv-browser.apk
           body_path: dist/release-notes.txt
           fail_on_unmatched_files: true
