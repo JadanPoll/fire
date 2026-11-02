@@ -87,3 +87,5 @@ In standalone Fire Browser, the default web text and page scale are now 85% each
 Fire TV keyboard dictation is supported in the native SPEAK field, rather than relying on ChatGPT's rich web editor. A separate SEND button inserts the draft and requests the ChatGPT send action. The browser also requests IME_ACTION_SEND, though the actual Fire TV keyboard may continue to show Previous. Drafts are preserved on uncertain outcomes.
 
 From a trusted LAN-connected computer, use Python 3 + official Android platform-tools: python tools/firetv_test.py --connect FIRE_TV_IP:5555 doctor, followed by smoke --apk path/to/firetv-browser.apk, live (scrcpy), or shot. One ADB authorization on the TV is required. See [the testing loop](docs/TEST_LOOP.md).
+
+The lowest-friction remote iteration is: python tools/firetv_test.py --connect FIRE_TV_IP:5555 smoke --latest. It downloads the current GitHub Release browser, verifies its SHA-256 from the release notes, installs it, launches the local HTML input lab, takes a screenshot and checks whether the browser process survives. No repeated manual APK download.
