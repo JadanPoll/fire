@@ -43,3 +43,11 @@ For a trusted developer workstation with ADB on the local network, `adb install 
 The external ChatGPT/Codex website is a convenience bootstrap, not a requirement of the eventual on-device/remote bidirectional control plane. Explicit Silk launch distinguishes a wrong default intent handler from broken rendering or login. A chooser allows testing a second browser. Android WebView generally isn't a safe substitute for Google OAuth, so avoid embedding authenticated ChatGPT WebView as the primary experience.
 
 When reporting browser behavior, distinguish unexpected app opening, empty page, scroll/cursor issues, login loops, and JavaScript compatibility errors. These imply different fixes.
+
+## TV-native WebView browser experiment
+
+AWV is a Chromium renderer already supplied by Fire OS 7. A small Activity is enough for a functional web browser without bundling ~100MB of engine binaries. It allows native Fire TV speech dictation and D-pad pointer events under our control. It does **not** guarantee ChatGPT sign-in or rich-editor behavior, nor constitute native Codex execution.
+
+Use **FIRE BROWSER LAB**. First select INPUT LAB, activate ordinary input, textarea, and rich contenteditable via POINTER+OK and observe keyboard. Then try native SPEAK+PASTE. Finally try the ChatGPT page only if the first tests justify it. Record whether webpage loads, login works, editor is focused, and paste edits it. Keep these as distinct conclusions. A CDN can host a browser UI, not the device's rendering engine.
+
+Browser chooser is now an explicit Android dialog of installed handlers instead of `Intent.createChooser`, which may silently open a single default handler.

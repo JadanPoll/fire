@@ -1,6 +1,8 @@
 package dev.jadan.fire;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import java.util.ArrayList;
 import android.app.ActivityManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -79,7 +81,8 @@ public final class CodexDeskActivity extends Activity {
             speechStatus.setText("Keyboard requested. Hold the remote mic button and speak if dictation appears; otherwise type.");
         });
         button(root,"COPY PROMPT + OPEN CODEX IN SILK",() -> launchSite(CODEX_URL,"silk",true));
-        button(root,"OPEN CODEX — CHOOSE BROWSER",() -> launchSite(CODEX_URL,"choose",false));
+        button(root,"OPEN CODEX — LIST AVAILABLE BROWSERS",this::chooseBrowser);
+        button(root,"TRY FIRE'S OWN WEBVIEW BROWSER",this::openFireBrowser);
         button(root,"OPEN CHATGPT HOME IN SILK",() -> launchSite(CHAT_URL,"silk",false));
         button(root,"OPEN SILK ADDRESS BAR (NO LINK)",this::launchSilkHome);
         button(root,"COPY PROMPT ONLY",this::copy);
@@ -193,7 +196,9 @@ public final class CodexDeskActivity extends Activity {
                     feedback.setText("Silk not available. Showing available browser options.");
                 }
             } else {
-                i=Intent.createChooser(i,"Choose browser for ChatGPT");
+                // Browser selection is handled explicitly, not through Android's implicit chooser.
+                chooseBrowser();
+                return;
             }
             startActivity(i);
             feedback.setText((withCopy?"Prompt copied. ":"") +
@@ -207,6 +212,44 @@ public final class CodexDeskActivity extends Activity {
         } catch (RuntimeException ex) {
             feedback.setText("Browser launch failed: "+ex.getClass().getSimpleName()+": "+ex.getMessage());
         }
+    }
+
+    private void openFireBrowser() {
+        Intent intent=new Intent(this,FireBrowserActivity.class);
+        intent.putExtra("draft",prompt.getText().toString());
+        startActivity(intent);
+    }
+
+    /** Show an actual list even if Android exposes only one browser handler. */
+    private void chooseBrowser() {
+        PackageManager pm=getPackageManager();
+        List<ResolveInfo> found=pm.queryIntentActivities(webIntent(CODEX_URL),PackageManager.MATCH_DEFAULT_ONLY);
+        ArrayList<ResolveInfo> handlers=new ArrayList<>();
+        ArrayList<String> titles=new ArrayList<>();
+        java.util.HashSet<String> ids=new java.util.HashSet<>();
+        for(ResolveInfo candidate:found) {
+            if(candidate.activityInfo==null)continue;
+            String pkg=candidate.activityInfo.packageName;
+            if(ids.add(pkg)){
+                handlers.add(candidate);
+                titles.add(candidate.loadLabel(pm)+" ("+pkg+")");
+            }
+        }
+        titles.add("Fire Browser Lab (built-in WebView)");
+        final int builtIn=handlers.size();
+        new AlertDialog.Builder(this)
+            .setTitle(handlers.size()==1?"Only one external browser detected":"Select a browser")
+            .setMessage(handlers.size()==1?"Android only reports one handler. Previous 'Choose Browser' opened it directly because no alternative was available.":null)
+            .setItems(titles.toArray(new String[0]),(dialog,which)->{
+                if(which==builtIn){openFireBrowser();return;}
+                ResolveInfo target=handlers.get(which);
+                Intent intent=webIntent(CODEX_URL);
+                intent.setClassName(target.activityInfo.packageName,target.activityInfo.name);
+                try{startActivity(intent);
+                    feedback.setText("Launched "+target.loadLabel(pm)+". The website's textbox may still be incompatible.");
+                }catch(Exception ex){feedback.setText("Browser launch failed: "+ex.getMessage());}
+            })
+            .setNegativeButton("Cancel",null).show();
     }
 
     private void launchSilkHome(){

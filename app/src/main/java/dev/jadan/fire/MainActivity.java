@@ -89,6 +89,8 @@ public final class MainActivity extends Activity {
                 startActivity(new Intent(this, CatalogActivity.class)));
         action("INPUT LAB — VIRTUAL POINTER", root, () ->
                 startActivity(new Intent(this, InputLabActivity.class)));
+        action("FIRE BROWSER LAB — WEBVIEW + REMOTE POINTER", root, () ->
+                startActivity(new Intent(this, FireBrowserActivity.class)));
         action("ON-FIRE CODEX — SPEAK, TYPE, WORK", root, () ->
                 startActivity(new Intent(this, CodexDeskActivity.class)));
         action("RETRY LAST VERIFIED APK (NO DOWNLOAD)", root, this::retryInstall);

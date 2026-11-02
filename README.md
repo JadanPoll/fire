@@ -59,3 +59,13 @@ If Codex/ChatGPT fails to open from **ON-FIRE CODEX**, try **COPY PROMPT + OPEN 
 A browser/rendering/login failure can occur independently of intent routing. Amazon recommends clearing Silk's cache and restarting Fire TV for freezes; OpenAI suggests a different browser or clearing affected site cookies for login problems. Embedded Android WebView isn't the default workaround because Google OAuth often rejects embedded user agents. A true two-way native Codex session eventually removes website rendering from the control path.
 
 The dictated draft remains in the Fire UI when the browser opens; any **Copy** action is explicit. A clipboard handoff is not a submitted Codex task.
+
+### Fire Browser Lab — independent TV browser test
+
+The bridge now includes a **WebView Browser Lab** using Fire OS's built-in Chromium-based Amazon WebView (AWV). It is not a second independently shipped Chromium engine. It provides a local ordinary input / textarea / `contenteditable` test page, browser address field (HTTPS only), direct ChatGPT page launch, BACK / reload, D-pad virtual mouse, and a **native SPEAK → PASTE** handoff into the currently focused editable web field. PASTE is explicitly user initiated and **never submits** a message. This tests and potentially works around a missing browser keyboard in contenteditable, but does not guarantee compatibility with React/ProseMirror or any particular website.
+
+The native draft avoids dependence on web IME for dictation, which was already confirmed to work on the Fire TV. The WebView has JavaScript and DOM storage for modern pages, but file access, automatic JS popups, and mixed HTTP content are disabled. It has no native JavaScript command bridge.
+
+**Login warning:** ChatGPT may not support embedded WebViews, particularly Google-account sign-in. Do not enter credentials into an untrusted browser, use an unsupported OAuth workaround, or assume a good local input-probe test proves remote ChatGPT will load. For dependable Codex work, the eventual native app-server bridge remains the primary architecture.
+
+The external browser selector now shows an actual list of eligible installed browsers, even if there is only one. Android's ordinary chooser can directly launch the only handler. Our built-in browser appears as another explicit choice.
