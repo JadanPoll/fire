@@ -157,23 +157,23 @@ public final class CodexDeskActivity extends Activity {
             ResolveInfo chosen = pm.resolveActivity(test,PackageManager.MATCH_DEFAULT_ONLY);
             info.append("Android default link handler: ");
             info.append(chosen == null || chosen.activityInfo == null ? "NONE"
-                    : chosen.activityInfo.packageName).append("\\n");
+                    : chosen.activityInfo.packageName).append("\n");
             List<ResolveInfo> handlers=pm.queryIntentActivities(test,PackageManager.MATCH_DEFAULT_ONLY);
-            info.append("Available handlers: ").append(handlers.size()).append("\\n");
+            info.append("Available handlers: ").append(handlers.size()).append("\n");
             for (int j=0; j<Math.min(6,handlers.size()); j++) {
                 ResolveInfo h=handlers.get(j);
                 if(h.activityInfo!=null)
                     info.append(" - ").append(h.loadLabel(pm)).append(" (")
-                            .append(h.activityInfo.packageName).append(")\\n");
+                            .append(h.activityInfo.packageName).append(")\n");
             }
             pm.getPackageInfo(SILK_PACKAGE,0);
-            info.append("Amazon Silk package: present\\n");
+            info.append("Amazon Silk package: present\n");
         } catch (PackageManager.NameNotFoundException ex){
-            info.append("Amazon Silk package: not found\\n");
+            info.append("Amazon Silk package: not found\n");
         } catch (RuntimeException ex) {
-            info.append("Unable to inspect browser handlers: ").append(ex.getMessage()).append("\\n");
+            info.append("Unable to inspect browser handlers: ").append(ex.getMessage()).append("\n");
         }
-        info.append("The handler is not proof of page compatibility.\\n");
+        info.append("The handler is not proof of page compatibility.\n");
         feedback.setText(info.toString());
     }
 

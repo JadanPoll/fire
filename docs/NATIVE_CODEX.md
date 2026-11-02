@@ -37,3 +37,9 @@ E. Run one real end-to-end experiment in **both directions**: Fire-originated Co
 An ordinary Fire OS 7 app cannot silently install arbitrary APKs: per-source permission + system install approval are controlled by Android. Before this revision, our app automatically opened Developer Options whenever `canRequestPackageInstalls()` returned false, causing repetitive trips. Now it opens the system installer after checksum verification and offers **RETRY VERIFIED APK** without redownload. If installation is blocked, grant the permission once to **Fire TV Dev Bridge** (not only Downloader). A Fire TV Settings bug affecting the unknown-app source list was reported on Fire OS 7 in 2026; confirm whether this device has the fix.
 
 For a trusted developer workstation with ADB on the local network, `adb install -r <APK>` updates apps without per-source unknown-app prompts. A remote agent should not expose the ADB bridge publicly.
+
+## Browser failure is not agent failure
+
+The external ChatGPT/Codex website is a convenience bootstrap, not a requirement of the eventual on-device/remote bidirectional control plane. Explicit Silk launch distinguishes a wrong default intent handler from broken rendering or login. A chooser allows testing a second browser. Android WebView generally isn't a safe substitute for Google OAuth, so avoid embedding authenticated ChatGPT WebView as the primary experience.
+
+When reporting browser behavior, distinguish unexpected app opening, empty page, scroll/cursor issues, login loops, and JavaScript compatibility errors. These imply different fixes.

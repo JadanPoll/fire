@@ -51,3 +51,11 @@ The helper intentionally does **not** implement background polling, automatic re
 4. Investigate optional separately-authorized ADB mode and global input experiments with explicit capability boundaries.
 
 Further details: [Architecture & stopping rules](docs/ARCHITECTURE.md).
+
+### Browser handoff troubleshooting
+
+If Codex/ChatGPT fails to open from **ON-FIRE CODEX**, try **COPY PROMPT + OPEN CODEX IN SILK**. This explicitly targets Amazon Silk (`com.amazon.cloud9`) rather than the generic Fire OS link handler. Other controls offer a browser chooser, the ChatGPT home page, and opening Silk's address bar directly. **REFRESH BROWSER DIAGNOSTICS** reports the default Android handler and available choices. The app only knows whether browser launch was requested, not whether the webpage loaded.
+
+A browser/rendering/login failure can occur independently of intent routing. Amazon recommends clearing Silk's cache and restarting Fire TV for freezes; OpenAI suggests a different browser or clearing affected site cookies for login problems. Embedded Android WebView isn't the default workaround because Google OAuth often rejects embedded user agents. A true two-way native Codex session eventually removes website rendering from the control path.
+
+The dictated draft remains in the Fire UI when the browser opens; any **Copy** action is explicit. A clipboard handoff is not a submitted Codex task.
