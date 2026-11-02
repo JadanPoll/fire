@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "apps": [
+    {
+      "id": "bridge",
+      "name": "Fire TV Dev Bridge",
+      "description": "The development console itself",
+      "package": "dev.jadan.fire",
+      "tag": "firetv-dev-bridge-latest",
+      "asset": "firetv-dev-bridge.apk"
+    },
+    {
+      "id": "canvas",
+      "name": "Remote Canvas",
+      "description": "Independent D-pad-controlled drawing experiment",
+      "package": "dev.jadan.fire.canvas",
+      "tag": "firetv-dev-bridge-latest",
+      "asset": "firetv-remote-canvas.apk"
+    }
+  ]
+}

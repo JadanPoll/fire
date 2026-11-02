@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'app/**'
+      - 'canvas/**'
+      - 'catalog.json'
       - 'signing/**'
       - '*.gradle'
       - 'gradle.properties'
@@ -36,14 +38,19 @@ jobs:
         run: |
           set -euo pipefail
           base64 -d signing/lab.keystore.base64 > signing/lab.keystore
-          gradle --no-daemon :app:assembleRelease
+          gradle --no-daemon :app:assembleRelease :canvas:assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
-          printf 'Version code: %s\nSHA256: %s\n' "$GITHUB_RUN_NUMBER" "$(sha256sum dist/firetv-dev-bridge.apk | cut -d' ' -f1)" > dist/release-notes.txt
+          cp canvas/build/outputs/apk/release/canvas-release.apk dist/firetv-remote-canvas.apk
+          BRIDGE_SHA="$(sha256sum dist/firetv-dev-bridge.apk | cut -d' ' -f1)"
+          CANVAS_SHA="$(sha256sum dist/firetv-remote-canvas.apk | cut -d' ' -f1)"
+          printf 'Version code: %s\nSHA256: %s\nSHA256 firetv-dev-bridge.apk: %s\nSHA256 firetv-remote-canvas.apk: %s\n' "$GITHUB_RUN_NUMBER" "$BRIDGE_SHA" "$BRIDGE_SHA" "$CANVAS_SHA" > dist/release-notes.txt
       - uses: actions/upload-artifact@v4
         with:
           name: firetv-dev-bridge
-          path: dist/firetv-dev-bridge.apk
+          path: |
+            dist/firetv-dev-bridge.apk
+            dist/firetv-remote-canvas.apk
       - name: Publish rolling dev release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -52,6 +59,8 @@ jobs:
           name: Fire TV Dev Bridge (lab)
           prerelease: true
           make_latest: false
-          files: dist/firetv-dev-bridge.apk
+          files: |
+            dist/firetv-dev-bridge.apk
+            dist/firetv-remote-canvas.apk
           body_path: dist/release-notes.txt
           fail_on_unmatched_files: true
