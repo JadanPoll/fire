@@ -6,11 +6,13 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
+import android.content.pm.PackageManager;
+import java.util.List;
 import android.content.ActivityNotFoundException;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.EditorInfo;
@@ -34,6 +36,9 @@ public final class CodexDeskActivity extends Activity {
     private EditText prompt;
     private TextView details, feedback, speechStatus;
     private String lastInput="";
+    private static final String CODEX_URL = "https://chatgpt.com/codex";
+    private static final String CHAT_URL = "https://chatgpt.com/";
+    private static final String SILK_PACKAGE = "com.amazon.cloud9";
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
         ScrollView scroller = new ScrollView(this);
@@ -73,16 +78,22 @@ public final class CodexDeskActivity extends Activity {
             if(input!=null)input.showSoftInput(prompt,InputMethodManager.SHOW_IMPLICIT);
             speechStatus.setText("Keyboard requested. Hold the remote mic button and speak if dictation appears; otherwise type.");
         });
-        button(root,"COPY INTENTION TO CLIPBOARD",this::copy);
-        button(root,"OPEN CODEX CLOUD ON FIRE TV",this::openCodex);
+        button(root,"COPY PROMPT + OPEN CODEX IN SILK",() -> launchSite(CODEX_URL,"silk",true));
+        button(root,"OPEN CODEX — CHOOSE BROWSER",() -> launchSite(CODEX_URL,"choose",false));
+        button(root,"OPEN CHATGPT HOME IN SILK",() -> launchSite(CHAT_URL,"silk",false));
+        button(root,"OPEN SILK ADDRESS BAR (NO LINK)",this::launchSilkHome);
+        button(root,"COPY PROMPT ONLY",this::copy);
+        button(root,"REFRESH BROWSER DIAGNOSTICS",this::browserDiagnostics);
         root.addView(label("LOCAL CODEX HARDWARE PRECHECK",21,0xFF64CAFF));
         details=label("",15,0xFFFFFFFF);
         root.addView(details);
         button(root,"REFRESH ON-FIRE CAPABILITIES",this::scan);
-        feedback=label("Native on-Fire Codex is not installed by this app. No token or unsafe shell command is requested.",15,0xFF9FC8DD);
+        feedback=label("Browser handoff is optional; the speech-dictated prompt stays in this app. No Codex credentials are stored.",15,0xFF9FC8DD);
         root.addView(feedback);
-        root.addView(label("Current practical route: speak/type on Fire, copy and open Codex Cloud; native ARM/Termux app-server is a separate experimental backend.",14,0xFFACC3D3));
+        root.addView(label("If ChatGPT fails to load, choose a different browser, try ChatGPT Home, or open Silk directly. An old browser can fail even when our link opens correctly. Native Codex remains a separate execution path.",14,0xFFACC3D3));
+        if (b!=null) prompt.setText(b.getString("fire_draft",""));
         scan();
+        browserDiagnostics();
     }
     private TextView label(String t,int sp,int color){
         TextView v=new TextView(this);v.setText(t);v.setTextSize(sp);v.setTextColor(color);
@@ -120,15 +131,105 @@ public final class CodexDeskActivity extends Activity {
         details.setText(result.toString());
     }
     private void copy(){
-        String s=prompt.getText().toString().trim();
-        if(s.length()==0){feedback.setText("Nothing to copy. Enter an intention first.");return;}
-        ClipboardManager c=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
-        if(c!=null)c.setPrimaryClip(ClipData.newPlainText("Fire Codex intention",s));
-        feedback.setText("Intention copied. You can paste it into Codex on this TV or a paired workstation.");
+        if(copyInternal()){
+            feedback.setText("Prompt copied to clipboard. Paste it into Codex in an available browser or paired workstation.");
+        } else {
+            feedback.setText("Nothing to copy. Dictate or type an intention first.");
+        }
     }
-    private void openCodex(){
-        Intent i=new Intent(Intent.ACTION_VIEW,Uri.parse("https://chatgpt.com/codex"));
-        try{startActivity(i);feedback.setText("Opened Codex web. Your prompt remains here; use Copy to transfer it.");}
-        catch(ActivityNotFoundException e){feedback.setText("No browser available. Install/open Silk, then use chatgpt.com/codex.");}
+    @Override protected void onSaveInstanceState(Bundle out) {
+        out.putString("fire_draft",prompt.getText().toString());
+        super.onSaveInstanceState(out);
+    }
+
+    private static Intent webIntent(String url) {
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        i.addCategory(Intent.CATEGORY_BROWSABLE);
+        return i;
+    }
+
+    /** Report what Android intends to launch, not whether the destination site can load. */
+    private void browserDiagnostics(){
+        PackageManager pm = getPackageManager();
+        Intent test = webIntent(CODEX_URL);
+        StringBuilder info = new StringBuilder();
+        try {
+            ResolveInfo chosen = pm.resolveActivity(test,PackageManager.MATCH_DEFAULT_ONLY);
+            info.append("Android default link handler: ");
+            info.append(chosen == null || chosen.activityInfo == null ? "NONE"
+                    : chosen.activityInfo.packageName).append("\\n");
+            List<ResolveInfo> handlers=pm.queryIntentActivities(test,PackageManager.MATCH_DEFAULT_ONLY);
+            info.append("Available handlers: ").append(handlers.size()).append("\\n");
+            for (int j=0; j<Math.min(6,handlers.size()); j++) {
+                ResolveInfo h=handlers.get(j);
+                if(h.activityInfo!=null)
+                    info.append(" - ").append(h.loadLabel(pm)).append(" (")
+                            .append(h.activityInfo.packageName).append(")\\n");
+            }
+            pm.getPackageInfo(SILK_PACKAGE,0);
+            info.append("Amazon Silk package: present\\n");
+        } catch (PackageManager.NameNotFoundException ex){
+            info.append("Amazon Silk package: not found\\n");
+        } catch (RuntimeException ex) {
+            info.append("Unable to inspect browser handlers: ").append(ex.getMessage()).append("\\n");
+        }
+        info.append("The handler is not proof of page compatibility.\\n");
+        feedback.setText(info.toString());
+    }
+
+    private void launchSite(String url,String route,boolean withCopy) {
+        if(withCopy && !copyInternal()) {
+            feedback.setText("No prompt to copy. Dictate or type a request first; browser controls are still available.");
+            return;
+        }
+        try {
+            Intent i=webIntent(url);
+            if("silk".equals(route)) {
+                i.setPackage(SILK_PACKAGE);
+                // Explicitly target Silk rather than the Fire OS default web link handler.
+                // If Silk is absent, offer the system browser chooser instead.
+                if(i.resolveActivity(getPackageManager())==null) {
+                    i=Intent.createChooser(webIntent(url),"Choose installed browser");
+                    feedback.setText("Silk not available. Showing available browser options.");
+                }
+            } else {
+                i=Intent.createChooser(i,"Choose browser for ChatGPT");
+            }
+            startActivity(i);
+            feedback.setText((withCopy?"Prompt copied. ":"") +
+                    "Browser launch requested for "+url+". This does not confirm ChatGPT loaded. " +
+                    "Return to fire if it fails; your dictated draft remains here.");
+        } catch (ActivityNotFoundException ex) {
+            feedback.setText("No app can open ChatGPT links. Install or launch Silk using the Fire TV Apps menu. " +
+                    "Your prompt remains in fire.");
+        } catch (SecurityException ex) {
+            feedback.setText("Fire OS denied opening this browser: "+ex.getMessage());
+        } catch (RuntimeException ex) {
+            feedback.setText("Browser launch failed: "+ex.getClass().getSimpleName()+": "+ex.getMessage());
+        }
+    }
+
+    private void launchSilkHome(){
+        try {
+            Intent i=getPackageManager().getLaunchIntentForPackage(SILK_PACKAGE);
+            if(i==null) {
+                feedback.setText("Silk launcher not found. Install or open the Internet app from Fire TV Apps.");
+                return;
+            }
+            startActivity(i);
+            feedback.setText("Silk launched directly. Enter chatgpt.com/codex in its address bar. " +
+                    "Your dictated prompt is still saved in this screen.");
+        } catch(Exception ex) {
+            feedback.setText("Could not launch Silk: "+ex.getMessage());
+        }
+    }
+
+    private boolean copyInternal(){
+        String s=prompt.getText().toString().trim();
+        if(s.length()==0) return false;
+        ClipboardManager c=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+        if(c==null)return false;
+        c.setPrimaryClip(ClipData.newPlainText("Fire Codex intention",s));
+        return true;
     }
 }
