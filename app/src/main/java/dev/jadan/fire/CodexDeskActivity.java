@@ -215,9 +215,18 @@ public final class CodexDeskActivity extends Activity {
     }
 
     private void openFireBrowser() {
-        Intent intent=new Intent(this,FireBrowserActivity.class);
-        intent.putExtra("draft",prompt.getText().toString());
-        startActivity(intent);
+        String draft=prompt.getText().toString();
+        Intent installed=getPackageManager().getLaunchIntentForPackage("dev.jadan.fire.browser");
+        if(installed!=null){
+            installed.putExtra("draft",draft);
+            startActivity(installed);
+            return;
+        }
+        // The lab remains available until the standalone APK has been installed.
+        Intent fallback=new Intent(this,FireBrowserActivity.class);
+        fallback.putExtra("draft",draft);
+        startActivity(fallback);
+        feedback.setText("Standalone Fire Browser not yet installed. Open APP CATALOG to install it; this is the older built-in lab.");
     }
 
     /** Show an actual list even if Android exposes only one browser handler. */

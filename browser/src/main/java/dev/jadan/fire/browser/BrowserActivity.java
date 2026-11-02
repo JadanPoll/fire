@@ -107,6 +107,8 @@ public final class BrowserActivity extends Activity {
         button(reading,"RECENT",this::showRecent);
         button(reading,"A −",()->changeTextZoom(-15));
         button(reading,"A +",()->changeTextZoom(15));
+        button(reading,"PAGE −",()->zoomPage(false));
+        button(reading,"PAGE +",()->zoomPage(true));
         button(reading,"HOME",()->loadUrl(HOME));
 
         LinearLayout composing=new LinearLayout(this);
@@ -374,6 +376,11 @@ public final class BrowserActivity extends Activity {
         if(key==KeyEvent.KEYCODE_DPAD_UP)y=Math.max(.02f,y-delta/h);
         if(key==KeyEvent.KEYCODE_DPAD_DOWN)y=Math.min(.98f,y+delta/h);
         cursor.invalidate();
+    }
+    private void zoomPage(boolean larger){
+        if(web==null){status.setText("Browser is recovering; try again.");return;}
+        boolean ok=larger?web.zoomIn():web.zoomOut();
+        status.setText(ok?"Page zoom adjusted. A+ / A− persist text size.":"Page zoom at browser limit. Try A+ / A−.");
     }
     private void changeTextZoom(int delta){
         textZoom=Math.max(100,Math.min(200,textZoom+delta));
