@@ -97,6 +97,21 @@ final class TvUi {
         parent.addView(b,lp);
         return b;
     }
+    static LinearLayout actionRow(Activity a,LinearLayout parent){
+        LinearLayout row=new LinearLayout(a);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+        lp.bottomMargin=dp(a,9);
+        parent.addView(row,lp);
+        return row;
+    }
+    static Button actionInRow(Activity a,LinearLayout row,String title,Runnable callback){
+        Button b=button(a,title,callback);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);
+        lp.rightMargin=dp(a,9);
+        row.addView(b,lp);
+        return b;
+    }
     static void field(Activity a,EditText edit){
         edit.setTextColor(INK);
         edit.setHintTextColor(0xFF6E869A);
