@@ -13,6 +13,12 @@ common=(src/"TvUi.java").read_text(encoding="utf-8")
 assert "SOFT_INPUT_STATE_ALWAYS_HIDDEN" in terminal
 assert "SOFT_INPUT_ADJUST_RESIZE" in terminal
 assert "setShowSoftInputOnFocus(false)" in terminal
+# Explicit TYPE must re-enable the input connection before requesting the IME.
+assert "entry.setShowSoftInputOnFocus(true);" in terminal
+open_method=terminal.split("private void openKeyboard()")[1].split("private void hideKeyboard()")[0]
+assert open_method.index("setShowSoftInputOnFocus(true)") < open_method.index("requestFocus()") < open_method.index("showSoftInput(entry,0)")
+hide_method=terminal.split("private void hideKeyboard()")[1].split("private void stop()")[0]
+assert "entry.setShowSoftInputOnFocus(false)" in hide_method
 assert "private void hideKeyboard()" in terminal
 assert 'button(actions,"HIDE",this::hideKeyboard)' in terminal
 assert "type.requestFocus();" in terminal
