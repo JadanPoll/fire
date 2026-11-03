@@ -129,3 +129,11 @@ software keyboard can commit a newline directly without a KeyEvent;
 Java key mapping cannot guarantee it becomes ChatGPT Send. The native
 SPEAK/SEND controls remain available. STATS records only last raw Enter
 key metadata, not typed text, to distinguish these cases.
+
+## Compact UI and Fire keyboard Next instrumentation
+
+Default UI: address field, GO, MENU, CURSOR, native dictation field, VOICE and SEND. MENU is a single floating navigation row, with further actions in MORE. Normal pointer mode covers browser controls and webpage without moving the webpage's layout when MENU opens.
+
+Pointer motion uses a fine initial nudge and Choreographer-paced acceleration, not OS key-repeat jumps. A small translated cursor layer avoids redrawing an entire 1080p overlay each frame. This is a code-backed improvement hypothesis, not proof of physical TV smoothness.
+
+The Fire TV IME may use EditorInfo editor actions, InputConnection.commitText(newline), or soft KEYCODE_ENTER rather than Activity.dispatchKeyEvent. The WebView now wraps its original InputConnection while preserving normal input operations; the targeted action tries submission only if the ChatGPT composer has been identified. The native VOICE field handles Next/Done/Send/Go. In MENU → MORE → Browser diagnostics check Last web IME submit and Last raw Enter after trying Next. If both show none, Fire OS may have routed the key through another path; do not add another blind interception hook without tracing it first.
