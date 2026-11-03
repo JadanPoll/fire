@@ -3,12 +3,14 @@ pluginManagement {
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories { google(); mavenCentral() }
+    repositories { google(); mavenCentral(); maven { url 'https://jitpack.io' } }
 }
 rootProject.name = 'FireTVDevBridge'
 include ':app'
 include ':canvas'
 include ':browser'
+include ':gbaplayer'
+project(':gbaplayer').projectDir = file('Applications/GBAPlayer')
 
 // AppOS reference app: independent APK, never linked into Fire Console.
 include ':signalstudio'

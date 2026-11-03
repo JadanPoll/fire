@@ -21,6 +21,27 @@
       "implemented": true,
       "risk": "low",
       "provider": "Applications/SignalStudio/src/main/java/dev/jadan/fire/signalstudio/SignalActivity.java"
+    },
+    {
+      "id": "emulator.gba",
+      "description": "Native Android libretro mGBA emulation of user-supplied GBA software",
+      "risk": "device",
+      "implemented": true,
+      "provider": "Applications/GBAPlayer/src/main/java/dev/jadan/fire/gbaplayer/GbaGameActivity.kt"
+    },
+    {
+      "id": "storage.app",
+      "description": "Android per-application ROM and game-save storage",
+      "risk": "filesystem",
+      "implemented": true,
+      "provider": "Applications/GBAPlayer/src/main/java/dev/jadan/fire/gbaplayer/GbaGameActivity.kt"
+    },
+    {
+      "id": "audio.output",
+      "description": "Foreground emulation audio playback via LibretroDroid",
+      "risk": "device",
+      "implemented": true,
+      "provider": "Applications/GBAPlayer/src/main/java/dev/jadan/fire/gbaplayer/GbaGameActivity.kt"
     }
   ]
 }
