@@ -32,6 +32,14 @@
       "package": "dev.jadan.fire.signalstudio",
       "tag": "firetv-dev-bridge-latest",
       "asset": "firetv-signal-studio.apk"
+    },
+    {
+      "id": "gbaplayer",
+      "name": "Fire GBA",
+      "description": "Native mGBA player with Fire remote mappings and offline ROM/saves",
+      "package": "dev.jadan.fire.gbaplayer",
+      "tag": "firetv-dev-bridge-latest",
+      "asset": "firetv-gba-player.apk"
     }
   ]
 }
