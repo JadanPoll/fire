@@ -54,7 +54,8 @@ jobs:
           python3 tools/check_console_manifest.py
           python3 tools/check_tv_ui_contract.py
           python3 tools/check_gba_contract.py
-          python3 -m py_compile tools/check_appos_contract.py tools/test_appos_contract.py
+          python3 -m py_compile tools/check_appos_contract.py tools/test_appos_contract.py tools/fetch_gba_core.py
+          python3 -m unittest discover -s tools -p 'test_fetch_gba_core.py' -v
           python3 -m unittest discover -s tools -p 'test_appos_contract.py' -v
           python3 tools/check_appos_contract.py
           python3 tools/check_appos_contract.py --json > /tmp/fire-appos-index.json
@@ -63,20 +64,28 @@ jobs:
         run: |
           set -euo pipefail
           base64 -d signing/lab.keystore.base64 > signing/lab.keystore
-          gradle --no-daemon :browser:testReleaseUnitTest :app:testReleaseUnitTest :signalstudio:testReleaseUnitTest :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease :signalstudio:assembleRelease
+          # Exact core files pinned by upstream Git blob, no game files fetched.
+          python3 tools/fetch_gba_core.py
+          python3 tools/fetch_gba_core.py --check-only
+          gradle --no-daemon :browser:testReleaseUnitTest :app:testReleaseUnitTest :signalstudio:testReleaseUnitTest :gbaplayer:testReleaseUnitTest :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease :signalstudio:assembleRelease :gbaplayer:assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
           cp canvas/build/outputs/apk/release/canvas-release.apk dist/firetv-remote-canvas.apk
           cp browser/build/outputs/apk/release/browser-release.apk dist/firetv-browser.apk
           cp Applications/SignalStudio/build/outputs/apk/release/signalstudio-release.apk dist/firetv-signal-studio.apk
           cp Applications/SignalStudio/appos.json dist/firetv-signal-studio.appos.json
+          cp Applications/GBAPlayer/build/outputs/apk/release/gbaplayer-release.apk dist/firetv-gba-player.apk
+          cp Applications/GBAPlayer/appos.json dist/firetv-gba-player.appos.json
           BRIDGE_SHA="$(sha256sum dist/firetv-dev-bridge.apk | cut -d' ' -f1)"
           CANVAS_SHA="$(sha256sum dist/firetv-remote-canvas.apk | cut -d' ' -f1)"
           BROWSER_SHA="$(sha256sum dist/firetv-browser.apk | cut -d' ' -f1)"
           SIGNAL_SHA="$(sha256sum dist/firetv-signal-studio.apk | cut -d' ' -f1)"
           SIGNAL_MANIFEST_SHA="$(sha256sum dist/firetv-signal-studio.appos.json | cut -d' ' -f1)"
+          GBA_SHA="$(sha256sum dist/firetv-gba-player.apk | cut -d' ' -f1)"
+          GBA_MANIFEST_SHA="$(sha256sum dist/firetv-gba-player.appos.json | cut -d' ' -f1)"
           printf 'Version code: %s\nSHA256: %s\nSHA256 firetv-dev-bridge.apk: %s\nSHA256 firetv-remote-canvas.apk: %s\nSHA256 firetv-browser.apk: %s\n' "$GITHUB_RUN_NUMBER" "$BRIDGE_SHA" "$BRIDGE_SHA" "$CANVAS_SHA" "$BROWSER_SHA" > dist/release-notes.txt
           printf 'SHA256 firetv-signal-studio.apk: %s\nSHA256 firetv-signal-studio.appos.json: %s\nSource commit: %s\n' "$SIGNAL_SHA" "$SIGNAL_MANIFEST_SHA" "$GITHUB_SHA" >> dist/release-notes.txt
+          printf 'SHA256 firetv-gba-player.apk: %s\nSHA256 firetv-gba-player.appos.json: %s\n' "$GBA_SHA" "$GBA_MANIFEST_SHA" >> dist/release-notes.txt
       - uses: actions/upload-artifact@v4
         with:
           name: firetv-dev-bridge
@@ -86,6 +95,8 @@ jobs:
             dist/firetv-browser.apk
             dist/firetv-signal-studio.apk
             dist/firetv-signal-studio.appos.json
+            dist/firetv-gba-player.apk
+            dist/firetv-gba-player.appos.json
       - name: Publish rolling dev release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -100,5 +111,7 @@ jobs:
             dist/firetv-browser.apk
             dist/firetv-signal-studio.apk
             dist/firetv-signal-studio.appos.json
+            dist/firetv-gba-player.apk
+            dist/firetv-gba-player.appos.json
           body_path: dist/release-notes.txt
           fail_on_unmatched_files: true
