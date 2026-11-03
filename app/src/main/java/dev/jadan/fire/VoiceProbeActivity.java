@@ -50,7 +50,6 @@ public final class VoiceProbeActivity extends Activity {
         root.addView(TvUi.header(this,"VOICE  /  RECOVERY"));
         root.addView(text("A cheap test of what this particular Fire TV actually exposes.",17,0xFFE6F0F6));
         report = text("",16,0xFFE6F0F6);
-        root.addView(report);
         root.addView(TvUi.section(this,"FIRE KEYBOARD & DICTATION"));
         root.addView(text("Dictation here belongs to Fire OS, not this app. If its system service fails, reopening an app cannot restart it.",15,0xFFBFD7E6));
         keyboardTest=new EditText(this);
@@ -75,13 +74,18 @@ public final class VoiceProbeActivity extends Activity {
             }
             @Override public void afterTextChanged(Editable edit){}
         });
-        button(root,"OPEN FIRE KEYBOARD FOR VOICE TEST",this::testKeyboard);
-        button(root,"RECONNECT THIS TEXT FIELD (SAFE)",this::reconnectKeyboard);
+        LinearLayout keyboardOps=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,keyboardOps,"OPEN FIRE KEYBOARD",this::testKeyboard);
+        TvUi.actionInRow(this,keyboardOps,"RECONNECT TEXT FIELD",this::reconnectKeyboard);
         root.addView(text("RECONNECT only refreshes this app's input connection. If the mic button instead opens Alexa, disappears, or crashes, the problem can be in the Fire OS keyboard/voice service.",14,0xFF9FC1D7));
-        button(root,"OPEN FIRE TV SYSTEM SETTINGS",this::openSystemSettings);
-        Button scan = button(root,"SCAN AUDIO INPUTS AND SPEECH SERVICES",this::scan);
-        button(root,"TRY ANDROID SPEECH RECOGNITION",this::trySpeech);
-        button(root,"COPY DIAGNOSTIC REPORT",this::copy);
+        root.addView(TvUi.section(this,"DIAGNOSTICS & RECOVERY"));
+        LinearLayout diagnostics=TvUi.actionRow(this,root);
+        Button scan=TvUi.actionInRow(this,diagnostics,"SCAN AUDIO / SPEECH",this::scan);
+        TvUi.actionInRow(this,diagnostics,"TEST ANDROID RECOGNIZER",this::trySpeech);
+        LinearLayout utilities=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,utilities,"FIRE TV SETTINGS",this::openSystemSettings);
+        TvUi.actionInRow(this,utilities,"COPY REPORT",this::copy);
+        root.addView(report);
         root.addView(text("Alexa remote voice button is system-owned and cannot be intercepted as an ordinary app key. " +
                 "A reported recognition service or microphone does not prove that Alexa remote audio is available.",
                 15,0xFFABC4D8));
