@@ -60,13 +60,12 @@ public final class CodexDeskActivity extends Activity {
         super.onCreate(b);
         ScrollView scroller = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
-        root.setPadding(28,20,28,20);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF102132);
+        TvUi.page(this,root);
         scroller.addView(root);
         setContentView(scroller);
-        root.addView(label("CODEX  /  ON FIRE",27,0xFF64CAFF));
-        root.addView(label("Same workspace goal: run Codex here, or continue on a trusted remote executor. Voice and typing share one intention.",16,0xFFDEEBF3));
+        root.addView(TvUi.header(this,"CODEX  /  WORKBENCH"));
+        root.addView(TvUi.text(this,"One intention, locally drafted or executed in a paired workspace.",16,TvUi.SUB));
+        root.addView(TvUi.section(this,"YOUR NEXT EXPERIMENT"));
 
         prompt = new EditText(this);
         prompt.setSingleLine(false);
@@ -76,6 +75,8 @@ public final class CodexDeskActivity extends Activity {
         prompt.setHintTextColor(0xFF607080);
         prompt.setBackgroundColor(0xFFE3EEF5);
         prompt.setPadding(16,16,16,16);
+        TvUi.field(this,prompt);
+        prompt.setShowSoftInputOnFocus(false);
         prompt.setHint("Describe your next experiment. You can try the Fire TV keyboard microphone.");
         prompt.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_DONE);
         root.addView(prompt,new LinearLayout.LayoutParams(-1,-2));
@@ -95,6 +96,8 @@ public final class CodexDeskActivity extends Activity {
             if(input!=null)input.showSoftInput(prompt,InputMethodManager.SHOW_IMPLICIT);
             speechStatus.setText("Keyboard requested. Hold the remote mic button and speak if dictation appears; otherwise type.");
         });
+        buildExecutorUi(root);
+        root.addView(TvUi.section(this,"CLOUD & BROWSER FALLBACK"));
         button(root,"COPY PROMPT + OPEN CODEX IN SILK",() -> launchSite(CODEX_URL,"silk",true));
         button(root,"OPEN CODEX — LIST AVAILABLE BROWSERS",this::chooseBrowser);
         button(root,"TRY FIRE'S OWN WEBVIEW BROWSER",this::openFireBrowser);
@@ -102,13 +105,13 @@ public final class CodexDeskActivity extends Activity {
         button(root,"OPEN SILK ADDRESS BAR (NO LINK)",this::launchSilkHome);
         button(root,"COPY PROMPT ONLY",this::copy);
         button(root,"REFRESH BROWSER DIAGNOSTICS",this::browserDiagnostics);
+        root.addView(TvUi.section(this,"DEVICE CAPABILITIES"));
         root.addView(label("LOCAL CODEX HARDWARE PRECHECK",21,0xFF64CAFF));
         details=label("",15,0xFFFFFFFF);
         root.addView(details);
         button(root,"REFRESH ON-FIRE CAPABILITIES",this::scan);
         feedback=label("Browser handoff is optional; the speech-dictated prompt stays in this app. No Codex credentials are stored.",15,0xFF9FC8DD);
         root.addView(feedback);
-        buildExecutorUi(root);
         root.addView(label("If ChatGPT fails to load, choose a different browser, try ChatGPT Home, or open Silk directly. An old browser can fail even when our link opens correctly. Native Codex remains a separate execution path.",14,0xFFACC3D3));
         if (b!=null) prompt.setText(b.getString("fire_draft",""));
         scan();
@@ -127,6 +130,7 @@ public final class CodexDeskActivity extends Activity {
         executorUrl.setBackgroundColor(0xFFE3EEF5);
         executorUrl.setHint("https://your-private-executor.example");
         executorUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        TvUi.field(this,executorUrl);
         root.addView(executorUrl,new LinearLayout.LayoutParams(-1,-2));
         pairingToken = new EditText(this);
         pairingToken.setSingleLine(true);
@@ -134,6 +138,7 @@ public final class CodexDeskActivity extends Activity {
         pairingToken.setBackgroundColor(0xFFE3EEF5);
         pairingToken.setHint("Executor pairing token (not OpenAI credentials)");
         pairingToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        TvUi.field(this,pairingToken);
         root.addView(pairingToken,new LinearLayout.LayoutParams(-1,-2));
         button(root,"TEST EXECUTOR PAIRING",()->remoteAction("probe"));
         button(root,"RUN DRAFT WITH CODEX ON PAIRED WORKSPACE",()->remoteAction("submit"));
@@ -220,15 +225,10 @@ public final class CodexDeskActivity extends Activity {
     }
 
     private TextView label(String t,int sp,int color){
-        TextView v=new TextView(this);v.setText(t);v.setTextSize(sp);v.setTextColor(color);
-        v.setPadding(0,12,0,12);return v;
+        return TvUi.text(this,t,sp,sp>=17?TvUi.INK:TvUi.SUB);
     }
-    private void button(LinearLayout root,String t,Runnable action){
-        Button b=new Button(this);b.setAllCaps(false);b.setText(t);b.setMinHeight(68);
-        b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xFF2D4B65);
-        b.setOnFocusChangeListener((v,f)->b.setBackgroundColor(f?0xFF176FA3:0xFF2D4B65));
-        b.setOnClickListener(v->action.run());
-        root.addView(b);
+    private void button(LinearLayout root,String title,Runnable action){
+        TvUi.action(this,root,title,action);
     }
     private void scan(){
         StringBuilder result=new StringBuilder();
