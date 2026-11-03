@@ -46,7 +46,7 @@ def validate_manifest(data,location,root):
     require(type(data["schema_version"]) is int and data["schema_version"]==1,
             "unsupported manifest version")
     for key,pattern in (("id",r"[a-z][a-z0-9]*(?:[.][a-z0-9]+){1,6}"),
-                        ("name",r"[^\\x00-\\x1f]{1,64}"),
+                        ("name",r"[^\x00-\x1f]{1,64}"),
                         ("version",r"[0-9]+[.][0-9]+[.][0-9]+")):
         require(type(data[key]) is str and
                 re.fullmatch(pattern,data[key]) is not None,f"invalid {key}")
@@ -95,8 +95,8 @@ def validate_manifest(data,location,root):
                 launcher=True
     require(launcher,"no exported Android TV launcher")
     gradle=(location/"build.gradle").read_text(encoding="utf-8")
-    require(re.search(r"applicationId\\s+['\\\"]"+
-                      re.escape(entry["package"])+r"['\\\"]",gradle) is not None,
+    require(("applicationId '"+entry["package"]+"'") in gradle or
+            ('applicationId "'+entry["package"]+'"') in gradle,
             "APK applicationId mismatch")
     # No arbitrary build/process commands are run during discovery.
     return {"id":data["id"],"name":data["name"],"version":data["version"],
@@ -112,8 +112,8 @@ def discover(root=ROOT):
     discovered=[]
     seen_ids=set();seen_packages=set();seen_assets=set()
     for location in sorted(application_root.iterdir()):
-        if not location.is_dir() or location.is_symlink() or
-           not (location/"appos.json").is_file():
+        if (not location.is_dir() or location.is_symlink() or
+                not (location/"appos.json").is_file()):
             continue
         data=json.loads((location/"appos.json").read_text(encoding="utf-8"))
         item=validate_manifest(data,location,root)
