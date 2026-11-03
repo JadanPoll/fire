@@ -30,6 +30,10 @@ import android.view.KeyEvent;
 import android.view.KeyCharacterMap;
 import android.view.MotionEvent;
 import android.view.InputDevice;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -80,6 +84,10 @@ public final class BrowserActivity extends Activity {
     private boolean reducedMotion;
     private boolean devtoolsEnabled;
     private boolean remoteMediaShortcuts;
+    private MediaSession pointerMediaSession;
+    private boolean browserForeground;
+    private long lastMediaToggleAt, lastMediaNavigationAt;
+    private String lastMediaDelivery="none";
     private boolean thirdPartyCookies;
     private final ExecutorService cookieWriter=Executors.newSingleThreadExecutor(r->{
         Thread t=new Thread(r,"FireBrowser-Cookies");t.setDaemon(true);return t;
@@ -509,14 +517,62 @@ public final class BrowserActivity extends Activity {
         if(web!=null&&web.canGoForward())web.goForward();
         else status.setText("No later page.");
     }
-    private boolean nonMediaSite(){
-        if(web==null)return false;
-        try{
-            Uri url=Uri.parse(web.getUrl());
-            String host=url.getHost();
-            return "chatgpt.com".equals(host)||"www.google.com".equals(host)||"google.com".equals(host);
-        }catch(Exception e){return false;}
+    /**
+     * Android routes some Fire TV media keys to the active MediaSession, not
+     * Activity.dispatchKeyEvent. This session only exists when the user opts
+     * into REMOTE shortcuts, and is active only while this Activity is resumed.
+     * It does NOT install a background receiver or steal Home/Alexa/volume.
+     */
+    private void refreshMediaSession(){
+        if(!remoteMediaShortcuts || !browserForeground){
+            if(pointerMediaSession!=null)pointerMediaSession.setActive(false);
+            return;
+        }
+        if(pointerMediaSession==null){
+            pointerMediaSession=new MediaSession(this,"FireBrowserPointer");
+            pointerMediaSession.setCallback(new MediaSession.Callback(){
+                @Override public boolean onMediaButtonEvent(Intent intent){
+                    KeyEvent event=intent==null?null:intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                    if(event==null)return false;
+                    return handleMediaShortcut(event,"media session");
+                }
+            },new Handler(Looper.getMainLooper()));
+            pointerMediaSession.setPlaybackState(new PlaybackState.Builder()
+                .setActions(PlaybackState.ACTION_PLAY_PAUSE|PlaybackState.ACTION_PLAY|
+                    PlaybackState.ACTION_PAUSE|PlaybackState.ACTION_FAST_FORWARD|
+                    PlaybackState.ACTION_REWIND)
+                .setState(PlaybackState.STATE_PAUSED,
+                    PlaybackState.PLAYBACK_POSITION_UNKNOWN,1f).build());
+        }
+        pointerMediaSession.setActive(true);
     }
+    private boolean handleMediaShortcut(KeyEvent event,String source){
+        if(!remoteMediaShortcuts || !browserForeground)return false;
+        int key=event.getKeyCode();
+        boolean toggle=key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+            key==KeyEvent.KEYCODE_MEDIA_PLAY || key==KeyEvent.KEYCODE_MEDIA_PAUSE;
+        boolean back=key==KeyEvent.KEYCODE_MEDIA_REWIND;
+        boolean forward=key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD;
+        if(!toggle && !back && !forward)return false;
+        lastMediaDelivery=source+": "+KeyEvent.keyCodeToString(key)+
+            " "+(event.getAction()==KeyEvent.ACTION_DOWN?"DOWN":"UP");
+        if(event.getAction()!=KeyEvent.ACTION_DOWN || event.getRepeatCount()>0)return true;
+        long now=SystemClock.uptimeMillis();
+        if(toggle){
+            // Several Fire remotes issue both PLAY and PAUSE for one gesture.
+            if(now-lastMediaToggleAt>=300){
+                lastMediaToggleAt=now;
+                togglePointer();
+                status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+
+                    " ("+source+").");
+            }
+        }else if(now-lastMediaNavigationAt>=300){
+            lastMediaNavigationAt=now;
+            if(back)browseBack();else browseForward();
+        }
+        return true;
+    }
+
     private void showKeyboard(View view){
         stopMotion();pointerMode=false;updateCursorVisual();
         view.requestFocus();
@@ -526,7 +582,8 @@ public final class BrowserActivity extends Activity {
     }
     private void loadUrl(String url){
         webEditorFocused=false;
-        stopMotion();pointerMode=false;updateCursorVisual();
+        // A navigation does not change the operator's selected interaction mode.
+        stopMotion();updateCursorVisual();
         if(!url.startsWith("https://")){
             status.setText("Only HTTPS websites are supported in this lab.");
             return;
@@ -548,7 +605,7 @@ public final class BrowserActivity extends Activity {
     }
     private void loadProbe(){
         webEditorFocused=false;
-        stopMotion();pointerMode=false;updateCursorVisual();
+        stopMotion();updateCursorVisual();
         String html="<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"+
             "<style>body{font-family:sans-serif;padding:18px;background:#e7f4fc;color:#123}"+
             "textarea,input,[contenteditable]{box-sizing:border-box;width:100%;font-size:24px;padding:14px;"+
@@ -581,16 +638,9 @@ public final class BrowserActivity extends Activity {
             if(ev.getAction()==KeyEvent.ACTION_UP)toggleTools();
             return true;
         }
-        // Do not hijack playback keys on arbitrary video/media websites.
-        if(remoteMediaShortcuts && nonMediaSite() && (key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
-            key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || key==KeyEvent.KEYCODE_MEDIA_REWIND)){
-            if(ev.getAction()==KeyEvent.ACTION_UP){
-                if(key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)togglePointer();
-                else if(key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)browseForward();
-                else browseBack();
-            }
-            return true;
-        }
+        // Activity key delivery is a fallback for keys that are not routed to
+        // the foreground MediaSession. Shared debouncing avoids double toggles.
+        if(handleMediaShortcut(ev,"activity"))return true;
         // Raw Enter from a hardware keyboard may produce a newline in a rich
         // composer. Shift+Enter still passes through. A Fire OS IME may commit
         // text without key events; native SEND remains the reliable fallback.
@@ -1117,6 +1167,9 @@ public final class BrowserActivity extends Activity {
         }
         sb.append("Last web IME submit: ").append(lastWebImeAction).append('\n');
         sb.append("Media-button shortcuts: ").append(remoteMediaShortcuts).append('\n');
+        sb.append("Media session active: ").append(pointerMediaSession!=null && pointerMediaSession.isActive()).append('\n');
+        sb.append("Last media delivery: ").append(lastMediaDelivery).append('\n');
+        sb.append("Navigation preserves pointer mode: yes").append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
           .append("These numbers do not measure JavaScript heap or establish root cause.");
         String report=sb.toString();
@@ -1131,9 +1184,10 @@ public final class BrowserActivity extends Activity {
     private void toggleRemoteShortcuts(){
         remoteMediaShortcuts=!remoteMediaShortcuts;
         prefs.edit().putBoolean("remote_media_shortcuts",remoteMediaShortcuts).apply();
+        refreshMediaSession();
         status.setText(remoteMediaShortcuts?
-            "Remote shortcuts ON: Play/Pause=pointer, Rewind/FF=Back/Forward on ChatGPT/Google. MENU=tools.":
-            "Media buttons restored to normal media handling. MENU still opens tools.");
+            "REMOTE ON: Play/Pause toggles pointer on any page; Rewind/FF navigate. Media playback buttons are intercepted while Fire Browser is in front. MENU and CURSOR remain alternatives.":
+            "REMOTE OFF: media buttons restored to system/video handling; CURSOR always works.");
     }
     private void toggleInspection(){
         if(devtoolsEnabled){
@@ -1205,6 +1259,8 @@ public final class BrowserActivity extends Activity {
         super.onBackPressed();
     }
     @Override protected void onPause(){
+        browserForeground=false;
+        refreshMediaSession();
         stopMotion();
         scheduleCookieFlush();
         if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(false);
@@ -1213,6 +1269,8 @@ public final class BrowserActivity extends Activity {
     }
     @Override protected void onResume(){
         super.onResume();
+        browserForeground=true;
+        refreshMediaSession();
         if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(true);
         if(web!=null)web.onResume();
     }
@@ -1233,6 +1291,11 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
+        if(pointerMediaSession!=null){
+            pointerMediaSession.setActive(false);
+            pointerMediaSession.release();
+            pointerMediaSession=null;
+        }
         scheduleCookieFlush();
         cookieWriter.shutdown();
         if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(false);
