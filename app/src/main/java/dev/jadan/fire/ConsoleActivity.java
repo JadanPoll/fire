@@ -181,6 +181,15 @@ public final class ConsoleActivity extends Activity {
                     " · Open Tools → App Catalog if missing");
             }
         });
+        if("Codex".equals(item.name)){
+            // Developer shortcut: long-press OK while Codex is focused.
+            // No hidden network listener or system-wide key interception.
+            card.setLongClickable(true);
+            card.setOnLongClickListener(v->{
+                startActivity(new Intent(this,TerminalActivity.class));
+                return true;
+            });
+        }
         card.setContentDescription(item.name+": "+item.subtitle);
         return card;
     }
