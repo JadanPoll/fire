@@ -137,3 +137,47 @@ Default UI: address field, GO, MENU, CURSOR, native dictation field, VOICE and S
 Pointer motion uses a fine initial nudge and Choreographer-paced acceleration, not OS key-repeat jumps. A small translated cursor layer avoids redrawing an entire 1080p overlay each frame. This is a code-backed improvement hypothesis, not proof of physical TV smoothness.
 
 The Fire TV IME may use EditorInfo editor actions, InputConnection.commitText(newline), or soft KEYCODE_ENTER rather than Activity.dispatchKeyEvent. The WebView now wraps its original InputConnection while preserving normal input operations; the targeted action tries submission only if the ChatGPT composer has been identified. The native VOICE field handles Next/Done/Send/Go. In MENU → MORE → Browser diagnostics check Last web IME submit and Last raw Enter after trying Next. If both show none, Fire OS may have routed the key through another path; do not add another blind interception hook without tracing it first.
+
+## Fire Inbox bug reports: pointer scrolling, renderer failures and cookies
+
+When pointer mode is ON, pushing the D-pad toward the **WebView's** top or
+bottom edge sends a throttled mouse-wheel event at the pointer's x coordinate.
+It can scroll nested website panels; it does not call the top-level
+`WebView.scrollBy()` or inject a DOM scroll implementation. A held key-up
+watchdog stops runaway movement if the Fire remote never releases a key.
+
+A disappearing page is not necessarily a crashing app. Browser diagnostics
+(MENU → MORE → Browser diagnostics) records the most recent pointer action,
+renderer exit, and recovery count without recording the URL or typed text.
+The renderer cleanup now happens synchronously as Android's WebView API
+recommends. A renderer crash recovers to the input lab to avoid automatically
+restarting a known-crashing page. The previous URL remains available in RECENT.
+
+From an authorized device on the same local network:
+
+    python tools/firetv_test.py --serial TV_IP:5555 errors
+
+This saves a bounded logcat subset (FireBrowser and Android WebView/crash
+tags) under .fire-tests/. It is not uploaded automatically. Review crash
+stacks before sharing: exceptional logs can still include private text.
+
+For a non-posting smoke test of the deployed Fire Inbox:
+
+    python tools/firetv_test.py --serial TV_IP:5555 inbox
+
+This opens the Site and captures a screenshot. It does not test actual
+saving; the existing Fire Inbox test message is stronger evidence of
+the posting flow.
+
+Cookie handling: Android CookieManager.flush() runs on a background worker
+after HTTPS page loads and when the Activity pauses/destroys. Cookies are not
+cleared on normal navigation or renderer recovery. Optional MENU → MORE →
+Allow third-party cookies can help some sign-in providers; it is OFF by default
+because it also broadens tracking. The diagnostics display only current-page
+cookie presence, never cookie names/values. Persisting a session also requires
+the **server** to set a persistent cookie (not a session-only cookie) and the
+user to retain the app's data. Android apps/browsers do not share cookies
+automatically; uninstalling/clearing Fire Browser's data removes its cookies.
+
+This work is code-verified and CI-built, not a claim that the intermittent
+device crash or logout was reproduced or eliminated.
