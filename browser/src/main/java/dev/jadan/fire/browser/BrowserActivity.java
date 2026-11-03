@@ -661,8 +661,14 @@ public final class BrowserActivity extends Activity {
         if(pointerMode){
             int k=ev.getKeyCode();
             if(k==KeyEvent.KEYCODE_BACK && ev.getAction()==KeyEvent.ACTION_UP){
-                stopMotion();pointerMode=false;okArmed=false;updateCursorVisual();
-                status.setText("Pointer off. D-pad focus navigation restored.");
+                stopMotion();okArmed=false;
+                if(web!=null && web.canGoBack()){
+                    web.goBack();
+                    status.setText("Back to previous webpage; pointer mode remains ON.");
+                }else{
+                    pointerMode=false;updateCursorVisual();
+                    status.setText("No previous page. Pointer OFF; D-pad focus navigation restored.");
+                }
                 return true;
             }
             if(k==KeyEvent.KEYCODE_BACK)return true;
@@ -1258,7 +1264,17 @@ public final class BrowserActivity extends Activity {
         web.evaluateJavascript(script,null);
     }
     @Override public void onBackPressed(){
-        if(pointerMode){stopMotion();pointerMode=false;updateCursorVisual();return;}
+        if(pointerMode){
+            stopMotion();
+            if(web!=null&&web.canGoBack()){
+                web.goBack();
+                status.setText("Back to previous webpage; pointer remains ON.");
+            }else{
+                pointerMode=false;updateCursorVisual();
+                status.setText("No previous page; pointer OFF.");
+            }
+            return;
+        }
         if(web!=null&&web.canGoBack()){web.goBack();return;}
         super.onBackPressed();
     }
