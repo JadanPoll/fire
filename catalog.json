@@ -3,8 +3,8 @@
   "apps": [
     {
       "id": "bridge",
-      "name": "Fire TV Dev Bridge",
-      "description": "The development console itself",
+      "name": "Fire Console",
+      "description": "Native channel home, Playroom, voice diagnostics, and development tools",
       "package": "dev.jadan.fire",
       "tag": "firetv-dev-bridge-latest",
       "asset": "firetv-dev-bridge.apk"
