@@ -116,7 +116,7 @@ public final class BrowserActivity extends Activity {
     private BrowserBindings bindings;
     private final BindingSafety bindingSafety=new BindingSafety();
     private final Handler bindingClock=new Handler(Looper.getMainLooper());
-    private boolean mediaHeld, mediaHoldTriggered;
+    private boolean mediaHeld, mediaHoldTriggered, consumeEmergencyOkUp;
     private final Runnable holdMediaAction=()->{
         if(mediaHeld && browserForeground && bindings!=null && !imeVisible){
             mediaHoldTriggered=true;
@@ -802,6 +802,7 @@ public final class BrowserActivity extends Activity {
         bindingClock.removeCallbacks(holdMediaAction);
         bindingClock.removeCallbacks(rescueAction);
         mediaHeld=false;mediaHoldTriggered=false;
+        consumeEmergencyOkUp=true;
         bindingSafety.cancel();
         if(bindings!=null)bindings.disable("Emergency: all custom controls OFF.");
         pointerMode=false;
@@ -818,6 +819,15 @@ public final class BrowserActivity extends Activity {
         if(imeVisible)return false; // System keyboard owns keys while shown.
         int key=ev.getKeyCode(),action=ev.getAction();
         long now=SystemClock.uptimeMillis();
+        if((key==KeyEvent.KEYCODE_DPAD_CENTER || key==KeyEvent.KEYCODE_ENTER ||
+            key==KeyEvent.KEYCODE_NUMPAD_ENTER || key==KeyEvent.KEYCODE_BUTTON_A) &&
+            consumeEmergencyOkUp){
+            if(action==KeyEvent.ACTION_UP){
+                consumeEmergencyOkUp=false;
+                return true; // Emergency chord must never click after restore.
+            }
+            return true;
+        }
         if(key==KeyEvent.KEYCODE_DPAD_DOWN){
             if(action==KeyEvent.ACTION_DOWN)bindingSafety.downPressed(ev.getRepeatCount());
             if(action==KeyEvent.ACTION_UP)bindingSafety.downReleased(now);
@@ -861,8 +871,18 @@ public final class BrowserActivity extends Activity {
         if(key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER)
             lastRawEnter=KeyEvent.keyCodeToString(key)+", shift="+ev.isShiftPressed()+
                 ", "+(ev.getAction()==KeyEvent.ACTION_UP?"UP":"DOWN");
-        // The emergency chord is evaluated BEFORE every profile and mode.
+        // Query IME ownership before the emergency chord. The system keyboard
+        // owns these keys while shown, and the browser must never hijack them.
+        WindowInsetsCompat visibleInsets=ViewCompat.getRootWindowInsets(screen);
+        if(visibleInsets!=null)imeVisible=visibleInsets.isVisible(WindowInsetsCompat.Type.ime());
         if(observeEmergency(ev))return true;
+        // Back remains an independent escape from any active profile.
+        if(bindings!=null && bindings.activeMode() &&
+           (key==KeyEvent.KEYCODE_BACK || key==KeyEvent.KEYCODE_BUTTON_B)){
+            if(ev.getAction()==KeyEvent.ACTION_UP)
+                bindings.disable("BACK: custom bindings OFF; browser controls restored.");
+            return true;
+        }
         // System-reserved Home, Alexa and volume keys are never remapped.
         if(key==KeyEvent.KEYCODE_MENU){
             if(ev.getAction()==KeyEvent.ACTION_UP)toggleTools();
@@ -870,8 +890,6 @@ public final class BrowserActivity extends Activity {
         }
         // A profile only captures its own mapped keys and never intercepts
         // MENU/OK/BACK or a visible Fire keyboard.
-        WindowInsetsCompat earlyInsets=ViewCompat.getRootWindowInsets(screen);
-        if(earlyInsets!=null)imeVisible=earlyInsets.isVisible(WindowInsetsCompat.Type.ime());
         if(bindings!=null && bindings.onKey(ev,SystemClock.uptimeMillis()))return true;
         // Activity key delivery is a fallback for keys not routed to a
         // foreground MediaSession.
@@ -1669,6 +1687,10 @@ public final class BrowserActivity extends Activity {
         web.evaluateJavascript(script,null);
     }
     @Override public void onBackPressed(){
+        if(!imeVisible && bindings!=null && bindings.activeMode()){
+            bindings.disable("BACK: custom bindings OFF; browser controls restored.");
+            return;
+        }
         // On Fire TV the IME sometimes lets Back reach the Activity. This must
         // dismiss text entry instead of unexpectedly navigating away.
         if(imeVisible){
@@ -1702,6 +1724,7 @@ public final class BrowserActivity extends Activity {
         bindingClock.removeCallbacks(holdMediaAction);
         bindingClock.removeCallbacks(rescueAction);
         bindingSafety.cancel();
+        consumeEmergencyOkUp=false;
         mediaHeld=false;
         if(bindings!=null)bindings.stopInput();
         resetWebHover(true);
@@ -1728,6 +1751,7 @@ public final class BrowserActivity extends Activity {
             bindingClock.removeCallbacks(holdMediaAction);
             bindingClock.removeCallbacks(rescueAction);
             bindingSafety.cancel();
+            consumeEmergencyOkUp=false;
             mediaHeld=false;
             if(bindings!=null)bindings.stopInput();
             stopMotion();
