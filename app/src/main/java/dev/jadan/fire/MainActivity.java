@@ -61,16 +61,14 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(26), dp(20), dp(26), dp(20));
-        root.setBackgroundColor(0xFF102133);
+        TvUi.page(this, root);
         ScrollView scroller = new ScrollView(this);
         scroller.addView(root);
         setContentView(scroller);
 
-        TextView heading = label("FIRE TV DEV BRIDGE", 28, 0xFF55C4FF);
+        TextView heading = TvUi.header(this, "TOOLS  /  DEV BRIDGE");
         root.addView(heading);
-        root.addView(label("GitHub → Fire TV. Updates require your approval.", 17, 0xFFCADBE8));
+        root.addView(TvUi.text(this, "GitHub builds, device tools, and recovery. Every install needs your approval.", 17, TvUi.SUB));
         root.addView(label("Device: " + Build.MODEL + " | Android " + Build.VERSION.RELEASE
                 + " | API " + Build.VERSION.SDK_INT
                 + " | App " + BuildConfig.VERSION_NAME, 15, 0xFF9FB0C0));
@@ -79,10 +77,12 @@ public final class MainActivity extends Activity {
         root.addView(status);
         detail = label("No network requests until you select Check.", 14, 0xFF9FB0C0);
         root.addView(detail);
+        root.addView(TvUi.section(this, "UPDATE & INSTALL"));
 
         Button check = action("CHECK LATEST GITHUB BUILD", root, this::checkRelease);
         install = action("DOWNLOAD & INSTALL (SYSTEM CONFIRMATION)", root, this::downloadRelease);
         install.setEnabled(false);
+        root.addView(TvUi.section(this, "LABS & CHANNELS"));
         action("VOICE PREFLIGHT — CHECK MICROPHONE", root, () ->
                 startActivity(new Intent(this, VoiceProbeActivity.class)));
         action("APP CATALOG — INSTALL & LAUNCH", root, () ->
@@ -94,6 +94,7 @@ public final class MainActivity extends Activity {
                 startActivity(new Intent(this, FireBrowserActivity.class)));
         action("ON-FIRE CODEX — SPEAK, TYPE, WORK", root, () ->
                 startActivity(new Intent(this, CodexDeskActivity.class)));
+        root.addView(TvUi.section(this, "RECOVERY & EVIDENCE"));
         action("RETRY LAST VERIFIED APK (NO DOWNLOAD)", root, this::retryInstall);
         action("SHARE LOCAL DIAGNOSTICS", root, this::shareDiagnostics);
         root.addView(label("REMOTE INPUT EVENTS (this app only)", 17, 0xFF55C4FF));
@@ -121,30 +122,12 @@ public final class MainActivity extends Activity {
     }
 
     private TextView label(String text, int sp, int color) {
-        TextView view = new TextView(this);
-        view.setText(text);
-        view.setTextSize(sp);
-        view.setTextColor(color);
-        view.setPadding(0, dp(9), 0, dp(9));
-        return view;
+        return TvUi.text(this,text,sp,
+            sp>=20 ? TvUi.INK : color==0xFFFFFFFF ? TvUi.INK : TvUi.SUB);
     }
 
     private Button action(String title, LinearLayout parent, Runnable runnable) {
-        Button button = new Button(this);
-        button.setText(title);
-        button.setTextSize(15);
-        button.setAllCaps(false);
-        button.setMinHeight(dp(64));
-        button.setTextColor(0xFFFFFFFF);
-        button.setBackgroundColor(0xFF2D4B65);
-        button.setOnFocusChangeListener((v, focused) ->
-                button.setBackgroundColor(focused ? 0xFF176FA3 : 0xFF2D4B65));
-        button.setOnClickListener(v -> runnable.run());
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        p.bottomMargin = dp(10);
-        parent.addView(button, p);
-        return button;
+        return TvUi.action(this,parent,title,runnable);
     }
 
     private void setBusy(boolean value) {
