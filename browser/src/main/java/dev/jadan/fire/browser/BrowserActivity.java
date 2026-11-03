@@ -1439,7 +1439,17 @@ public final class BrowserActivity extends Activity {
         web.evaluateJavascript(script,null);
     }
     @Override public void onBackPressed(){
-        if(pointerMode && !imeVisible){
+        // On Fire TV the IME sometimes lets Back reach the Activity. This must
+        // dismiss text entry instead of unexpectedly navigating away.
+        if(imeVisible){
+            stopMotion();
+            remoteInputs.cancelOk();
+            InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            if(input!=null)input.hideSoftInputFromWindow(screen.getWindowToken(),0);
+            status.setText("Keyboard dismissed; previous pointer selection preserved.");
+            return;
+        }
+        if(pointerMode){
             stopMotion();
             remoteInputs.cancelOk();
             if(web!=null&&web.canGoBack()){
