@@ -29,6 +29,10 @@ import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.KeyCharacterMap;
 import android.view.MotionEvent;
+import android.view.InputDevice;
+import android.util.Log;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
@@ -65,6 +69,8 @@ public final class BrowserActivity extends Activity {
     private int heldKey = -1;
     private long heldSince, lastMove;
     private long lastFrameNs;
+    private long lastEdgeScrollMs, lastPointerInputAt;
+    private String lastPointerEvent="none", lastRendererExit="none";
     private boolean frameScheduled;
     private long lastWebImeSubmitAt;
     private String lastWebImeAction="none";
@@ -74,6 +80,10 @@ public final class BrowserActivity extends Activity {
     private boolean reducedMotion;
     private boolean devtoolsEnabled;
     private boolean remoteMediaShortcuts;
+    private boolean thirdPartyCookies;
+    private final ExecutorService cookieWriter=Executors.newSingleThreadExecutor(r->{
+        Thread t=new Thread(r,"FireBrowser-Cookies");t.setDaemon(true);return t;
+    });
     private String lastRecordedUrl="";
     private static final String PROBE = "https://fire-input-test.invalid/";
     private WebView web;
@@ -102,6 +112,14 @@ public final class BrowserActivity extends Activity {
             moveCursor(heldKey,dpFloat(speed)*dt);
         }
         lastFrameNs=frameNs;
+        maybeEdgeScroll(heldKey);
+        // A lost key-up must not animate forever when Fire OS steals focus.
+        long now=SystemClock.uptimeMillis();
+        if(now-heldSince>8000 && now-lastPointerInputAt>1200){
+            stopMotion();
+            Log.w("FireBrowser","Pointer hold safety stop: key release not observed");
+            return;
+        }
         schedulePointerFrame();
     };
 
@@ -113,6 +131,10 @@ public final class BrowserActivity extends Activity {
         pageZoom=Math.max(50,Math.min(160,prefs.getInt("page_zoom",85)));
         reducedMotion=prefs.getBoolean("reduced_motion",false);
         remoteMediaShortcuts=prefs.getBoolean("remote_media_shortcuts",false);
+        thirdPartyCookies=prefs.getBoolean("third_party_cookies",false);
+        lastRendererExit=prefs.getString("last_renderer_exit","none");
+        // Initialize the cookie policy before any WebView starts loading pages.
+        CookieManager.getInstance().setAcceptCookie(true);
         screen=new FrameLayout(this);
         root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -341,7 +363,7 @@ public final class BrowserActivity extends Activity {
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         settings.setSaveFormData(false);
-        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web,thirdPartyCookies);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setSupportMultipleWindows(false);
@@ -378,6 +400,7 @@ public final class BrowserActivity extends Activity {
                 }
                 applyPageZoom();
                 applyReducedMotion();
+                if(url!=null && url.startsWith("https://"))scheduleCookieFlush();
                 if(!isFireInboxUrl(url) || pendingInboxText!=null ||
                     !url.contains("posted=1"))
                     status.setText("Ready: "+displayHost(url)+" · load "+lastLoadMillis+
@@ -395,6 +418,10 @@ public final class BrowserActivity extends Activity {
                 if(view != web) return true;
                 final String prior = lastPage;
                 final boolean crashed=detail.didCrash();
+                lastRendererExit=(crashed?"crashed":"reclaimed")+
+                    " after pointer action: "+lastPointerEvent;
+                prefs.edit().putString("last_renderer_exit",lastRendererExit).apply();
+                Log.e("FireBrowser","WebView renderer "+lastRendererExit);
                 viewport.post(() -> {
                     if(web != view) return;
                     stopMotion();
@@ -447,7 +474,7 @@ public final class BrowserActivity extends Activity {
         final String[] actions={"Open ChatGPT","Paste draft without sending","Text smaller","Text larger",
             "Page smaller","Page larger","Reset zoom to 100%","Input test page",
             "Browser diagnostics","Inspect with Chrome","Reduced motion",
-            "Remote media shortcuts"};
+            "Remote media shortcuts","Allow third-party cookies for sign-in"};
         new AlertDialog.Builder(this).setTitle("Browser options")
             .setItems(actions,(dlg,index)->{
                 switch(index){
@@ -463,6 +490,7 @@ public final class BrowserActivity extends Activity {
                     case 9:toggleInspection();break;
                     case 10:toggleReducedMotion();break;
                     case 11:toggleRemoteShortcuts();break;
+                    case 12:toggleThirdPartyCookies();break;
                 }
             }).setNegativeButton("Close",null).show();
     }
@@ -588,10 +616,14 @@ public final class BrowserActivity extends Activity {
                k==KeyEvent.KEYCODE_DPAD_UP||k==KeyEvent.KEYCODE_DPAD_DOWN){
                 if(ev.getAction()==KeyEvent.ACTION_UP){
                     if(heldKey==k)stopMotion();
-                } else if(ev.getAction()==KeyEvent.ACTION_DOWN && heldKey!=k){
-                    heldKey=k;heldSince=lastMove=SystemClock.uptimeMillis();
-                    moveCursor(k,dpFloat(2.5f));
-                    schedulePointerFrame();
+                } else if(ev.getAction()==KeyEvent.ACTION_DOWN){
+                    lastPointerInputAt=SystemClock.uptimeMillis();
+                    if(heldKey!=k){
+                        heldKey=k;heldSince=lastMove=lastPointerInputAt;
+                        lastPointerEvent="pointer move";
+                        moveCursor(k,dpFloat(2.5f));
+                        schedulePointerFrame();
+                    }
                 }
                 // Ignore OS-generated key repeats; movement is based on elapsed time.
                 return true;
@@ -619,6 +651,7 @@ public final class BrowserActivity extends Activity {
         float webY=py+screenLocation[1]-webLocation[1];
         boolean inWeb=webX>=0&&webY>=0&&webX<web.getWidth()&&webY<web.getHeight()
             &&web.getVisibility()==View.VISIBLE;
+        lastPointerEvent=inWeb?"pointer click in WebView":"pointer click in browser controls";
         View receiver=inWeb?web:screen;
         float rx=inWeb?webX:px,ry=inWeb?webY:py;
         MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,rx,ry,0);
@@ -796,6 +829,54 @@ public final class BrowserActivity extends Activity {
         if(frameScheduled || !pointerMode || heldKey<0)return;
         frameScheduled=true;
         Choreographer.getInstance().postFrameCallback(pointerFrame);
+    }
+    /**
+     * Wheel events at the WebView coordinate keep scrolling under Chromium's
+     * normal scroll hit-testing, including internal scrollable panels. Never
+     * use web.scrollBy: that only scrolls the top-level viewport.
+     */
+    private void maybeEdgeScroll(int key){
+        if((key!=KeyEvent.KEYCODE_DPAD_UP && key!=KeyEvent.KEYCODE_DPAD_DOWN)
+            || !pointerMode || web==null || screen==null)return;
+        long now=SystemClock.uptimeMillis();
+        if(now-lastEdgeScrollMs<110)return;
+        WebView target=web;
+        if(target.getWidth()<=0 || target.getHeight()<=0 || !target.isAttachedToWindow())return;
+        int[] rootPosition=new int[2], pagePosition=new int[2];
+        screen.getLocationOnScreen(rootPosition);
+        target.getLocationOnScreen(pagePosition);
+        float pageLeft=pagePosition[0]-rootPosition[0];
+        float pageTop=pagePosition[1]-rootPosition[1];
+        float px=x*screen.getWidth(),py=y*screen.getHeight();
+        if(px<pageLeft || px>pageLeft+target.getWidth())return;
+        boolean down=key==KeyEvent.KEYCODE_DPAD_DOWN;
+        boolean atEdge=down ? py>=pageTop+target.getHeight()-dp(16)
+            : py<=pageTop+dp(16) && py>=pageTop-dp(20);
+        if(!atEdge)return;
+        lastEdgeScrollMs=now;
+        lastPointerEvent=down?"pointer wheel down":"pointer wheel up";
+        MotionEvent.PointerProperties properties=new MotionEvent.PointerProperties();
+        properties.id=0;
+        properties.toolType=MotionEvent.TOOL_TYPE_MOUSE;
+        MotionEvent.PointerCoords coords=new MotionEvent.PointerCoords();
+        coords.x=Math.max(1,Math.min(target.getWidth()-1,px-pageLeft));
+        coords.y=Math.max(1,Math.min(target.getHeight()-1,
+            down?target.getHeight()-dp(14):dp(14)));
+        float magnitude=1f+Math.min(2.5f,Math.max(0f,(now-heldSince-600)/1800f));
+        coords.setAxisValue(MotionEvent.AXIS_VSCROLL,down?-magnitude:magnitude);
+        MotionEvent wheel=MotionEvent.obtain(now,now,MotionEvent.ACTION_SCROLL,
+            1,new MotionEvent.PointerProperties[]{properties},
+            new MotionEvent.PointerCoords[]{coords},0,0,1f,1f,0,0,
+            InputDevice.SOURCE_MOUSE,0);
+        try{
+            if(web==target)target.dispatchGenericMotionEvent(wheel);
+        }catch(RuntimeException error){
+            Log.e("FireBrowser","Pointer edge-scroll dispatch failed",error);
+            stopMotion();
+            status.setText("Pointer scroll failed. See ADB diagnostic logs.");
+        }finally{
+            wheel.recycle();
+        }
     }
     private void stopMotion(){
         heldKey=-1;
@@ -1020,6 +1101,20 @@ public final class BrowserActivity extends Activity {
         sb.append("Page host: ").append(displayHost(web==null?null:web.getUrl())).append('\n');
         sb.append("Reduce motion: ").append(reducedMotion).append('\n');
         sb.append("Last raw Enter: ").append(lastRawEnter).append('\n');
+        sb.append("Last pointer action: ").append(lastPointerEvent).append('\n');
+        sb.append("Last renderer exit: ").append(lastRendererExit).append('\n');
+        sb.append("Cookie storage: ").append(CookieManager.getInstance().acceptCookie()?"enabled":"disabled").append('\n');
+        sb.append("Third-party cookies: ").append(thirdPartyCookies).append('\n');
+        try{
+            String current=web==null?null:web.getUrl();
+            if(current!=null && current.startsWith("https://")){
+                String cookies=CookieManager.getInstance().getCookie(current);
+                sb.append("Cookie presence on current page: ")
+                    .append(cookies!=null && !cookies.isEmpty()?"yes":"no").append('\n');
+            }
+        }catch(RuntimeException ex){
+            sb.append("Cookie lookup: unavailable").append('\n');
+        }
         sb.append("Last web IME submit: ").append(lastWebImeAction).append('\n');
         sb.append("Media-button shortcuts: ").append(remoteMediaShortcuts).append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
@@ -1056,6 +1151,36 @@ public final class BrowserActivity extends Activity {
             })
             .setNegativeButton("Cancel",null).show();
     }
+    private void scheduleCookieFlush(){
+        if(cookieWriter.isShutdown())return;
+        try {
+            cookieWriter.execute(()->{
+                try{
+                    // Can perform disk I/O: never block the Fire TV UI thread.
+                    CookieManager.getInstance().flush();
+                }catch(RuntimeException error){
+                    Log.e("FireBrowser","Persistent cookie flush failed",error);
+                }
+            });
+        }catch(java.util.concurrent.RejectedExecutionException ignored){}
+    }
+    private void toggleThirdPartyCookies(){
+        final boolean enabling=!thirdPartyCookies;
+        if(enabling){
+            new AlertDialog.Builder(this)
+                .setTitle("Allow third-party cookies?")
+                .setMessage("Some login providers need third-party cookies. This also allows tracking cookies on other sites loaded in Fire Browser. Enable only if sign-in fails without it.")
+                .setPositiveButton("ALLOW",(dialog,which)->applyThirdPartyCookies(true))
+                .setNegativeButton("Cancel",null).show();
+        }else applyThirdPartyCookies(false);
+    }
+    private void applyThirdPartyCookies(boolean allowed){
+        thirdPartyCookies=allowed;
+        prefs.edit().putBoolean("third_party_cookies",allowed).apply();
+        if(web!=null)CookieManager.getInstance().setAcceptThirdPartyCookies(web,allowed);
+        status.setText("Third-party cookies "+(allowed?"ON":"OFF")+
+            ". Try signing in again if necessary. Existing cookies were not cleared.");
+    }
     private void toggleReducedMotion(){
         reducedMotion=!reducedMotion;
         prefs.edit().putBoolean("reduced_motion",reducedMotion).apply();
@@ -1081,6 +1206,7 @@ public final class BrowserActivity extends Activity {
     }
     @Override protected void onPause(){
         stopMotion();
+        scheduleCookieFlush();
         if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(false);
         if(web!=null)web.onPause();
         super.onPause();
@@ -1107,6 +1233,8 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
+        scheduleCookieFlush();
+        cookieWriter.shutdown();
         if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(false);
         stopMotion();
         if(web!=null){
