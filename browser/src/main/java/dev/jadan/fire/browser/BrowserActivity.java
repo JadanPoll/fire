@@ -109,6 +109,12 @@ public final class BrowserActivity extends Activity {
     private boolean pointerMode, okArmed;
     private float x=.5f, y=.48f;
     private long lastOk;
+    // Synthesized mouse hover (not merely a drawn yellow cursor) makes sites
+    // receive native WebView hover/mousemove events.
+    private WebView hoveredWeb;
+    private float lastHoverX, lastHoverY;
+    private long lastHoverMs, pointerClickGeneration;
+    private String lastHoverEvent="none", lastWebEditor="none";
     private String lastPage = "No page yet";
     // Comet/TV Bro principle: a tiny precise initial nudge, followed by
     // frame-timed acceleration rather than an OS key-repeat-sized jump.
@@ -140,7 +146,7 @@ public final class BrowserActivity extends Activity {
         textZoom=Math.max(55,Math.min(200,prefs.getInt("text_zoom",85)));
         pageZoom=Math.max(50,Math.min(160,prefs.getInt("page_zoom",85)));
         reducedMotion=prefs.getBoolean("reduced_motion",false);
-        remoteMediaShortcuts=prefs.getBoolean("remote_media_shortcuts",false);
+        remoteMediaShortcuts=prefs.getBoolean("remote_media_shortcuts",true);
         thirdPartyCookies=prefs.getBoolean("third_party_cookies",false);
         lastRendererExit=prefs.getString("last_renderer_exit","none");
         // Initialize the cookie policy before any WebView starts loading pages.
@@ -385,6 +391,8 @@ public final class BrowserActivity extends Activity {
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
                 if(web!=view)return;
                 webEditorFocused=false;
+                pointerClickGeneration++;
+                resetWebHover(false);
                 pageStartedAt=SystemClock.uptimeMillis();
                 lastProgress=-1;
             }
@@ -411,6 +419,7 @@ public final class BrowserActivity extends Activity {
                 }
                 applyPageZoom();
                 applyReducedMotion();
+                if(pointerMode)emitWebHover(true);
                 if(url!=null && url.startsWith("https://"))scheduleCookieFlush();
                 if(!isFireInboxUrl(url) || pendingInboxText!=null ||
                     !url.contains("posted=1"))
@@ -437,6 +446,7 @@ public final class BrowserActivity extends Activity {
                 // and destroy this unusable renderer synchronously before
                 // returning, rather than leaving it attached for another turn.
                 stopMotion();
+                resetWebHover(false);
                 viewport.removeView(view);
                 web=null;
                 view.destroy();
@@ -536,7 +546,11 @@ public final class BrowserActivity extends Activity {
         }
         if(pointerMediaSession==null){
             pointerMediaSession=new MediaSession(this,"FireBrowserPointer");
+            pointerMediaSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS|
+                MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
             pointerMediaSession.setCallback(new MediaSession.Callback(){
+                @Override public void onPlay(){toggleFromTransportAction("onPlay");}
+                @Override public void onPause(){toggleFromTransportAction("onPause");}
                 @Override public boolean onMediaButtonEvent(Intent intent){
                     KeyEvent event=intent==null?null:intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
                     if(event==null)return false;
@@ -551,6 +565,15 @@ public final class BrowserActivity extends Activity {
                     PlaybackState.PLAYBACK_POSITION_UNKNOWN,1f).build());
         }
         pointerMediaSession.setActive(true);
+    }
+    private void toggleFromTransportAction(String source){
+        if(!remoteMediaShortcuts || !browserForeground)return;
+        lastMediaDelivery="media session: "+source;
+        long now=SystemClock.uptimeMillis();
+        if(now-lastMediaToggleAt<350)return;
+        lastMediaToggleAt=now;
+        togglePointer();
+        status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+" ("+source+").");
     }
     private boolean handleMediaShortcut(KeyEvent event,String source){
         if(!remoteMediaShortcuts || !browserForeground)return false;
@@ -631,8 +654,12 @@ public final class BrowserActivity extends Activity {
         updateCursorVisual();
         if(pointerMode){
             if(web!=null)web.requestFocus();
-            status.setText("Pointer works across webpage and toolbar. MENU toggles tools.");
-        }else status.setText("Pointer OFF. D-pad navigates normal controls.");
+            emitWebHover(true);
+            status.setText("Pointer ON. D-pad moves a mouse-style cursor; OK clicks once.");
+        }else{
+            resetWebHover(true);
+            status.setText("Pointer OFF. D-pad navigates normal controls.");
+        }
     }
     @Override public boolean dispatchKeyEvent(KeyEvent ev){
         int key=ev.getKeyCode();
@@ -702,9 +729,22 @@ public final class BrowserActivity extends Activity {
         return super.dispatchKeyEvent(ev);
     }
 
+    private static final String WEB_EDITOR_CHECK =
+        "(function(){var e=document.activeElement;if(!e)return 'NONE';"+
+        "var c=document.querySelector('#prompt-textarea,[contenteditable=\"true\"].ProseMirror');"+
+        "if(c&&(e===c||c.contains(e)))return 'COMPOSER';"+
+        "var tag=e.tagName||'';"+
+        "if(e.isContentEditable||tag==='TEXTAREA'||"+
+        "(tag==='INPUT'&&!/^(hidden|button|submit|reset|checkbox|radio|file|range)$/i.test(e.type||'')))"+
+        "return 'EDITOR';return 'NONE';})()";
+
     private void clickPointer(){
         if(screen==null||web==null)return;
-        long time=SystemClock.uptimeMillis();lastOk=time;
+        stopMotion();
+        okArmed=false;
+        long time=SystemClock.uptimeMillis();
+        lastOk=time;
+        final long clickId=++pointerClickGeneration;
         float px=x*screen.getWidth(),py=y*screen.getHeight();
         int[] screenLocation=new int[2],webLocation=new int[2];
         screen.getLocationOnScreen(screenLocation);
@@ -713,41 +753,51 @@ public final class BrowserActivity extends Activity {
         float webY=py+screenLocation[1]-webLocation[1];
         boolean inWeb=webX>=0&&webY>=0&&webX<web.getWidth()&&webY<web.getHeight()
             &&web.getVisibility()==View.VISIBLE;
-        lastPointerEvent=inWeb?"pointer click in WebView":"pointer click in browser controls";
+        lastPointerEvent=inWeb?"single WebView tap":"single browser control tap";
         View receiver=inWeb?web:screen;
         float rx=inWeb?webX:px,ry=inWeb?webY:py;
+        // Touchscreen source is essential. An unspecified-source MotionEvent
+        // can be interpreted differently by the Amazon Chromium WebView.
+        if(inWeb && !web.hasFocus())web.requestFocus();
         MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,rx,ry,0);
         MotionEvent up=MotionEvent.obtain(time,time+60,MotionEvent.ACTION_UP,rx,ry,0);
+        down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        up.setSource(InputDevice.SOURCE_TOUCHSCREEN);
         try{
             receiver.dispatchTouchEvent(down);
             receiver.dispatchTouchEvent(up);
         }finally{down.recycle();up.recycle();}
         if(!inWeb){
-            // Let Android handle the toolbar button's actual click/focus chain.
             View focused=screen.findFocus();
             if(focused instanceof EditText){
                 stopMotion();pointerMode=false;updateCursorVisual();
+                resetWebHover(true);
                 InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                 if(input!=null)input.showSoftInput(focused,InputMethodManager.SHOW_IMPLICIT);
             }
             return;
         }
-        web.requestFocus();
+        // Do not request focus AGAIN after the tap: it can steal focus from
+        // the HTML input the user just selected. Never toggle pointerMode
+        // automatically from a delayed DOM callback.
         final WebView clicked=web;
         clicked.postDelayed(()->{
-            if(web!=clicked)return;
-            clicked.evaluateJavascript(COMPOSER_CHECK,result->{
-                if(web!=clicked)return;
-                webEditorFocused="true".equals(result);
-                if(webEditorFocused){
-                    stopMotion();pointerMode=false;updateCursorVisual();
-                    InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if(input!=null)input.showSoftInput(clicked,InputMethodManager.SHOW_IMPLICIT);
-                    status.setText("Web editor focused; native SPEAK and SEND also work.");
-                }else status.setText("Page clicked; pointer remains active.");
+            if(web!=clicked || pointerClickGeneration!=clickId)return;
+            clicked.evaluateJavascript(WEB_EDITOR_CHECK,result->{
+                if(web!=clicked || pointerClickGeneration!=clickId)return;
+                boolean composer="\"COMPOSER\"".equals(result);
+                boolean editor=composer || "\"EDITOR\"".equals(result);
+                lastWebEditor=composer?"ChatGPT composer":editor?"web text field":"none";
+                webEditorFocused=composer;
+                if(editor){
+                    InputMethodManager im=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if(im!=null)im.showSoftInput(clicked,InputMethodManager.SHOW_IMPLICIT);
+                    status.setText("Text field selected; keyboard requested. Pointer mode retained.");
+                }else status.setText("Page tapped once; pointer remains ON.");
             });
-        },180);
+        },140);
     }
+
     private static String insertTextScript(String value){
         // Keep the old working execCommand path for rich editors. The input path
         // uses its native setter to notify controlled frameworks of the change.
@@ -948,6 +998,69 @@ public final class BrowserActivity extends Activity {
             frameScheduled=false;
         }
     }
+    /**
+     * Android WebView handles native SOURCE_MOUSE hover events through its
+     * generic-motion pipeline. Unlike merely translating the drawn pointer,
+     * this reaches a page's :hover/mousemove behavior (e.g. video toolbars).
+     * Dispatch at most ~30 times/sec to avoid saturating a weak TV renderer.
+     */
+    private void sendWebHover(WebView target,int action,float localX,float localY){
+        if(target==null || !target.isAttachedToWindow())return;
+        long now=SystemClock.uptimeMillis();
+        MotionEvent.PointerProperties property=new MotionEvent.PointerProperties();
+        property.id=0;property.toolType=MotionEvent.TOOL_TYPE_MOUSE;
+        MotionEvent.PointerCoords coordinate=new MotionEvent.PointerCoords();
+        coordinate.x=localX;coordinate.y=localY;
+        MotionEvent ev=MotionEvent.obtain(now,now,action,1,
+            new MotionEvent.PointerProperties[]{property},
+            new MotionEvent.PointerCoords[]{coordinate},
+            0,0,1f,1f,0,0,InputDevice.SOURCE_MOUSE,0);
+        try{
+            target.dispatchGenericMotionEvent(ev);
+        }catch(RuntimeException error){
+            Log.w("FireBrowser","Synthetic hover not supported by WebView provider",error);
+            lastHoverEvent="WebView hover dispatch failed";
+        }finally{ev.recycle();}
+    }
+    private void resetWebHover(boolean notify){
+        if(hoveredWeb!=null && notify)
+            sendWebHover(hoveredWeb,MotionEvent.ACTION_HOVER_EXIT,lastHoverX,lastHoverY);
+        hoveredWeb=null;
+        lastHoverMs=0L;
+    }
+    private void emitWebHover(boolean force){
+        if(web==null || screen==null || !pointerMode){
+            resetWebHover(true);return;
+        }
+        WebView target=web;
+        if(target.getWidth()<2 || target.getHeight()<2 || !target.isAttachedToWindow()){
+            resetWebHover(false);return;
+        }
+        int[] rootPos=new int[2],viewPos=new int[2];
+        screen.getLocationOnScreen(rootPos);
+        target.getLocationOnScreen(viewPos);
+        float localX=x*screen.getWidth()+rootPos[0]-viewPos[0];
+        float localY=y*screen.getHeight()+rootPos[1]-viewPos[1];
+        boolean inside=target.getVisibility()==View.VISIBLE &&
+            localX>=0 && localX<target.getWidth() &&
+            localY>=0 && localY<target.getHeight();
+        if(!inside){
+            resetWebHover(true);return;
+        }
+        if(hoveredWeb!=null && hoveredWeb!=target)resetWebHover(true);
+        long now=SystemClock.uptimeMillis();
+        if(hoveredWeb==target && !force){
+            if(now-lastHoverMs<33)return;
+            float dx=localX-lastHoverX,dy=localY-lastHoverY;
+            if(dx*dx+dy*dy<1f)return;
+        }
+        if(hoveredWeb!=target)
+            sendWebHover(target,MotionEvent.ACTION_HOVER_ENTER,localX,localY);
+        sendWebHover(target,MotionEvent.ACTION_HOVER_MOVE,localX,localY);
+        hoveredWeb=target;
+        lastHoverX=localX;lastHoverY=localY;lastHoverMs=now;
+        lastHoverEvent="mouse hover at WebView coordinates";
+    }
     private void updateCursorVisual(){
         if(pointerButton!=null)pointerButton.setText(pointerMode?"POINTER ON":"CURSOR");
         if(cursor==null || screen==null)return;
@@ -964,6 +1077,7 @@ public final class BrowserActivity extends Activity {
         if(key==KeyEvent.KEYCODE_DPAD_UP)y=Math.max(.005f,y-delta/h);
         if(key==KeyEvent.KEYCODE_DPAD_DOWN)y=Math.min(.995f,y+delta/h);
         updateCursorVisual();
+        emitWebHover(false);
     }
     private void applyPageZoom(){
         if(web==null)return;
@@ -1165,6 +1279,8 @@ public final class BrowserActivity extends Activity {
         sb.append("Reduce motion: ").append(reducedMotion).append('\n');
         sb.append("Last raw Enter: ").append(lastRawEnter).append('\n');
         sb.append("Last pointer action: ").append(lastPointerEvent).append('\n');
+        sb.append("Last synthetic hover: ").append(lastHoverEvent).append('\n');
+        sb.append("Last WebView editor tapped: ").append(lastWebEditor).append('\n');
         sb.append("Last renderer exit: ").append(lastRendererExit).append('\n');
         sb.append("Cookie storage: ").append(CookieManager.getInstance().acceptCookie()?"enabled":"disabled").append('\n');
         sb.append("Third-party cookies: ").append(thirdPartyCookies).append('\n');
@@ -1282,6 +1398,7 @@ public final class BrowserActivity extends Activity {
         super.onBackPressed();
     }
     @Override protected void onPause(){
+        resetWebHover(true);
         browserForeground=false;
         refreshMediaSession();
         stopMotion();
@@ -1293,6 +1410,7 @@ public final class BrowserActivity extends Activity {
     @Override protected void onResume(){
         super.onResume();
         browserForeground=true;
+        if(pointerMode)screen.post(()->emitWebHover(true));
         refreshMediaSession();
         if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(true);
         if(web!=null)web.onResume();
@@ -1314,6 +1432,7 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
+        resetWebHover(false);
         if(browserUpdater!=null)browserUpdater.close();
         if(pointerMediaSession!=null){
             pointerMediaSession.setActive(false);
