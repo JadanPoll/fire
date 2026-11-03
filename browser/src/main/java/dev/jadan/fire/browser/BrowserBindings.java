@@ -131,9 +131,14 @@ final class BrowserBindings {
         pressed.clear();
         lastTap.clear();
     }
-    void onPageChanged(){
+    void onPageChanged(String url){
         Set set=selected();
-        if((active||capture) && !matches(set)){
+        String next="";
+        try{
+            android.net.Uri uri=android.net.Uri.parse(url);
+            if(uri.getHost()!=null)next=uri.getHost().toLowerCase(Locale.ROOT);
+        }catch(RuntimeException ignored){}
+        if((active||capture) && (set==null||!set.host.equals(next))){
             active=false;capture=false;stopInput();
             host.stateChanged(false,false);
             host.status("Control set suspended: webpage changed. MENU / SETS to choose another set.");
