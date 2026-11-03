@@ -54,6 +54,7 @@ jobs:
           python3 tools/check_console_manifest.py
           python3 tools/check_tv_ui_contract.py
           python3 tools/check_gba_contract.py
+          python3 tools/check_gba_native_contract.py
           python3 -m py_compile tools/check_appos_contract.py tools/test_appos_contract.py tools/fetch_gba_core.py
           python3 -m unittest discover -s tools -p 'test_fetch_gba_core.py' -v
           python3 -m unittest discover -s tools -p 'test_appos_contract.py' -v
