@@ -1,6 +1,31 @@
-# fire — Fire TV Dev Bridge
+# fire — Fire Console (with Fire TV Dev Bridge tools)
 
 Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 9 / API 28)**. This project is independently versioned from Manifold Console.
+
+## Fire Console — current launcher
+
+The existing `firetv-dev-bridge.apk` package now opens a **native channel home**
+inspired by the remote-first Wii-style channel metaphor. Its eight icon
+channels are **Inbox, Browser, Playroom, Codex, Canvas, Voice, Apps, Tools**.
+D-pad moves focus, OK opens the selected channel, Back returns. This is a
+front end over the existing apps, **not** a replacement for Fire OS Home.
+
+- **Playroom** pins ordinary HTTPS web games. Open a game in the updated Fire
+  Browser, choose MENU → MORE → **Pin webpage to Playroom**, review the
+  proposed bookmark, then select PIN. Game audio continues in Browser.
+- **Apps** displays real installed TV apps via Android's Leanback registry
+  and their installed icons; the existing update catalog is in Tools.
+- **Voice** tests the Fire OS keyboard in an actual text field, allows a
+  safe `restartInput` of that field, and reports OS build, locale and
+  recognition service availability. It cannot force-restart Amazon's
+  system voice-recognition service. Do not clear Browser cookies/data as a
+  voice-recovery step.
+- **Tools** preserves the complete original Dev Bridge, Input Lab,
+  App Catalog and device diagnostics. Canvas and Browser remain separate
+  APKs to avoid replacing their installed data or sessions.
+
+[Architecture, source implementations and voice recovery](docs/FIRE_CONSOLE_ARCHITECTURE.md).
+[CI & physical Fire TV test loop](docs/TEST_LOOP.md).
 
 ## What works in the first release
 
@@ -21,9 +46,9 @@ Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 
 1. On Fire TV, install **Downloader by AFTVnews** from the Amazon Appstore.
 2. If necessary, enable **Install Unknown Apps → Downloader** under Developer Options (some Fire OS layouts put it under My Fire TV).
 3. In Downloader, enter **https://github.com/JadanPoll/fire/releases/download/firetv-dev-bridge-latest/firetv-dev-bridge.apk**. If the app returns a web page instead, use the Release page's asset link.
-4. Install and launch **Fire TV Dev Bridge**. Check for update, and explicitly approve installs when prompted.
+4. Install and launch **Fire Console** (the updated `firetv-dev-bridge.apk` package). Open **Tools** for the original Dev Bridge updater, catalog and diagnostics.
 
-**First release is not published until the Actions build succeeds.** See [Build](https://github.com/JadanPoll/fire/actions/workflows/android.yml).
+CI builds the APKs and publishes a rolling release after successful checks. See [Build](https://github.com/JadanPoll/fire/actions/workflows/android.yml).
 
 ### Development
 
@@ -93,7 +118,7 @@ The lowest-friction remote iteration is: python tools/firetv_test.py --connect F
 ### Browser navigation, history and performance (latest revision)
 
 The address bar now treats plain words and questions as Google searches;
-hostnames remain HTTPS web navigation. MENU toggles browser tools. The optional REMOTE toggle enables Play/Pause=pointer and Rewind/FF=browser history on ChatGPT/Google when Fire OS delivers them. REMOTE is off by default to preserve media playback. Home/Alexa/volume remain system-managed.
+hostnames remain HTTPS web navigation. MENU toggles browser tools. The optional REMOTE shortcuts toggle maps Play/Pause to pointer mode and Rewind/FF to browser navigation while Fire Browser is foregrounded, when Fire OS delivers those events. The current setting defaults on for new installs and can be turned off for ordinary video playback. Home/Alexa/volume remain system-managed.
 
 The pointer overlay covers native browser buttons as well as the webpage,
 and redirects clicks to the appropriate existing Android control rather
@@ -112,7 +137,7 @@ changes; the app cannot magically accelerate the website's JavaScript.
 
 ### Focused browser interaction revision
 
-The everyday toolbar now keeps only **GO**, **MENU**, and **CURSOR**, alongside the address field; the native message editor retains **VOICE** and **SEND**. MENU floats over the webpage without triggering a responsive-layout resize, and its single navigation row offers Back, Forward, Reload, Recent, ChatGPT, and More. Advanced controls and the existing explicit Paste action are preserved under More rather than removed.
+The everyday toolbar now keeps only **GO**, **MENU**, and **CURSOR**, alongside the address field; the native message editor retains **VOICE** and **SEND**. MENU floats over the webpage without triggering a responsive-layout resize, and its single navigation row offers Back, Forward, Reload, Recent, Inbox, and More. Advanced controls and the existing explicit Paste action are preserved under More rather than removed.
 
 The D-pad pointer now uses a small composited cursor, fine 2.5-dp nudges, then frame-timed acceleration drawn from the Comet/TV Bro design principles. The prior 25-dp jump and 190-ms dead zone were the primary sources of quantization. Precise behavior still needs an on-device check.
 
