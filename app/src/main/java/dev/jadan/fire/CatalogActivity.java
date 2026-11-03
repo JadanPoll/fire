@@ -143,8 +143,12 @@ public final class CatalogActivity extends Activity {
         });
     }
     private void launch(App app) {
-        Intent intent=getPackageManager().getLaunchIntentForPackage(app.packageId);
-        if(intent==null){status.setText(app.name+" not installed or launcher unavailable.");return;}
+        // Android TV apps may expose only LEANBACK_LAUNCHER.
+        // getLaunchIntentForPackage() searches INFO/LAUNCHER, not Leanback.
+        // Use the platform TV entry first; ordinary launcher remains fallback.
+        Intent intent=getPackageManager().getLeanbackLaunchIntentForPackage(app.packageId);
+        if(intent==null)intent=getPackageManager().getLaunchIntentForPackage(app.packageId);
+        if(intent==null){status.setText(app.name+" not installed or TV launcher unavailable.");return;}
         try{startActivity(intent);status.setText("Opened "+app.name);}
         catch(Exception e){status.setText("Launch failed: "+e.getMessage());}
     }
