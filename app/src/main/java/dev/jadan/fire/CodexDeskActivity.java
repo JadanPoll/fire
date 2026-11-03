@@ -137,6 +137,7 @@ public final class CodexDeskActivity extends Activity {
         root.addView(pairingToken,new LinearLayout.LayoutParams(-1,-2));
         button(root,"RUN DRAFT WITH CODEX ON PAIRED WORKSPACE",()->remoteAction("submit"));
         button(root,"REFRESH EXECUTOR RESULT",()->remoteAction("poll"));
+        button(root,"RECOVER LATEST JOB (AFTER NETWORK FAILURE)",()->remoteAction("recover"));
         button(root,"STOP CURRENT EXECUTOR JOB",()->remoteAction("cancel"));
         remoteStatus=label("Not paired. Enter HTTPS origin and token from your trusted executor. Pairing details are not stored.",15,0xFFACDBF1);
         root.addView(remoteStatus);
@@ -148,7 +149,7 @@ public final class CodexDeskActivity extends Activity {
     }
     private void remoteAction(String action){
         if(remoteBusy || remoteStatus==null)return;
-        if(jobId==null && !"submit".equals(action)){
+        if(jobId==null && "poll".equals(action) || jobId==null && "cancel".equals(action)){
             remoteStatus.setText("No executor job yet. Submit a prompt first.");return;
         }
         final String origin=executorUrl.getText().toString().trim();
@@ -163,6 +164,8 @@ public final class CodexDeskActivity extends Activity {
             try{
                 if("submit".equals(action))
                     reply=CodexExecutorClient.submit(origin,secret,draft);
+                else if("recover".equals(action))
+                    reply=CodexExecutorClient.recover(origin,secret);
                 else if("cancel".equals(action))
                     reply=CodexExecutorClient.cancel(origin,secret,currentId);
                 else
@@ -179,7 +182,8 @@ public final class CodexDeskActivity extends Activity {
                     if(jobId!=null)scheduleRemotePoll();
                     return;
                 }
-                if("submit".equals(action))jobId=result.optString("id",null);
+                if("submit".equals(action)||"recover".equals(action))
+                    jobId=result.optString("id",null);
                 String state=result.optString("state","unknown");
                 remoteStatus.setText("Executor "+state+" · Job "+result.optString("id","?")+
                     " · "+result.optString("message",""));
