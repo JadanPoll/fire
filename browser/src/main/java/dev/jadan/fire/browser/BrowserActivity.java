@@ -887,7 +887,7 @@ public final class BrowserActivity extends Activity {
         if(visibleInsets!=null)imeVisible=visibleInsets.isVisible(WindowInsetsCompat.Type.ime());
         if(observeEmergency(ev))return true;
         // Back remains an independent escape from any active profile.
-        if(bindings!=null && bindings.activeMode() &&
+        if(!imeVisible && bindings!=null && bindings.activeMode() &&
            (key==KeyEvent.KEYCODE_BACK || key==KeyEvent.KEYCODE_BUTTON_B)){
             if(ev.getAction()==KeyEvent.ACTION_UP)
                 bindings.disable("BACK: custom bindings OFF; browser controls restored.");
