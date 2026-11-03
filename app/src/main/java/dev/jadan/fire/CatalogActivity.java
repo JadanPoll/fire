@@ -132,8 +132,9 @@ public final class CatalogActivity extends Activity {
                         LinearLayout card=TvUi.panel(this);
                         card.addView(TvUi.section(this,app.name));
                         card.addView(TvUi.text(this,app.description,15,TvUi.SUB));
-                        addButton(card,"INSTALL / UPDATE",()->download(app));
-                        addButton(card,"OPEN INSTALLED APP",()->launch(app));
+                        LinearLayout appActions=TvUi.actionRow(this,card);
+                        TvUi.actionInRow(this,appActions,"INSTALL / UPDATE",()->download(app));
+                        TvUi.actionInRow(this,appActions,"OPEN INSTALLED APP",()->launch(app));
                         TvUi.addPanel(this,list,card);
                     }
                     status.setText("Catalog loaded: "+apps.size()+" apps. Select an action.");
