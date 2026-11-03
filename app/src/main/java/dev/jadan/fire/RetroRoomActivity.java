@@ -148,9 +148,7 @@ public final class RetroRoomActivity extends Activity {
     private void cancelTransfer(){
         if(!busy){status.setText("No active transfer.");return;}
         cancelled.set(true);
-        Future<?> running=task;
-        if(running!=null)running.cancel(true);
-        status.setText("Cancel requested. Partial files will be removed; press Back to leave.");
+        // Cooperative cancellation: cancelling the Future before a queued\n        // task starts could leave busy=true forever. The worker owns cleanup.\n        status.setText("Cancel requested. Partial files will be removed; press Back to leave.");
         // Do not clear busy until the worker has actually exited.
     }
 
@@ -163,7 +161,7 @@ public final class RetroRoomActivity extends Activity {
                 File folder=new File(getFilesDir(),"apks");
                 if(!folder.exists()&&!folder.mkdirs())throw new IOException("APK cache directory unavailable");
                 File output=new File(folder,DOWNLOAD_NAME);
-                part=new File(folder,DOWNLOAD_NAME+".part");
+                part=new File(folder,DOWNLOAD_NAME+".part.apk");
                 if(output.isFile()&&verifyApk(output)){
                     cachedVerifiedApk=output;
                     setStatus("Official emulator APK already verified. Opening Android installer.");
