@@ -46,7 +46,7 @@ browser=(repo/"browser/src/main/java/dev/jadan/fire/browser/BrowserActivity.java
 assert "fetch(url,{method:'GET',credentials:'same-origin',cache:'no-store'})" in browser
 assert 'private void submitInboxForm(WebView target,String value)' in browser
 assert 'String(m.id)===id||String(o.id)===id' in browser
-assert 'Check Inbox before trying again' in browser
+assert 'Draft retained.' in browser
 assert 'if(value.length()>1200)' in browser
 # Independent native app can opt into a single adapter, no Console dependency.
 assert "TvRemoteAdapter" in signal
