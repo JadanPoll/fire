@@ -342,12 +342,18 @@ public final class BrowserActivity extends Activity {
         });
     }
     private boolean handleWebImeKey(KeyEvent event){
-        // Hardware Shift+Enter must remain available for multiline prompts.
-        // A soft keyboard reporting Shift+Enter can still mean "Next".
+        // Preserve the existing ChatGPT-specific IME submit workaround.
+        // Consume BOTH halves of the key but submit only on UP, like our
+        // normalized pointer OK press: never pass the DOWN to WebView and
+        // also click Send on the UP.
         boolean soft=(event.getFlags()&KeyEvent.FLAG_SOFT_KEYBOARD)!=0 ||
             event.getDeviceId()==KeyCharacterMap.VIRTUAL_KEYBOARD;
         if(event.isShiftPressed() && !soft)return false;
-        return handleWebImeSubmit("IME Enter"+(event.isShiftPressed()?" (soft Shift)":""));
+        if(web==null || !isChatGPT() || !webEditorFocused)return false;
+        if(event.getAction()==KeyEvent.ACTION_DOWN)return true;
+        if(event.getAction()==KeyEvent.ACTION_UP)
+            return handleWebImeSubmit("IME Enter"+(event.isShiftPressed()?" (soft Shift)":""));
+        return false;
     }
     private boolean handleWebImeSubmit(String source){
         if(web==null || !isChatGPT() || !webEditorFocused)return false;
@@ -1104,9 +1110,15 @@ public final class BrowserActivity extends Activity {
         lastHoverEvent="mouse hover at WebView coordinates";
     }
     private void updateCursorVisual(){
-        if(pointerButton!=null)pointerButton.setText(pointerMode?"POINTER ON":"CURSOR");
+        if(pointerButton!=null){
+            String label=pointerMode?"POINTER ON":"CURSOR";
+            // Pointer animation runs every frame: never re-layout the toolbar
+            // 60 times/sec merely to set an unchanged button label.
+            if(!label.contentEquals(pointerButton.getText()))pointerButton.setText(label);
+        }
         if(cursor==null || screen==null)return;
-        cursor.setVisibility(pointerMode && !imeVisible?View.VISIBLE:View.GONE);
+        int visibility=pointerMode && !imeVisible?View.VISIBLE:View.GONE;
+        if(cursor.getVisibility()!=visibility)cursor.setVisibility(visibility);
         if(screen.getWidth()==0 || screen.getHeight()==0)return;
         cursor.setTranslationX(x*screen.getWidth()-cursor.getWidth()*.5f);
         cursor.setTranslationY(y*screen.getHeight()-cursor.getHeight()*.5f);
