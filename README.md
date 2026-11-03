@@ -89,3 +89,27 @@ Fire TV keyboard dictation is supported in the native SPEAK field, rather than r
 From a trusted LAN-connected computer, use Python 3 + official Android platform-tools: python tools/firetv_test.py --connect FIRE_TV_IP:5555 doctor, followed by smoke --apk path/to/firetv-browser.apk, live (scrcpy), or shot. One ADB authorization on the TV is required. See [the testing loop](docs/TEST_LOOP.md).
 
 The lowest-friction remote iteration is: python tools/firetv_test.py --connect FIRE_TV_IP:5555 smoke --latest. It downloads the current GitHub Release browser, verifies its SHA-256 from the release notes, installs it, launches the local HTML input lab, takes a screenshot and checks whether the browser process survives. No repeated manual APK download.
+
+### Browser navigation, history and performance (latest revision)
+
+The address bar now treats plain words and questions as Google searches;
+hostnames remain HTTPS web navigation. MENU toggles browser tools; on
+ChatGPT/Google, delivered Play/Pause keys toggle the full-window pointer,
+and delivered Rewind/FF keys navigate browser history. On arbitrary media
+sites those buttons retain media semantics. Fire TV Home/Alexa/volume stay
+system-managed.
+
+The pointer overlay covers native browser buttons as well as the webpage,
+and redirects clicks to the appropriate existing Android control rather
+than reinventing each button's behavior. Recent pages are labeled and
+filtered to exclude OAuth/sign-in callbacks, sensitive token query strings,
+and tracking-only parameters, and do not repeatedly persist the same SPA
+route. Previously stored transient entries are filtered from the chooser.
+
+TOOLS → STATS shows the WebView engine and memory diagnostics. TOOLS → INSPECT
+enables authorized-ADB Chrome DevTools inspection for the foreground session
+and is off by default; **never enable on an untrusted computer**. A
+`python tools/firetv_test.py --serial TV_IP:5555 perf` command saves local
+memory/renderer/frame/CPU diagnostics to `.fire-tests/`. Browser slowdown
+on ChatGPT must be measured before choosing CSS, user-agent or engine
+changes; the app cannot magically accelerate the website's JavaScript.

@@ -134,6 +134,8 @@ def main():
     shot.add_argument("--output", type=Path)
     key = subs.add_parser("key")
     key.add_argument("name", choices=sorted(KEYS))
+    perf = subs.add_parser("perf", help="Save local WebView/memory/frame diagnostics")
+    perf.add_argument("--output", type=Path)
     subs.add_parser("live")
     args = p.parse_args()
     if not shutil.which(args.adb) and not Path(args.adb).is_file():
@@ -174,6 +176,33 @@ def main():
     elif args.action == "key":
         run(cmd + ["shell", "input", "keyevent", str(KEYS[args.name])])
         print("Sent:", args.name)
+    elif args.action == "perf":
+        dest = args.output or OUTPUT / (
+            "perf-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        sections = (
+            ("WebView provider", ["shell", "dumpsys", "webviewupdate"]),
+            ("Browser process", ["shell", "pidof", PACKAGE]),
+            ("Browser memory", ["shell", "dumpsys", "meminfo", PACKAGE]),
+            ("Browser frame stats", ["shell", "dumpsys", "gfxinfo", PACKAGE, "framestats"]),
+            ("Overall CPU snapshot", ["shell", "dumpsys", "cpuinfo"]),
+        )
+        report = [
+            "Fire TV performance snapshot",
+            "Time: " + datetime.datetime.now().isoformat(),
+            "Device: " + serial,
+            "These reports can include other process names; inspect locally before sharing.",
+            "A WebView renderer may have a separate PID and isn't fully covered by browser memory.",
+        ]
+        for title, argv in sections:
+            result = run(cmd + argv, timeout=30, check=False)
+            data = (result.stdout or result.stderr or "(no data)").strip()
+            # A bounded snapshot, no full system logcat or network/auth URL collection.
+            report.extend(["", "==== " + title + " ====", data[:50000]])
+        dest.write_text("\n".join(report) + "\n", encoding="utf-8")
+        print("Performance snapshot:", dest.resolve())
+        print("Compare snapshots before/after a freeze, or inspect ChatGPT with the opt-in")
+        print("WebView INSPECT control and desktop Chrome chrome://inspect/#devices.")
     elif args.action == "live":
         scrcpy = shutil.which("scrcpy")
         if not scrcpy:

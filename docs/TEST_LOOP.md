@@ -76,3 +76,41 @@ https://community.amazondeveloper.com/t/live-device-interaction-with-virtual-dev
 https://github.com/HereIamGosu/android-tv-adb-control-center
 
 The smoke command also accepts --latest instead of --apk to fetch and SHA-256 verify the current rolling browser release automatically. This makes the common edit/build/release/device-test loop one host command, once ADB is authorized.
+
+## Diagnosing a freeze rather than guessing at optimizations
+
+The browser's **TOOLS → STATS** shows Android/WebView version, system memory,
+recent load time, and renderer recovery count. **TOOLS → INSPECT** is an opt-in
+toggle for Chrome DevTools inspection over an already-authorized ADB connection;
+it is off by default and is disabled while the activity is backgrounded.
+Because debugging reveals signed-in page content, use only on a trusted device
+and trusted computer. In Chrome on your computer visit
+`chrome://inspect/#devices`. JavaScript Performance and Memory profiles
+can distinguish a long JS task, repeated layout, and an excessive JS heap.
+
+From your trusted computer run:
+
+    python tools/firetv_test.py --serial TV_IP:5555 perf
+
+It saves bounded `dumpsys webviewupdate`, memory, frame stats and CPU data in
+`.fire-tests/`, not GitHub or a server. Run once when responsive and once
+when ChatGPT becomes slow. Review it before sharing because system process
+names may be present. WebView renderer memory may live outside the browser app
+process, so these are partial measurements. See Android's WebView memory
+guide: https://developer.android.com/topic/performance/memory/guide/webview-memory
+
+Use the observations to distinguish:
+- native controls remain responsive, webpage does not: possible WebView
+  renderer / JavaScript task; DevTools can narrow it down.
+- entire app UI fails to respond: Android UI thread, system load or focus;
+  capture system state instead of randomly editing website scripts.
+- app closes / renderer is recreated: renderer death; examine renderer
+  recovery count and memory. A killed renderer and an unresponsive renderer
+  are different cases.
+- only ChatGPT is problematic: compare the same workload in TV Bro (Gecko)
+  or an alternative engine. Our installed WebView may be the constraint.
+
+Optional **MOTION** disables animations/transitions on pages without
+disabling content, but it is not a proven optimization for ChatGPT's JS work.
+Do not remove images, GPU acceleration or authenticated site features just
+to make a synthetic performance benchmark look better.
