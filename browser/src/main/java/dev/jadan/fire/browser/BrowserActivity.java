@@ -760,6 +760,8 @@ public final class BrowserActivity extends Activity {
         address.setText("local:input-lab");
     }
     private void togglePointer(){
+        if(bindings!=null && bindings.activeMode())
+            bindings.disable("Native pointer selected; mapped controls OFF.");
         stopMotion();remoteInputs.cancelOk();
         pointerMode=!pointerMode;
         if(pointerMode && imeVisible){
@@ -775,6 +777,50 @@ public final class BrowserActivity extends Activity {
             resetWebHover(true);
             status.setText("Pointer OFF. D-pad navigates normal controls.");
         }
+    }
+    private void emergencyRestoreBindings(){
+        bindingClock.removeCallbacks(holdMediaAction);
+        bindingClock.removeCallbacks(rescueAction);
+        mediaHeld=false;mediaHoldTriggered=false;
+        bindingSafety.cancel();
+        if(bindings!=null)bindings.disable("Emergency: all custom controls OFF.");
+        pointerMode=false;
+        stopMotion();remoteInputs.cancelOk();
+        resetWebHover(true);
+        remoteMediaShortcuts=false;
+        prefs.edit().putBoolean("remote_media_shortcuts",false).apply();
+        refreshMediaSession();
+        updateCursorVisual();
+        status.setText("EMERGENCY RESTORE: normal D-pad / OK / Back restored. "+
+            "Saved sets untouched. SETS / MENU to re-enable.");
+    }
+    private boolean observeEmergency(KeyEvent ev){
+        if(imeVisible)return false; // System keyboard owns keys while shown.
+        int key=ev.getKeyCode(),action=ev.getAction();
+        long now=SystemClock.uptimeMillis();
+        if(key==KeyEvent.KEYCODE_DPAD_DOWN){
+            if(action==KeyEvent.ACTION_DOWN)bindingSafety.downPressed(ev.getRepeatCount());
+            if(action==KeyEvent.ACTION_UP)bindingSafety.downReleased(now);
+        }else if((key==KeyEvent.KEYCODE_DPAD_UP ||
+                 key==KeyEvent.KEYCODE_DPAD_LEFT ||
+                 key==KeyEvent.KEYCODE_DPAD_RIGHT) &&
+                 action==KeyEvent.ACTION_DOWN && ev.getRepeatCount()==0){
+            bindingSafety.otherDirection();
+        }
+        if(key==KeyEvent.KEYCODE_DPAD_CENTER || key==KeyEvent.KEYCODE_ENTER ||
+           key==KeyEvent.KEYCODE_NUMPAD_ENTER || key==KeyEvent.KEYCODE_BUTTON_A){
+            if(action==KeyEvent.ACTION_DOWN &&
+                bindingSafety.okPressed(ev.getRepeatCount(),now)){
+                bindingClock.removeCallbacks(rescueAction);
+                bindingClock.postDelayed(rescueAction,BindingSafety.RESET_HOLD_MS);
+            }else if(action==KeyEvent.ACTION_UP){
+                bindingClock.removeCallbacks(rescueAction);
+                // Completed emergency hold swallows its final OK release;
+                // a short OK is passed to the normal pointer/key handler.
+                return bindingSafety.okReleased(now);
+            }
+        }
+        return false;
     }
     @Override public boolean dispatchKeyEvent(KeyEvent ev){
         int key=ev.getKeyCode();
@@ -795,13 +841,20 @@ public final class BrowserActivity extends Activity {
         if(key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER)
             lastRawEnter=KeyEvent.keyCodeToString(key)+", shift="+ev.isShiftPressed()+
                 ", "+(ev.getAction()==KeyEvent.ACTION_UP?"UP":"DOWN");
+        // The emergency chord is evaluated BEFORE every profile and mode.
+        if(observeEmergency(ev))return true;
         // System-reserved Home, Alexa and volume keys are never remapped.
         if(key==KeyEvent.KEYCODE_MENU){
             if(ev.getAction()==KeyEvent.ACTION_UP)toggleTools();
             return true;
         }
-        // Activity key delivery is a fallback for keys that are not routed to
-        // the foreground MediaSession. Shared debouncing avoids double toggles.
+        // A profile only captures its own mapped keys and never intercepts
+        // MENU/OK/BACK or a visible Fire keyboard.
+        WindowInsetsCompat earlyInsets=ViewCompat.getRootWindowInsets(screen);
+        if(earlyInsets!=null)imeVisible=earlyInsets.isVisible(WindowInsetsCompat.Type.ime());
+        if(bindings!=null && bindings.onKey(ev,SystemClock.uptimeMillis()))return true;
+        // Activity key delivery is a fallback for keys not routed to a
+        // foreground MediaSession.
         if(handleMediaShortcut(ev,"activity"))return true;
         // Raw Enter from a hardware keyboard may produce a newline in a rich
         // composer. Shift+Enter still passes through. A Fire OS IME may commit
@@ -832,6 +885,10 @@ public final class BrowserActivity extends Activity {
             if((k==KeyEvent.KEYCODE_BACK || k==KeyEvent.KEYCODE_BUTTON_B) &&
                ev.getAction()==KeyEvent.ACTION_UP){
                 stopMotion();remoteInputs.cancelOk();
+                if(bindings!=null && bindings.captureMode()){
+                    bindings.disable("Binding cursor cancelled with BACK.");
+                    return true;
+                }
                 if(web!=null && web.canGoBack()){
                     web.goBack();
                     status.setText("Back to previous webpage; pointer mode remains ON.");
@@ -871,6 +928,38 @@ public final class BrowserActivity extends Activity {
         return super.dispatchKeyEvent(ev);
     }
 
+    /**
+     * Reuse the same native SOURCE_TOUCHSCREEN dispatch as the pointer.
+     * Coordinates are relative to the target view, so browser toolbar height,
+     * screen resolution, and webpage layout are not conflated.
+     */
+    private void deliverMappedTouch(BrowserBindings.Target target){
+        if(!browserForeground || imeVisible || screen==null || web==null)return;
+        View receiver=target.web?web:screen;
+        if(receiver.getWidth()<2||receiver.getHeight()<2 ||
+           !receiver.isAttachedToWindow())return;
+        float px=Math.max(1f,Math.min(receiver.getWidth()-1,target.x*receiver.getWidth()));
+        float py=Math.max(1f,Math.min(receiver.getHeight()-1,target.y*receiver.getHeight()));
+        long now=SystemClock.uptimeMillis();
+        if(target.web){
+            resetWebHover(true);
+            if(!web.hasFocus())web.requestFocus();
+        }
+        MotionEvent down=MotionEvent.obtain(now,now,MotionEvent.ACTION_DOWN,px,py,0);
+        MotionEvent up=MotionEvent.obtain(now,now+60,MotionEvent.ACTION_UP,px,py,0);
+        down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        up.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        try{
+            receiver.dispatchTouchEvent(down);
+            receiver.dispatchTouchEvent(up);
+            lastPointerEvent="bound "+(target.web?"webpage":"native control")+" tap";
+        }catch(RuntimeException error){
+            status.setText("Bound tap failed: "+error.getClass().getSimpleName()+
+                ". MENU / SETS restores normal controls.");
+        }finally{
+            down.recycle();up.recycle();
+        }
+    }
     private static final String WEB_EDITOR_CHECK =
         "(function(){var e=document.activeElement;if(!e)return 'NONE';"+
         "var c=document.querySelector('#prompt-textarea,[contenteditable=\"true\"].ProseMirror');"+
@@ -883,6 +972,23 @@ public final class BrowserActivity extends Activity {
     private void clickPointer(){
         if(screen==null||web==null)return;
         stopMotion();
+        if(bindings!=null && bindings.captureMode()){
+            float px=x*screen.getWidth(),py=y*screen.getHeight();
+            int[] screenLocation=new int[2],webLocation=new int[2];
+            screen.getLocationOnScreen(screenLocation);
+            web.getLocationOnScreen(webLocation);
+            float webX=px+screenLocation[0]-webLocation[0];
+            float webY=py+screenLocation[1]-webLocation[1];
+            boolean inWeb=webX>=0&&webY>=0&&
+                webX<web.getWidth()&&webY<web.getHeight()&&
+                web.getVisibility()==View.VISIBLE;
+            bindings.captureTarget(inWeb?
+                new BrowserBindings.Target(true,
+                    webX/Math.max(1,web.getWidth()),webY/Math.max(1,web.getHeight())):
+                new BrowserBindings.Target(false,
+                    px/Math.max(1,screen.getWidth()),py/Math.max(1,screen.getHeight())));
+            return; // Binding selection never clicks the underlying webpage.
+        }
         remoteInputs.cancelOk();
         long time=SystemClock.uptimeMillis();
         lastOk=time;
@@ -1218,6 +1324,7 @@ public final class BrowserActivity extends Activity {
         if(cursor==null || screen==null)return;
         int visibility=pointerMode && !imeVisible?View.VISIBLE:View.GONE;
         if(cursor.getVisibility()!=visibility)cursor.setVisibility(visibility);
+        if(bindings!=null&&bindings.captureMode())cursor.invalidate();
         if(screen.getWidth()==0 || screen.getHeight()==0)return;
         cursor.setTranslationX(x*screen.getWidth()-cursor.getWidth()*.5f);
         cursor.setTranslationY(y*screen.getHeight()-cursor.getHeight()*.5f);
@@ -1550,6 +1657,10 @@ public final class BrowserActivity extends Activity {
             status.setText("Keyboard dismissed; previous pointer selection preserved.");
             return;
         }
+        if(bindings!=null && bindings.captureMode()){
+            bindings.disable("Binding cursor cancelled with BACK.");
+            return;
+        }
         if(pointerMode){
             stopMotion();
             remoteInputs.cancelOk();
@@ -1566,6 +1677,11 @@ public final class BrowserActivity extends Activity {
         super.onBackPressed();
     }
     @Override protected void onPause(){
+        bindingClock.removeCallbacks(holdMediaAction);
+        bindingClock.removeCallbacks(rescueAction);
+        bindingSafety.cancel();
+        mediaHeld=false;
+        if(bindings!=null)bindings.stopInput();
         resetWebHover(true);
         remoteInputs.cancelOk();
         browserForeground=false;
@@ -1587,6 +1703,11 @@ public final class BrowserActivity extends Activity {
     @Override public void onWindowFocusChanged(boolean hasFocus){
         super.onWindowFocusChanged(hasFocus);
         if(!hasFocus){
+            bindingClock.removeCallbacks(holdMediaAction);
+            bindingClock.removeCallbacks(rescueAction);
+            bindingSafety.cancel();
+            mediaHeld=false;
+            if(bindings!=null)bindings.stopInput();
             stopMotion();
             remoteInputs.cancelOk();
             resetWebHover(true);
@@ -1605,6 +1726,8 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
+        bindingClock.removeCallbacks(holdMediaAction);
+        bindingClock.removeCallbacks(rescueAction);
         resetWebHover(false);
         if(browserUpdater!=null)browserUpdater.close();
         if(pointerMediaSession!=null){
