@@ -61,6 +61,8 @@ public final class BrowserActivity extends Activity {
     private int lastProgress=-1;
     private long lastProgressAt, pageStartedAt, lastLoadMillis;
     private boolean reducedMotion;
+    private boolean devtoolsEnabled;
+    private String lastRecordedUrl="";
     private final Runnable pointerTick = new Runnable() {
         @Override public void run() {
             if(!pointerMode || heldKey < 0 || cursor == null) return;
@@ -143,6 +145,7 @@ public final class BrowserActivity extends Activity {
         button(reading,"FIT",this::resetZoom);
         button(reading,"HOME",()->loadUrl(HOME));
         button(reading,"STATS",this::showDiagnostics);
+        button(reading,"INSPECT",this::toggleInspection);
         button(reading,"MOTION",this::toggleReducedMotion);
 
         LinearLayout composing=new LinearLayout(this);
@@ -680,7 +683,9 @@ public final class BrowserActivity extends Activity {
     }
     private static String historyLabel(String url,String title){
         String s=title==null?"":title.trim().replace('\n',' ');
-        if(s.length()>0 && s.length()<=120 && !s.startsWith("http")){
+        // A generic site title isn't enough to distinguish two conversations.
+        if(s.length()>0 && s.length()<=120 && !s.startsWith("http")
+                && !("ChatGPT".equalsIgnoreCase(s) && url.contains("/c/"))){
             return s.length()>65?s.substring(0,62)+"…":s;
         }
         try {
@@ -707,7 +712,8 @@ public final class BrowserActivity extends Activity {
     }
     private void rememberPage(String url,String title){
         final String clean=cleanHistoryUrl(url);
-        if(clean==null)return;
+        if(clean==null || clean.equals(lastRecordedUrl))return;
+        lastRecordedUrl=clean;
         prefs.edit().putString("last_url",clean).apply();
         try {
             JSONArray old=new JSONArray(prefs.getString("recents","[]"));
@@ -786,6 +792,22 @@ public final class BrowserActivity extends Activity {
                 status.setText("Diagnostics copied; safe to share (does not include URLs or cookies).");
             }).setNegativeButton("Close",null).show();
     }
+    private void toggleInspection(){
+        if(devtoolsEnabled){
+            devtoolsEnabled=false;
+            WebView.setWebContentsDebuggingEnabled(false);
+            status.setText("WebView inspection disabled.");
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Enable WebView debugging?")
+            .setMessage("This allows a computer with authorized ADB access to inspect webpage content, including signed-in sessions. Enable only on a trusted development device and disable when finished. On the PC, visit chrome://inspect/#devices.")
+            .setPositiveButton("ENABLE",(dialog,which)->{
+                devtoolsEnabled=true;
+                WebView.setWebContentsDebuggingEnabled(true);
+                status.setText("WebView inspection enabled for authorized ADB. Toggle INSPECT to turn off.");
+            })
+            .setNegativeButton("Cancel",null).show();
+    }
     private void toggleReducedMotion(){
         reducedMotion=!reducedMotion;
         prefs.edit().putBoolean("reduced_motion",reducedMotion).apply();
@@ -811,11 +833,13 @@ public final class BrowserActivity extends Activity {
     }
     @Override protected void onPause(){
         stopMotion();
+        if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(false);
         if(web!=null)web.onPause();
         super.onPause();
     }
     @Override protected void onResume(){
         super.onResume();
+        if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(true);
         if(web!=null)web.onResume();
     }
     @Override public void onWindowFocusChanged(boolean hasFocus){
@@ -835,6 +859,8 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
+        if(devtoolsEnabled)WebView.setWebContentsDebuggingEnabled(false);
+        stopMotion();
         if(web!=null){
             viewport.removeView(web);
             web.stopLoading();
