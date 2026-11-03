@@ -76,6 +76,16 @@ public final class RetroRoomActivity extends Activity {
             16,TvUi.INK);
         root.addView(status);
 
+        LinearLayout nativePlayer=TvUi.panel(this);
+        nativePlayer.addView(TvUi.section(this,"0  /  FIRE GBA · REMOTE-FIRST"));
+        nativePlayer.addView(TvUi.text(this,
+            "Fire-owned native mGBA player with an included core, real game saves, and a D-pad/OK control wheel. No separate emulator core download required.",
+            15,TvUi.SUB));
+        TvUi.action(this,nativePlayer,"OPEN FIRE GBA PLAYER",this::launchNativeGba);
+        TvUi.action(this,nativePlayer,"INSTALL / UPDATE FIRE GBA",()->
+            startActivity(new Intent(this,CatalogActivity.class)));
+        TvUi.addPanel(this,root,nativePlayer);
+
         LinearLayout engine=TvUi.panel(this);
         engine.addView(TvUi.section(this,"1  /  REAL EMULATOR"));
         engine.addView(TvUi.text(this,
@@ -107,7 +117,7 @@ public final class RetroRoomActivity extends Activity {
         TvUi.addPanel(this,root,play);
 
         root.addView(TvUi.text(this,
-            "CONTROL LIMIT: the standard Fire TV remote has too few buttons for all GBA actions. Lemuroid's current Fire-specific remote fix is not in its released build. A connected gamepad is the dependable baseline until our own frontend is verified. BACK always returns to Console.",
+            "CONTROL MODES: Fire GBA maps short OK to A, long OK to B, and Back/Menu to a recoverable control wheel. Lemuroid remains a separate upstream fallback; a Bluetooth gamepad is its safer input path until Fire remote support is verified.",
             14,TvUi.SUB));
         TvUi.action(this,root,"BACK TO PLAYROOM",this::finish).requestFocus();
     }
@@ -251,6 +261,22 @@ public final class RetroRoomActivity extends Activity {
             }catch(Exception e){setStatus("Could not verify cached APK: "+e.getMessage());}
             finally{end();}
         });
+    }
+
+    private void launchNativeGba(){
+        final String pkg="dev.jadan.fire.gbaplayer";
+        Intent launcher=getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+        if(launcher==null)launcher=getPackageManager().getLaunchIntentForPackage(pkg);
+        if(launcher==null){
+            status.setText("Fire GBA not installed. Select INSTALL / UPDATE FIRE GBA and confirm Android installation.");
+            return;
+        }
+        try{
+            startActivity(launcher);
+            status.setText("Opened Fire GBA. Import your own .gba or scan the Playroom ROM folder.");
+        }catch(RuntimeException error){
+            status.setText("Could not open Fire GBA: "+error.getClass().getSimpleName());
+        }
     }
 
     private void launchEmulator(){
