@@ -122,17 +122,37 @@ public final class TerminalActivity extends Activity {
     }
 
     private void openKeyboard(){
-        if(isFinishing())return;
+        if(isFinishing()||isDestroyed())return;
+        // v59 regression: setShowSoftInputOnFocus(false) was never re-enabled
+        // before showSoftInput(). Android then had no active editor connection.
+        // Enable ONLY on the deliberate TYPE action, not on Activity creation.
+        entry.setShowSoftInputOnFocus(true);
         entry.requestFocus();
-        keyboardHint.setText("Keyboard requested. Use Done or Back to return to D-pad controls; RUN is above the log.");
+        keyboardHint.setText("TYPE selected. Fire keyboard requested; Done runs, Back dismisses. RUN remains at top.");
         InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-        if(input!=null)entry.post(()->input.showSoftInput(entry,InputMethodManager.SHOW_IMPLICIT));
+        if(input==null){
+            status.setText("Fire keyboard service unavailable. Try another native text field.");
+            return;
+        }
+        // Posting waits for the focus / input connection to settle. Flag 0
+        // denotes an explicit user request; SHOW_IMPLICIT can be ignored by
+        // some IMEs. Never use SHOW_FORCED (it can outlive this Activity).
+        entry.post(()->{
+            if(isFinishing()||isDestroyed()||!entry.hasFocus())return;
+            input.restartInput(entry);
+            boolean sent=input.showSoftInput(entry,0);
+            status.setText(sent?"Keyboard request sent; enter command, then Done or Back.":
+                "Fire OS did not accept the keyboard request. Select TYPE again or use Back/EXIT.");
+        });
     }
 
     private void hideKeyboard(){
         InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
         if(input!=null)input.hideSoftInputFromWindow(entry.getWindowToken(),0);
         entry.clearFocus();
+        // Reset to no-auto-show, so returning with the D-pad never traps the
+        // operator in keyboard mode again.
+        entry.setShowSoftInputOnFocus(false);
         type.requestFocus();
         keyboardHint.setText("D-pad controls ready. TYPE reopens the keyboard explicitly.");
     }
