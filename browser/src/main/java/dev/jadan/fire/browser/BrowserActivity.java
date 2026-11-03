@@ -111,7 +111,21 @@ public final class BrowserActivity extends Activity {
     private EditText address, draft;
     private boolean pointerMode;
     private boolean imeVisible;
+
     private final RemoteInputPolicy remoteInputs=new RemoteInputPolicy();
+    private BrowserBindings bindings;
+    private final BindingSafety bindingSafety=new BindingSafety();
+    private final Handler bindingClock=new Handler(Looper.getMainLooper());
+    private boolean mediaHeld, mediaHoldTriggered;
+    private final Runnable holdMediaAction=()->{
+        if(mediaHeld && browserForeground && bindings!=null && !imeVisible){
+            mediaHoldTriggered=true;
+            bindings.holdPlayPause();
+        }
+    };
+    private final Runnable rescueAction=()->{
+        if(bindingSafety.resetDue(SystemClock.uptimeMillis()))emergencyRestoreBindings();
+    };
     private final ArrayDeque<String> remoteTrace=new ArrayDeque<>();
     private void traceInput(String description){
         if(remoteTrace.size()>=16)remoteTrace.removeFirst();
@@ -179,7 +193,14 @@ public final class BrowserActivity extends Activity {
                 traceInput("software keyboard "+(visible?"VISIBLE":"HIDDEN"));
                 stopMotion();
                 remoteInputs.cancelOk();
-                if(visible)resetWebHover(true);
+                if(visible){
+                    bindingSafety.cancel();
+                    bindingClock.removeCallbacks(rescueAction);
+                    bindingClock.removeCallbacks(holdMediaAction);
+                    mediaHeld=false;
+                    if(bindings!=null)bindings.stopInput();
+                    resetWebHover(true);
+                }
                 else if(pointerMode)v.post(()->emitWebHover(true));
                 updateCursorVisual();
             }
@@ -204,6 +225,7 @@ public final class BrowserActivity extends Activity {
         button(line,"GO",this::goAddress);
         button(line,"MENU",this::toggleTools);
         pointerButton=button(line,"CURSOR",this::togglePointer);
+        button(line,"SETS",()->{if(bindings!=null)bindings.showWheel();});
         // Float over the page instead of resizing WebView every time the menu opens.
         toolsPanel=new LinearLayout(this);
         toolsPanel.setOrientation(LinearLayout.HORIZONTAL);
@@ -253,7 +275,8 @@ public final class BrowserActivity extends Activity {
             final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override protected void onDraw(Canvas c) {
                 float cx=getWidth()*.5f,cy=getHeight()*.5f;
-                p.setColor(0xFFFFC951);
+                p.setColor(bindings!=null && bindings.captureMode()?
+                    0xFF40F0A8:0xFFFFC951);
                 p.setStrokeWidth(dp(2));
                 p.setStyle(Paint.Style.STROKE);
                 c.drawCircle(cx,cy,dp(8),p);
@@ -276,6 +299,31 @@ public final class BrowserActivity extends Activity {
         root.addView(status,new LinearLayout.LayoutParams(-1,dp(30)));
         status.setText("Fire Browser ready. MENU → INBOX or MORE. CURSOR toggles pointer.");
         browserUpdater=new BrowserUpdater(this,status);
+        bindings=new BrowserBindings(this,prefs,new BrowserBindings.Host(){
+            @Override public String pageHost(){
+                if(web==null || web.getUrl()==null)return "";
+                try{
+                    String hostname=Uri.parse(web.getUrl()).getHost();
+                    return hostname==null?"":hostname;
+                }catch(RuntimeException error){return "";}
+            }
+            @Override public boolean keyboardVisible(){return imeVisible;}
+            @Override public boolean nativeEditorFocused(){
+                return (address!=null&&address.hasFocus()) ||
+                    (draft!=null&&draft.hasFocus()) || webEditorFocused;
+            }
+            @Override public void stateChanged(boolean capture,boolean mapped){
+                stopMotion();remoteInputs.cancelOk();
+                pointerMode=capture;updateCursorVisual();
+                if(mapped&&web!=null)web.requestFocus();
+            }
+            @Override public void performTarget(BrowserBindings.Target target){
+                deliverMappedTouch(target);
+            }
+            @Override public void status(String message){
+                if(status!=null)status.setText(message);
+            }
+        });
         if(b!=null) draft.setText(b.getString("draft",""));
         else {
             String fromDesk=getIntent().getStringExtra("draft");
@@ -424,6 +472,7 @@ public final class BrowserActivity extends Activity {
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
                 if(web!=view)return;
                 webEditorFocused=false;
+                if(bindings!=null)bindings.onPageChanged(url);
                 pointerClickGeneration++;
                 remoteInputs.cancelOk();
                 stopMotion();
@@ -532,7 +581,8 @@ public final class BrowserActivity extends Activity {
             "Page smaller","Page larger","Reset zoom to 100%","Input test page",
             "Browser diagnostics","Inspect with Chrome","Reduced motion",
             "Remote media shortcuts","Allow third-party cookies for sign-in",
-            "Check browser update","Pin webpage to Playroom"};
+            "Check browser update","Pin webpage to Playroom",
+            "CONTROL WHEEL / named binding sets","EMERGENCY RESTORE / disable mappings"};
         new AlertDialog.Builder(this).setTitle("Browser options")
             .setItems(actions,(dlg,index)->{
                 switch(index){
@@ -551,6 +601,8 @@ public final class BrowserActivity extends Activity {
                     case 12:toggleThirdPartyCookies();break;
                     case 13:if(browserUpdater!=null)browserUpdater.check();break;
                     case 14:pinCurrentPage();break;
+                    case 15:if(bindings!=null)bindings.showWheel();break;
+                    case 16:emergencyRestoreBindings();break;
                 }
             }).setNegativeButton("Close",null).show();
     }
