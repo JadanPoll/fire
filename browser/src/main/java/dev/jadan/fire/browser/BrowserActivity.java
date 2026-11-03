@@ -54,12 +54,14 @@ import org.json.JSONObject;
  */
 public final class BrowserActivity extends Activity {
     private static final String HOME = "https://chatgpt.com/";
+    private static final String FIRE_INBOX = "https://fire-inbox-jadan.brinyduck2.chatgpt.site/";
     private static final String SEARCH = "https://www.google.com/search?q=";
     private static final String PREFS = "browser_state";
     private SharedPreferences prefs;
     private int textZoom = 85;
     private int pageZoom = 85;
     private long lastSend;
+    private String pendingInboxText;
     private int heldKey = -1;
     private long heldSince, lastMove;
     private long lastFrameNs;
@@ -150,7 +152,7 @@ public final class BrowserActivity extends Activity {
         button(toolsPanel,"FWD",this::browseForward);
         button(toolsPanel,"RELOAD",()->{if(web!=null)web.reload();});
         button(toolsPanel,"RECENT",this::showRecent);
-        button(toolsPanel,"CHATGPT",()->loadUrl(HOME));
+        button(toolsPanel,"INBOX",()->loadUrl(FIRE_INBOX));
         button(toolsPanel,"MORE",this::showMore);
 
         LinearLayout composing=new LinearLayout(this);
@@ -355,6 +357,19 @@ public final class BrowserActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view,String url) {
                 if(web != view) return;
+                if(pendingInboxText!=null && isFireInboxUrl(url)){
+                    String receipt=null;
+                    try{receipt=Uri.parse(url).getQueryParameter("posted");}
+                    catch(Exception ignored){}
+                    if("1".equals(receipt)){
+                        if(pendingInboxText.equals(draft.getText().toString()))draft.setText("");
+                        pendingInboxText=null;
+                        status.setText("Fire Inbox confirmed your message was saved.");
+                    }else{
+                        pendingInboxText=null;
+                        status.setText("Post not confirmed. Check the inbox before retrying.");
+                    }
+                }
                 lastLoadMillis=pageStartedAt>0?SystemClock.uptimeMillis()-pageStartedAt:0;
                 address.setText(url.equals(PROBE)?"local:input-lab":url);
                 if(isMeaningfulUrl(url)) {
@@ -363,8 +378,10 @@ public final class BrowserActivity extends Activity {
                 }
                 applyPageZoom();
                 applyReducedMotion();
-                status.setText("Ready: "+displayHost(url)+" · load "+lastLoadMillis+"ms · text "+
-                    textZoom+"%, page "+pageZoom+"%.");
+                if(!isFireInboxUrl(url) || pendingInboxText!=null ||
+                    !url.contains("posted=1"))
+                    status.setText("Ready: "+displayHost(url)+" · load "+lastLoadMillis+
+                        "ms · text "+textZoom+"%, page "+pageZoom+"%.");
             }
             @Override public void doUpdateVisitedHistory(WebView view,String url,boolean isReload){
                 if(web!=view || !isMeaningfulUrl(url))return;
@@ -427,24 +444,25 @@ public final class BrowserActivity extends Activity {
     }
     private void showMore(){
         // Keep uncommon operations reachable without putting 20 buttons on screen.
-        final String[] actions={"Paste draft without sending","Text smaller","Text larger",
+        final String[] actions={"Open ChatGPT","Paste draft without sending","Text smaller","Text larger",
             "Page smaller","Page larger","Reset zoom to 100%","Input test page",
             "Browser diagnostics","Inspect with Chrome","Reduced motion",
             "Remote media shortcuts"};
         new AlertDialog.Builder(this).setTitle("Browser options")
             .setItems(actions,(dlg,index)->{
                 switch(index){
-                    case 0:pasteDraft();break;
-                    case 1:changeTextZoom(-10);break;
-                    case 2:changeTextZoom(10);break;
-                    case 3:zoomPage(false);break;
-                    case 4:zoomPage(true);break;
-                    case 5:resetZoom();break;
-                    case 6:loadProbe();break;
-                    case 7:showDiagnostics();break;
-                    case 8:toggleInspection();break;
-                    case 9:toggleReducedMotion();break;
-                    case 10:toggleRemoteShortcuts();break;
+                    case 0:loadUrl(HOME);break;
+                    case 1:pasteDraft();break;
+                    case 2:changeTextZoom(-10);break;
+                    case 3:changeTextZoom(10);break;
+                    case 4:zoomPage(false);break;
+                    case 5:zoomPage(true);break;
+                    case 6:resetZoom();break;
+                    case 7:loadProbe();break;
+                    case 8:showDiagnostics();break;
+                    case 9:toggleInspection();break;
+                    case 10:toggleReducedMotion();break;
+                    case 11:toggleRemoteShortcuts();break;
                 }
             }).setNegativeButton("Close",null).show();
     }
@@ -670,8 +688,62 @@ public final class BrowserActivity extends Activity {
                  (host!=null&&host.endsWith(".chatgpt.com")));
         }catch(Exception ex){return false;}
     }
+    private static boolean isFireInboxUrl(String raw){
+        try{
+            Uri uri=Uri.parse(raw);
+            return "https".equalsIgnoreCase(uri.getScheme()) &&
+                "fire-inbox-jadan.brinyduck2.chatgpt.site".equalsIgnoreCase(uri.getHost());
+        }catch(Exception ex){return false;}
+    }
+    private boolean isFireInbox(){
+        return web!=null && isFireInboxUrl(web.getUrl());
+    }
+    /**
+     * Fire Inbox is a standard signed-in HTML form, not a ChatGPT model API.
+     * Reuse the existing native dictation input; hand it to the site's form
+     * using its own browser cookies, CSRF/nonce and POST route.
+     * Only a response redirect containing posted=1 confirms persistence.
+     */
+    private void postInboxDraft(){
+        if(web==null)return;
+        String value=draft.getText().toString();
+        if(value.trim().isEmpty()){
+            status.setText("Dictate or type a note before posting.");return;
+        }
+        if(value.length()>12000){
+            status.setText("Fire Inbox accepts at most 12,000 characters per note.");return;
+        }
+        long now=SystemClock.uptimeMillis();
+        if(lastSend!=0 && now-lastSend<1200){
+            status.setText("Post already requested. Check the inbox before retrying.");return;
+        }
+        lastSend=now;
+        pendingInboxText=value;
+        final WebView target=web;
+        InputMethodManager imm=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        if(imm!=null)imm.hideSoftInputFromWindow(draft.getWindowToken(),0);
+        status.setText("Submitting note to Fire Inbox…");
+        String js="(function(){"+
+            "var f=document.querySelector('form[action=\"/api/messages\"]');"+
+            "var input=f&&f.querySelector('textarea[name=\"message\"]');"+
+            "var nonce=f&&f.querySelector('input[name=\"nonce\"]');"+
+            "if(!f||!input||!nonce||!nonce.value)return 'NOT_SIGNED_IN_OR_FORM_MISSING';"+
+            "input.value="+JSONObject.quote(value)+";"+
+            "input.dispatchEvent(new Event('input',{bubbles:true}));"+
+            "if(typeof f.requestSubmit==='function')f.requestSubmit();"+
+            "else f.submit();return 'POST_STARTED';})()";
+        target.evaluateJavascript(js,result->{
+            if(web!=target)return;
+            if(result!=null && result.contains("NOT_SIGNED_IN_OR_FORM_MISSING")){
+                pendingInboxText=null;
+                status.setText("Inbox form not available. Sign in to the Site or reload, then retry.");
+            }
+            // A started POST is NOT proof it was stored. Wait for posted=1.
+        });
+    }
     private void sendDraft(){
         if(web==null){status.setText("Browser recovering; no message was sent.");return;}
+        if(isFireInbox()){postInboxDraft();return;}
         if(!isChatGPT()){
             status.setText("SEND is ChatGPT-specific. PASTE works on other sites; nothing submitted.");
             return;
