@@ -74,17 +74,17 @@ The external browser selector now shows an actual list of eligible installed bro
 
 `browser/` is now a separate Android/Fire OS application, not merely an Activity inside the Fire TV Dev Bridge. Install **Fire Browser** using the bridge's **APP CATALOG**, or install `firetv-browser.apk` directly from the rolling GitHub Release. Its independent package `dev.jadan.fire.browser`, Leanback launcher, browser icon and banner mean it appears as an ordinary Fire TV app. Amazon documents that sideloaded launched applications can appear in its Recent row, although exact ordering/placement remains under Fire OS control.
 
-The browser also maintains its own **RECENT** (16 recent HTTPS pages, stored on device), resumes the last visited page after relaunch, and supports clearing local recent pages. Text zoom starts at 135% and is adjustable and remembered using A− and A+. The WebView recovers if the renderer is killed by the system; in a true renderer crash it shows the input lab instead of repeatedly crashing the same URL. The original browser experiment remains in the bridge for A/B comparisons, and both APKs coexist.
+The browser also maintains its own **RECENT** (16 recent HTTPS pages, stored on device), resumes the last visited page after relaunch, and supports clearing local recent pages. Text zoom defaults to 85% and is adjustable and remembered through MENU → MORE. The WebView recovers if the renderer is killed by the system; in a true renderer crash it shows the input lab instead of repeatedly crashing the same URL. The original browser experiment remains in the bridge for A/B comparisons, and both APKs coexist.
 
 Source research: TV Bro (cursor and browser UI), Comet (lightweight WebView, tab state/renderer recovery), Arrowz Browser (text zoom, text-native overlay, renderer recovery), and mrowser (TV Launcher and recent/history). We intentionally haven't copied their media, ads, multi-tab or permission frameworks, which aren't necessary for the current experiment loop.
 
-Browser text controls separate text scaling (A+/A−, remembered across launches) from page layout zoom (PAGE+/PAGE−, for fixed-size layouts). The Codex desk launches the standalone browser if installed, otherwise falls back to the original lab. This preserves the existing on-device workflow while the independent browser is being adopted.
+Browser options separate text scaling (remembered across launches) from page layout scaling (for fixed-size layouts). The Codex desk launches the standalone browser if installed, otherwise falls back to the original lab. This preserves the existing on-device workflow while the independent browser is being adopted.
 
 ### Browser scaling, submission and remote tests
 
-In standalone Fire Browser, the default web text and page scale are now 85% each, with compact controls and a collapsible TOOLS panel. A−/A+ allows 55%-200% text size; PAGE−/PAGE+ allows 50%-160% page scale, FIT restores both to 100%. Your previously saved text size is retained until you change it.
+In standalone Fire Browser, the default web text and page scale are now 85% each, with compact controls and a floating MENU panel. MENU → MORE offers 55%-200% text size, 50%-160% page scaling, and a 100% reset. Your previously saved text size is retained until you change it.
 
-Fire TV keyboard dictation is supported in the native SPEAK field, rather than relying on ChatGPT's rich web editor. A separate SEND button inserts the draft and requests the ChatGPT send action. The browser also requests IME_ACTION_SEND, though the actual Fire TV keyboard may continue to show Previous. Drafts are preserved on uncertain outcomes.
+Fire TV keyboard dictation is supported in the native VOICE field, rather than relying on ChatGPT's rich web editor. A separate SEND button inserts the draft and requests the ChatGPT send action. The browser also requests IME_ACTION_SEND, though the actual Fire TV keyboard may continue to show Previous. Drafts are preserved on uncertain outcomes.
 
 From a trusted LAN-connected computer, use Python 3 + official Android platform-tools: python tools/firetv_test.py --connect FIRE_TV_IP:5555 doctor, followed by smoke --apk path/to/firetv-browser.apk, live (scrcpy), or shot. One ADB authorization on the TV is required. See [the testing loop](docs/TEST_LOOP.md).
 
@@ -102,10 +102,18 @@ filtered to exclude OAuth/sign-in callbacks, sensitive token query strings,
 and tracking-only parameters, and do not repeatedly persist the same SPA
 route. Previously stored transient entries are filtered from the chooser.
 
-TOOLS → STATS shows the WebView engine and memory diagnostics. TOOLS → INSPECT
+MENU → MORE → Browser diagnostics shows the WebView engine and memory diagnostics. MENU → MORE → Inspect with Chrome
 enables authorized-ADB Chrome DevTools inspection for the foreground session
 and is off by default; **never enable on an untrusted computer**. A
 `python tools/firetv_test.py --serial TV_IP:5555 perf` command saves local
 memory/renderer/frame/CPU diagnostics to `.fire-tests/`. Browser slowdown
 on ChatGPT must be measured before choosing CSS, user-agent or engine
 changes; the app cannot magically accelerate the website's JavaScript.
+
+### Focused browser interaction revision
+
+The everyday toolbar now keeps only **GO**, **MENU**, and **CURSOR**, alongside the address field; the native message editor retains **VOICE** and **SEND**. MENU floats over the webpage without triggering a responsive-layout resize, and its single navigation row offers Back, Forward, Reload, Recent, ChatGPT, and More. Advanced controls and the existing explicit Paste action are preserved under More rather than removed.
+
+The D-pad pointer now uses a small composited cursor, fine 2.5-dp nudges, then frame-timed acceleration drawn from the Comet/TV Bro design principles. The prior 25-dp jump and 190-ms dead zone were the primary sources of quantization. Precise behavior still needs an on-device check.
+
+For Fire TV keyboard **Next**, the browser now wraps Chromium's `InputConnection` and tries to capture `performEditorAction`, newline `commitText`, or soft-keyboard Enter *only when the ChatGPT composer has been identified*. The native field handles `IME_ACTION_NEXT` too. Hardware Shift+Enter is left untouched. No mechanism is guaranteed if Fire OS emits an unobserved event, and a JavaScript Send-button click is an attempt rather than confirmation of delivery. **MENU → MORE → Browser diagnostics** records the received IME event kind (not the typed text), to distinguish a missed input path from an unrecognized composer.
