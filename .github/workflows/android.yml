@@ -63,7 +63,7 @@ jobs:
         run: |
           set -euo pipefail
           base64 -d signing/lab.keystore.base64 > signing/lab.keystore
-          gradle --no-daemon :browser:testReleaseUnitTest :app:testReleaseUnitTest :signalstudio:testReleaseUnitTest :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease :signalstudio:assembleRelease
+          gradle --no-daemon :browser:testReleaseUnitTest :app:testReleaseUnitTest :remoteinput:testReleaseUnitTest :signalstudio:testReleaseUnitTest :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease :signalstudio:assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
           cp canvas/build/outputs/apk/release/canvas-release.apk dist/firetv-remote-canvas.apk
