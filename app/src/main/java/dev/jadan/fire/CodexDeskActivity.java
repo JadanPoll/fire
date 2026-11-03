@@ -2,18 +2,12 @@ package dev.jadan.fire;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import java.util.ArrayList;
-import android.app.ActivityManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ResolveInfo;
-import android.content.pm.PackageManager;
-import java.util.List;
 import android.content.ActivityNotFoundException;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -25,8 +19,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import java.io.File;
-import java.util.Arrays;
 import org.json.JSONObject;
 import android.os.Handler;
 import android.os.Looper;
@@ -42,7 +34,7 @@ import java.util.concurrent.Executors;
  */
 public final class CodexDeskActivity extends Activity {
     private EditText prompt;
-    private TextView details, feedback, speechStatus;
+    private TextView feedback, speechStatus;
     private String lastInput="";
     private EditText executorUrl, pairingToken;
     private TextView remoteStatus, remoteOutput;
@@ -54,7 +46,6 @@ public final class CodexDeskActivity extends Activity {
         if (jobId != null && !remoteBusy) remoteAction("poll");
     };
     private static final String CODEX_URL = "https://chatgpt.com/codex";
-    private static final String CHAT_URL = "https://chatgpt.com/";
     private static final String SILK_PACKAGE = "com.amazon.cloud9";
     // Process-local only: return from Browser/Playroom without retyping the
     // trusted host's token. Never write it to SharedPreferences or Bundle.
@@ -221,7 +212,7 @@ public final class CodexDeskActivity extends Activity {
         if(prompt.getText().length()>0 && !copyInternal()){
             feedback.setText("Clipboard unavailable. Opening Codex without copying your draft.");
         }
-        launchSite(CODEX_URL,"silk",false);
+        launchSite(CODEX_URL);
     }
     private void copyResult(){
         String output=remoteOutput.getText().toString();
@@ -235,26 +226,16 @@ public final class CodexDeskActivity extends Activity {
         remoteStatus.setText("Result copied to clipboard. Original remains visible.");
     }
     private void advanced(){
-        String[] options={"OPEN FIRE BROWSER","CHOOSE BROWSER","CHATGPT HOME / SILK",
-            "SILK ADDRESS BAR","COPY DRAFT","LOCAL TERMINAL","VOICE TEST",
-            "DEVICE HARDWARE PRECHECK","BROWSER ROUTING DIAGNOSTICS","CLEAR SAVED DRAFT"};
+        String[] options={"OPEN FIRE BROWSER","COPY DRAFT","LOCAL TERMINAL",
+            "VOICE & KEYBOARD TEST","CLEAR SAVED DRAFT"};
         new AlertDialog.Builder(this).setTitle("COMPUTE  /  ADVANCED")
             .setItems(options,(dialog,which)->{
                 switch(which){
                     case 0:openFireBrowser();break;
-                    case 1:chooseBrowser();break;
-                    case 2:launchSite(CHAT_URL,"silk",false);break;
-                    case 3:launchSilkHome();break;
-                    case 4:copy();break;
-                    case 5:startActivity(new Intent(this,TerminalActivity.class));break;
-                    case 6:startActivity(new Intent(this,VoiceProbeActivity.class));break;
-                    case 7:
-                        scan();
-                        new AlertDialog.Builder(this).setTitle("LOCAL CAPABILITIES")
-                            .setMessage(details.getText()).setPositiveButton("CLOSE",null).show();
-                        break;
-                    case 8:browserDiagnostics();break;
-                    case 9:
+                    case 1:copy();break;
+                    case 2:startActivity(new Intent(this,TerminalActivity.class));break;
+                    case 3:startActivity(new Intent(this,VoiceProbeActivity.class));break;
+                    case 4:
                         prompt.setText("");
                         computePrefs.edit().remove("draft").apply();
                         feedback.setText("Local draft cleared. Remote jobs unaffected.");
@@ -362,34 +343,6 @@ public final class CodexDeskActivity extends Activity {
     private TextView label(String t,int sp,int color){
         return TvUi.text(this,t,sp,sp>=17?TvUi.INK:TvUi.SUB);
     }
-    private void button(LinearLayout root,String title,Runnable action){
-        TvUi.action(this,root,title,action);
-    }
-    private void scan(){
-        if(details==null)details=label("",15,TvUi.SUB);
-        StringBuilder result=new StringBuilder();
-        result.append("Fire OS/Android API: ").append(Build.VERSION.SDK_INT).append("\n");
-        result.append("Device: ").append(Build.MANUFACTURER).append(" / ").append(Build.MODEL).append("\n");
-        result.append("SUPPORTED_ABIS: ").append(Arrays.toString(Build.SUPPORTED_ABIS)).append("\n");
-        result.append("SUPPORTED_64_BIT_ABIS: ").append(Arrays.toString(Build.SUPPORTED_64_BIT_ABIS)).append("\n");
-        result.append("OS arch: ").append(System.getProperty("os.arch")).append("\n");
-        ActivityManager manager=(ActivityManager)getSystemService(Context.ACTIVITY_SERVICE);
-        if(manager!=null){
-            ActivityManager.MemoryInfo mem=new ActivityManager.MemoryInfo();
-            manager.getMemoryInfo(mem);
-            result.append("Memory available / total MiB: ").append(mem.availMem/(1024*1024))
-                    .append(" / ").append(mem.totalMem/(1024*1024)).append("\n");
-            result.append("Android low-memory flag: ").append(mem.lowMemory).append("\n");
-        }
-        File files=getFilesDir();
-        result.append("App private storage free MiB: ").append(files.getUsableSpace()/(1024*1024)).append("\n");
-        Intent termux=getPackageManager().getLaunchIntentForPackage("com.termux");
-        result.append("Termux launcher visible: ").append(termux!=null).append("\n");
-        if(Build.SUPPORTED_64_BIT_ABIS.length==0)result.append("Probe outcome: no 64-bit Android ABI advertised; 64-bit Codex forks cannot run here.\n");
-        else if(Build.VERSION.SDK_INT<29)result.append("Probe outcome: 64-bit ABI available, but current Termux Codex ports may require Android API 29+. Find a verified API-28 build.\n");
-        else result.append("Probe outcome: Android ABI plausibly suitable for an Android-native Codex port; execution untested.\n");
-        details.setText(result.toString());
-    }
     private void copy(){
         if(copyInternal()){
             feedback.setText("Prompt copied to clipboard. Paste it into Codex in an available browser or paired workstation.");
@@ -409,66 +362,19 @@ public final class CodexDeskActivity extends Activity {
         return i;
     }
 
-    /** Report what Android intends to launch, not whether the destination site can load. */
-    private void browserDiagnostics(){
-        PackageManager pm = getPackageManager();
-        Intent test = webIntent(CODEX_URL);
-        StringBuilder info = new StringBuilder();
-        try {
-            ResolveInfo chosen = pm.resolveActivity(test,PackageManager.MATCH_DEFAULT_ONLY);
-            info.append("Android default link handler: ");
-            info.append(chosen == null || chosen.activityInfo == null ? "NONE"
-                    : chosen.activityInfo.packageName).append("\n");
-            List<ResolveInfo> handlers=pm.queryIntentActivities(test,PackageManager.MATCH_DEFAULT_ONLY);
-            info.append("Available handlers: ").append(handlers.size()).append("\n");
-            for (int j=0; j<Math.min(6,handlers.size()); j++) {
-                ResolveInfo h=handlers.get(j);
-                if(h.activityInfo!=null)
-                    info.append(" - ").append(h.loadLabel(pm)).append(" (")
-                            .append(h.activityInfo.packageName).append(")\n");
-            }
-            pm.getPackageInfo(SILK_PACKAGE,0);
-            info.append("Amazon Silk package: present\n");
-        } catch (PackageManager.NameNotFoundException ex){
-            info.append("Amazon Silk package: not found\n");
-        } catch (RuntimeException ex) {
-            info.append("Unable to inspect browser handlers: ").append(ex.getMessage()).append("\n");
-        }
-        info.append("The handler is not proof of page compatibility.\n");
-        feedback.setText(info.toString());
-    }
-
-    private void launchSite(String url,String route,boolean withCopy) {
-        if(withCopy && !copyInternal()) {
-            feedback.setText("No prompt to copy. Dictate or type a request first; browser controls are still available.");
-            return;
-        }
+    private void launchSite(String url) {
         try {
             Intent i=webIntent(url);
-            if("silk".equals(route)) {
-                i.setPackage(SILK_PACKAGE);
-                // Explicitly target Silk rather than the Fire OS default web link handler.
-                // If Silk is absent, offer the system browser chooser instead.
-                if(i.resolveActivity(getPackageManager())==null) {
-                    i=Intent.createChooser(webIntent(url),"Choose installed browser");
-                    feedback.setText("Silk not available. Showing available browser options.");
-                }
-            } else {
-                // Browser selection is handled explicitly, not through Android's implicit chooser.
-                chooseBrowser();
-                return;
-            }
+            i.setPackage(SILK_PACKAGE);
+            if(i.resolveActivity(getPackageManager())==null)
+                i=Intent.createChooser(webIntent(url),"Choose installed browser");
             startActivity(i);
-            feedback.setText((withCopy?"Prompt copied. ":"") +
-                    "Browser launch requested for "+url+". This does not confirm ChatGPT loaded. " +
-                    "Return to fire if it fails; your dictated draft remains here.");
-        } catch (ActivityNotFoundException ex) {
-            feedback.setText("No app can open ChatGPT links. Install or launch Silk using the Fire TV Apps menu. " +
-                    "Your prompt remains in fire.");
-        } catch (SecurityException ex) {
-            feedback.setText("Fire OS denied opening this browser: "+ex.getMessage());
-        } catch (RuntimeException ex) {
-            feedback.setText("Browser launch failed: "+ex.getClass().getSimpleName()+": "+ex.getMessage());
+            feedback.setText("Codex opened in browser. Your original draft remains in Compute.");
+        } catch(ActivityNotFoundException error) {
+            feedback.setText("No browser available. Your draft is retained.");
+        } catch(RuntimeException error) {
+            feedback.setText("Browser handoff failed: "+error.getClass().getSimpleName()+
+                ". Your draft is retained.");
         }
     }
 
@@ -485,53 +391,6 @@ public final class CodexDeskActivity extends Activity {
         fallback.putExtra("draft",draft);
         startActivity(fallback);
         feedback.setText("Standalone Fire Browser not yet installed. Open APP CATALOG to install it; this is the older built-in lab.");
-    }
-
-    /** Show an actual list even if Android exposes only one browser handler. */
-    private void chooseBrowser() {
-        PackageManager pm=getPackageManager();
-        List<ResolveInfo> found=pm.queryIntentActivities(webIntent(CODEX_URL),PackageManager.MATCH_DEFAULT_ONLY);
-        ArrayList<ResolveInfo> handlers=new ArrayList<>();
-        ArrayList<String> titles=new ArrayList<>();
-        java.util.HashSet<String> ids=new java.util.HashSet<>();
-        for(ResolveInfo candidate:found) {
-            if(candidate.activityInfo==null)continue;
-            String pkg=candidate.activityInfo.packageName;
-            if(ids.add(pkg)){
-                handlers.add(candidate);
-                titles.add(candidate.loadLabel(pm)+" ("+pkg+")");
-            }
-        }
-        titles.add("Fire Browser Lab (built-in WebView)");
-        final int builtIn=handlers.size();
-        new AlertDialog.Builder(this)
-            .setTitle(handlers.size()==1?"Only one external browser detected":"Select a browser")
-            .setMessage(handlers.size()==1?"Android only reports one handler. Previous 'Choose Browser' opened it directly because no alternative was available.":null)
-            .setItems(titles.toArray(new String[0]),(dialog,which)->{
-                if(which==builtIn){openFireBrowser();return;}
-                ResolveInfo target=handlers.get(which);
-                Intent intent=webIntent(CODEX_URL);
-                intent.setClassName(target.activityInfo.packageName,target.activityInfo.name);
-                try{startActivity(intent);
-                    feedback.setText("Launched "+target.loadLabel(pm)+". The website's textbox may still be incompatible.");
-                }catch(Exception ex){feedback.setText("Browser launch failed: "+ex.getMessage());}
-            })
-            .setNegativeButton("Cancel",null).show();
-    }
-
-    private void launchSilkHome(){
-        try {
-            Intent i=getPackageManager().getLaunchIntentForPackage(SILK_PACKAGE);
-            if(i==null) {
-                feedback.setText("Silk launcher not found. Install or open the Internet app from Fire TV Apps.");
-                return;
-            }
-            startActivity(i);
-            feedback.setText("Silk launched directly. Enter chatgpt.com/codex in its address bar. " +
-                    "Your dictated prompt is still saved in this screen.");
-        } catch(Exception ex) {
-            feedback.setText("Could not launch Silk: "+ex.getMessage());
-        }
     }
 
     private boolean copyInternal(){
