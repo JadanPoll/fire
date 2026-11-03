@@ -732,7 +732,8 @@ public final class BrowserActivity extends Activity {
         }
         if(pointerKeys){
             int k=ev.getKeyCode();
-            if(k==KeyEvent.KEYCODE_BACK && ev.getAction()==KeyEvent.ACTION_UP){
+            if((k==KeyEvent.KEYCODE_BACK || k==KeyEvent.KEYCODE_BUTTON_B) &&
+               ev.getAction()==KeyEvent.ACTION_UP){
                 stopMotion();remoteInputs.cancelOk();
                 if(web!=null && web.canGoBack()){
                     web.goBack();
@@ -744,7 +745,7 @@ public final class BrowserActivity extends Activity {
                 }
                 return true;
             }
-            if(k==KeyEvent.KEYCODE_BACK)return true;
+            if(k==KeyEvent.KEYCODE_BACK || k==KeyEvent.KEYCODE_BUTTON_B)return true;
             if(k==KeyEvent.KEYCODE_DPAD_LEFT||k==KeyEvent.KEYCODE_DPAD_RIGHT||
                k==KeyEvent.KEYCODE_DPAD_UP||k==KeyEvent.KEYCODE_DPAD_DOWN){
                 if(ev.getAction()==KeyEvent.ACTION_UP){
@@ -761,7 +762,8 @@ public final class BrowserActivity extends Activity {
                 return true;
             }
             if(k==KeyEvent.KEYCODE_DPAD_CENTER||k==KeyEvent.KEYCODE_ENTER||
-                k==KeyEvent.KEYCODE_NUMPAD_ENTER||k==KeyEvent.KEYCODE_BUTTON_A){
+                k==KeyEvent.KEYCODE_NUMPAD_ENTER||k==KeyEvent.KEYCODE_BUTTON_A||
+                k==KeyEvent.KEYCODE_BUTTON_SELECT){
                 if(ev.getAction()==KeyEvent.ACTION_DOWN)
                     remoteInputs.okDown(ev.getRepeatCount());
                 if(ev.getAction()==KeyEvent.ACTION_UP &&
