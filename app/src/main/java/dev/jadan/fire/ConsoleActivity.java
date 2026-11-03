@@ -196,26 +196,7 @@ public final class ConsoleActivity extends Activity {
     }
 
     void openBrowser(String targetUrl){
-        Intent launch=getPackageManager().getLaunchIntentForPackage(BROWSER);
-        if(launch!=null){
-            if(targetUrl!=null){
-                launch.setAction(Intent.ACTION_VIEW);
-                launch.setData(Uri.parse(targetUrl));
-            }
-            startActivity(launch);
-            return;
-        }
-        if(targetUrl!=null){
-            // No standalone browser installed: use a normal system browser,
-            // never an arbitrary package or HTTP endpoint.
-            Intent external=new Intent(Intent.ACTION_VIEW,Uri.parse(targetUrl));
-            if(external.resolveActivity(getPackageManager())!=null){
-                startActivity(external);
-                status.setText("Using an installed browser. Install Fire Browser via Tools.");
-                return;
-            }
-        }
-        status.setText("Fire Browser not installed. Open Tools → App Catalog.");
+        ConsoleLaunch.openBrowser(this,targetUrl,status);
     }
 
     /** Lightweight vector channel pictograms; no external font or image assets. */
