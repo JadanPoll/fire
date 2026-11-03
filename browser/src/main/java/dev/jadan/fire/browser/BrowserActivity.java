@@ -85,6 +85,7 @@ public final class BrowserActivity extends Activity {
     private boolean devtoolsEnabled;
     private boolean remoteMediaShortcuts;
     private MediaSession pointerMediaSession;
+    private BrowserUpdater browserUpdater;
     private boolean browserForeground;
     private long lastMediaToggleAt, lastMediaNavigationAt;
     private String lastMediaDelivery="none";
@@ -239,7 +240,8 @@ public final class BrowserActivity extends Activity {
         status=new TextView(this);
         status.setTextSize(11);status.setTextColor(0xFFDBE7EE);
         root.addView(status,new LinearLayout.LayoutParams(-1,dp(30)));
-        status.setText("Fire WebView probe. POINTER toggles D-pad cursor; OK taps web elements.");
+        status.setText("Fire Browser ready. MENU → INBOX or MORE. CURSOR toggles pointer.");
+        browserUpdater=new BrowserUpdater(this,status);
         if(b!=null) draft.setText(b.getString("draft",""));
         else {
             String fromDesk=getIntent().getStringExtra("draft");
@@ -482,7 +484,8 @@ public final class BrowserActivity extends Activity {
         final String[] actions={"Open ChatGPT","Paste draft without sending","Text smaller","Text larger",
             "Page smaller","Page larger","Reset zoom to 100%","Input test page",
             "Browser diagnostics","Inspect with Chrome","Reduced motion",
-            "Remote media shortcuts","Allow third-party cookies for sign-in"};
+            "Remote media shortcuts","Allow third-party cookies for sign-in",
+            "Check browser update"};
         new AlertDialog.Builder(this).setTitle("Browser options")
             .setItems(actions,(dlg,index)->{
                 switch(index){
@@ -499,6 +502,7 @@ public final class BrowserActivity extends Activity {
                     case 10:toggleReducedMotion();break;
                     case 11:toggleRemoteShortcuts();break;
                     case 12:toggleThirdPartyCookies();break;
+                    case 13:if(browserUpdater!=null)browserUpdater.check();break;
                 }
             }).setNegativeButton("Close",null).show();
     }
@@ -1291,6 +1295,7 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
+        if(browserUpdater!=null)browserUpdater.close();
         if(pointerMediaSession!=null){
             pointerMediaSession.setActive(false);
             pointerMediaSession.release();
