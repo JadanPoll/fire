@@ -56,110 +56,212 @@ public final class CodexDeskActivity extends Activity {
     private static final String CODEX_URL = "https://chatgpt.com/codex";
     private static final String CHAT_URL = "https://chatgpt.com/";
     private static final String SILK_PACKAGE = "com.amazon.cloud9";
+    private LinearLayout pairingPanel;
+    private Button connectButton;
+    private android.content.SharedPreferences computePrefs;
+
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
-        ScrollView scroller = new ScrollView(this);
-        LinearLayout root = new LinearLayout(this);
+        computePrefs=getSharedPreferences("fire_compute_v1",MODE_PRIVATE);
+        getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        ScrollView scroller=new ScrollView(this);
+        LinearLayout root=new LinearLayout(this);
         TvUi.page(this,root);
         scroller.addView(root);
         setContentView(scroller);
-        root.addView(TvUi.header(this,"CODEX  /  WORKBENCH"));
-        root.addView(TvUi.text(this,"One intention, locally drafted or executed in a paired workspace.",16,TvUi.SUB));
-        root.addView(TvUi.section(this,"YOUR NEXT EXPERIMENT"));
 
-        prompt = new EditText(this);
+        root.addView(TvUi.header(this,"COMPUTE  /  OFFSHORE WORK"));
+        root.addView(TvUi.text(this,
+            "One intention. Run in a paired Codex workspace, or open Codex Cloud without pairing.",
+            16,TvUi.SUB));
+
+        prompt=new EditText(this);
         prompt.setSingleLine(false);
         prompt.setMinLines(3);
-        prompt.setMaxLines(5);
-        prompt.setTextColor(0xFF172334);
-        prompt.setHintTextColor(0xFF607080);
-        prompt.setBackgroundColor(0xFFE3EEF5);
-        prompt.setPadding(16,16,16,16);
+        prompt.setMaxLines(6);
+        prompt.setHint("What should Compute build or investigate?");
+        prompt.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI|EditorInfo.IME_ACTION_DONE);
         TvUi.field(this,prompt);
         prompt.setShowSoftInputOnFocus(false);
-        prompt.setHint("Describe your next experiment. You can try the Fire TV keyboard microphone.");
-        prompt.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_DONE);
         root.addView(prompt,new LinearLayout.LayoutParams(-1,-2));
-        speechStatus = label("Tap SPEAK VIA FIRE KEYBOARD, then hold the remote's mic button if the keyboard supports dictation.",15,0xFF96C2DB);
+        speechStatus=label("Your draft stays here when you switch apps.",14,TvUi.SUB);
         root.addView(speechStatus);
-        prompt.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
-            @Override public void onTextChanged(CharSequence s,int start,int before,int count){
-                lastInput=s.toString();
-                speechStatus.setText("Text received ("+lastInput.length()+" characters). Review before sending.");
+        prompt.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence t,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence t,int start,int before,int count){
+                lastInput=t.toString();
+                speechStatus.setText("Draft: "+lastInput.length()+" characters. Nothing sent automatically.");
             }
-            @Override public void afterTextChanged(Editable e){}
+            @Override public void afterTextChanged(Editable t){}
         });
-        button(root,"SPEAK / TYPE USING FIRE KEYBOARD",()-> {
+        TvUi.action(this,root,"TYPE / DICTATE",()->{
+            // Unlike the initial terminal regression, an explicit keyboard
+            // request must first allow input to be shown for this field.
+            prompt.setShowSoftInputOnFocus(true);
             prompt.requestFocus();
-            InputMethodManager input=(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
-            if(input!=null)input.showSoftInput(prompt,InputMethodManager.SHOW_IMPLICIT);
-            speechStatus.setText("Keyboard requested. Hold the remote mic button and speak if dictation appears; otherwise type.");
+            InputMethodManager manager=(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+            prompt.post(()->{
+                if(manager!=null){
+                    manager.restartInput(prompt);
+                    manager.showSoftInput(prompt,0);
+                }
+            });
+            speechStatus.setText("Fire keyboard requested. Dictation depends on the system IME.");
         });
+
+        LinearLayout actions=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,actions,"RUN ON PAIRED HOST",()->remoteAction("submit"));
+        TvUi.actionInRow(this,actions,"OPEN CODEX CLOUD",this::openCodexCloud);
+
+        remoteStatus=label("No remote job active. Connect a trusted host or use Codex Cloud.",16,TvUi.SUB);
+        remoteStatus.setTextIsSelectable(true);
+        root.addView(remoteStatus);
+        remoteOutput=label("",15,TvUi.SUB);
+        remoteOutput.setTextIsSelectable(true);
+        root.addView(remoteOutput);
+
+        LinearLayout jobActions=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,jobActions,"REFRESH / RECOVER",()->remoteAction(jobId==null?"recover":"poll"));
+        TvUi.actionInRow(this,jobActions,"STOP JOB",()->remoteAction("cancel"));
+        TvUi.action(this,root,"COPY RESULT",this::copyResult);
+
+        connectButton=TvUi.action(this,root,"CONNECT / CHANGE COMPUTE HOST",this::togglePairing);
         buildExecutorUi(root);
-        root.addView(TvUi.section(this,"CLOUD & BROWSER FALLBACK"));
-        LinearLayout web=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,web,"COPY + CODEX IN SILK",()->launchSite(CODEX_URL,"silk",true));
-        TvUi.actionInRow(this,web,"CHOOSE CODEX BROWSER",this::chooseBrowser);
-        LinearLayout webAlt=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,webAlt,"FIRE WEBVIEW BROWSER",this::openFireBrowser);
-        TvUi.actionInRow(this,webAlt,"CHATGPT HOME / SILK",()->launchSite(CHAT_URL,"silk",false));
-        LinearLayout webTools=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,webTools,"SILK ADDRESS BAR",this::launchSilkHome);
-        TvUi.actionInRow(this,webTools,"COPY PROMPT",this::copy);
-        TvUi.action(this,root,"BROWSER DIAGNOSTICS",this::browserDiagnostics);
-        root.addView(TvUi.section(this,"DEVICE CAPABILITIES"));
-        root.addView(label("LOCAL CODEX HARDWARE PRECHECK",21,0xFF64CAFF));
-        details=label("",15,0xFFFFFFFF);
-        root.addView(details);
-        button(root,"REFRESH ON-FIRE CAPABILITIES",this::scan);
-        feedback=label("Browser handoff is optional; the speech-dictated prompt stays in this app. No Codex credentials are stored.",15,0xFF9FC8DD);
+        pairingPanel.setVisibility(View.GONE);
+
+        TvUi.action(this,root,"ADVANCED / DIAGNOSTICS",this::advanced);
+        feedback=label("A host requires a private HTTPS endpoint and pairing token. Neither is sent to Codex Cloud.",
+            14,TvUi.SUB);
         root.addView(feedback);
-        root.addView(label("If ChatGPT fails to load, choose a different browser, try ChatGPT Home, or open Silk directly. An old browser can fail even when our link opens correctly. Native Codex remains a separate execution path.",14,0xFFACC3D3));
-        if (b!=null) prompt.setText(b.getString("fire_draft",""));
-        scan();
-        browserDiagnostics();
+
+        if(b!=null){
+            prompt.setText(b.getString("fire_draft",""));
+            jobId=b.getString("compute_job");
+        } else {
+            prompt.setText(computePrefs.getString("draft",""));
+            jobId=computePrefs.getString("job_id",null);
+        }
+        executorUrl.setText(computePrefs.getString("host_origin",""));
+        // The pairing credential remains session-only: this lab APK's
+        // signing key is public and must not persist a bearer token.
+        if(jobId!=null)remoteStatus.setText("Previous job "+jobId+" · Connect host to refresh, or use Recover.");
+        connectButton.requestFocus();
     }
-    /**
-     * The executor stores Codex auth on the remote host; only a temporary
-     * pairing token is entered on Fire. It is never persisted or copied.
-     */
+
     private void buildExecutorUi(LinearLayout root){
-        root.addView(label("PAIRED CODEX EXECUTOR  /  REMOTE",21,0xFF64CAFF));
-        root.addView(label("Run real Codex CLI in a trusted remote workspace. The host must already be authenticated and exposed through a protected HTTPS proxy. No ADB bridge or Codex account tokens are sent from Fire.",14,0xFFACC3D3));
-        executorUrl = new EditText(this);
+        pairingPanel=TvUi.panel(this);
+        pairingPanel.addView(TvUi.section(this,"TRUSTED REMOTE WORKSPACE"));
+        pairingPanel.addView(TvUi.text(this,
+            "The host runs a separately authenticated Codex CLI behind your private HTTPS proxy. "+
+            "The address is remembered; bearer credentials stay in memory only.",
+            14,TvUi.SUB));
+        executorUrl=new EditText(this);
         executorUrl.setSingleLine(true);
-        executorUrl.setTextColor(0xFF102132);
-        executorUrl.setBackgroundColor(0xFFE3EEF5);
         executorUrl.setHint("https://your-private-executor.example");
         executorUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
         TvUi.field(this,executorUrl);
-        root.addView(executorUrl,new LinearLayout.LayoutParams(-1,-2));
-        pairingToken = new EditText(this);
+        pairingPanel.addView(executorUrl,new LinearLayout.LayoutParams(-1,-2));
+        pairingToken=new EditText(this);
         pairingToken.setSingleLine(true);
-        pairingToken.setTextColor(0xFF102132);
-        pairingToken.setBackgroundColor(0xFFE3EEF5);
-        pairingToken.setHint("Executor pairing token (not OpenAI credentials)");
+        pairingToken.setHint("Executor pairing token, not OpenAI login");
         pairingToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
         TvUi.field(this,pairingToken);
-        root.addView(pairingToken,new LinearLayout.LayoutParams(-1,-2));
-        LinearLayout operations=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,operations,"TEST PAIRING",()->remoteAction("probe"));
-        TvUi.actionInRow(this,operations,"RUN CODEX REMOTELY",()->remoteAction("submit"));
-        LinearLayout tracking=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,tracking,"REFRESH JOB",()->remoteAction("poll"));
-        TvUi.actionInRow(this,tracking,"RECOVER LOST RESPONSE",()->remoteAction("recover"));
-        button(root,"STOP CURRENT EXECUTOR JOB",()->remoteAction("cancel"));
-        remoteStatus=label("Not paired. Enter HTTPS origin and token from your trusted executor. Pairing details are not stored.",15,0xFFACDBF1);
-        root.addView(remoteStatus);
-        remoteOutput=label("",15,0xFFE1F0F7);
-        remoteOutput.setTextIsSelectable(true);
-        root.addView(remoteOutput);
-        button(root,"OPEN LOCAL TERMINAL (APP SANDBOX)",()->
-            startActivity(new Intent(this,TerminalActivity.class)));
+        pairingPanel.addView(pairingToken,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout pairActions=TvUi.actionRow(this,pairingPanel);
+        TvUi.actionInRow(this,pairActions,"TEST CONNECTION",()->remoteAction("probe"));
+        TvUi.actionInRow(this,pairActions,"PASTE TOKEN",this::pasteToken);
+        TvUi.action(this,pairingPanel,"FORGET PAIRING",this::forgetPairing);
+        root.addView(pairingPanel);
+    }
+
+    private void togglePairing(){
+        boolean show=pairingPanel.getVisibility()!=View.VISIBLE;
+        pairingPanel.setVisibility(show?View.VISIBLE:View.GONE);
+        connectButton.setText(show?"HIDE CONNECTION SETTINGS":"CONNECT / CHANGE COMPUTE HOST");
+        if(show)executorUrl.requestFocus();
+        else connectButton.requestFocus();
+    }
+    private void pasteToken(){
+        ClipboardManager cb=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+        if(cb==null||!cb.hasPrimaryClip()){
+            remoteStatus.setText("No clipboard text available. Type the pairing token instead.");return;
+        }
+        ClipData clip=cb.getPrimaryClip();
+        CharSequence item=clip!=null&&clip.getItemCount()>0?
+            clip.getItemAt(0).coerceToText(this):null;
+        String secret=item==null?"":item.toString().trim();
+        try{
+            CodexExecutorClient.requireToken(secret);
+            pairingToken.setText(secret);
+            remoteStatus.setText("Token entered privately. Select TEST CONNECTION to verify.");
+        }catch(IllegalArgumentException error){
+            remoteStatus.setText("Clipboard is not a valid pairing token. Nothing changed.");
+        }
+    }
+    private void forgetPairing(){
+        pairingToken.setText("");
+        executorUrl.setText("");
+        jobId=null;
+        computePrefs.edit().remove("host_origin").remove("job_id").apply();
+        remoteClock.removeCallbacks(remoteTick);
+        remoteStatus.setText("Pairing cleared on this device. No remote job was cancelled.");
+    }
+    private void openCodexCloud(){
+        if(prompt.getText().length()>0 && !copyInternal()){
+            feedback.setText("Clipboard unavailable. Opening Codex without copying your draft.");
+        }
+        launchSite(CODEX_URL,"silk",false);
+    }
+    private void copyResult(){
+        String output=remoteOutput.getText().toString();
+        if(output.isEmpty()){
+            remoteStatus.setText("No result yet. Select REFRESH / RECOVER to request the host status.");
+            return;
+        }
+        ClipboardManager cb=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+        if(cb==null){remoteStatus.setText("Clipboard unavailable.");return;}
+        cb.setPrimaryClip(ClipData.newPlainText("Compute result",output));
+        remoteStatus.setText("Result copied to clipboard. Original remains visible.");
+    }
+    private void advanced(){
+        String[] options={"OPEN FIRE BROWSER","CHOOSE BROWSER","CHATGPT HOME / SILK",
+            "SILK ADDRESS BAR","COPY DRAFT","LOCAL TERMINAL","VOICE TEST",
+            "DEVICE HARDWARE PRECHECK","BROWSER ROUTING DIAGNOSTICS","CLEAR SAVED DRAFT"};
+        new AlertDialog.Builder(this).setTitle("COMPUTE  /  ADVANCED")
+            .setItems(options,(dialog,which)->{
+                switch(which){
+                    case 0:openFireBrowser();break;
+                    case 1:chooseBrowser();break;
+                    case 2:launchSite(CHAT_URL,"silk",false);break;
+                    case 3:launchSilkHome();break;
+                    case 4:copy();break;
+                    case 5:startActivity(new Intent(this,TerminalActivity.class));break;
+                    case 6:startActivity(new Intent(this,VoiceProbeActivity.class));break;
+                    case 7:
+                        scan();
+                        new AlertDialog.Builder(this).setTitle("LOCAL CAPABILITIES")
+                            .setMessage(details.getText()).setPositiveButton("CLOSE",null).show();
+                        break;
+                    case 8:browserDiagnostics();break;
+                    case 9:
+                        prompt.setText("");
+                        computePrefs.edit().remove("draft").apply();
+                        feedback.setText("Local draft cleared. Remote jobs unaffected.");
+                        break;
+                }
+            }).setNegativeButton("CLOSE",null).show();
     }
     private void remoteAction(String action){
         if(remoteBusy || remoteStatus==null)return;
+        if(("submit".equals(action)||"probe".equals(action)||"recover".equals(action)
+                ||"poll".equals(action)||"cancel".equals(action)) &&
+           (executorUrl.getText().toString().trim().isEmpty() ||
+            pairingToken.getText().toString().trim().isEmpty())){
+            remoteStatus.setText("Host not paired. Select CONNECT / CHANGE COMPUTE HOST. "+
+                "OPEN CODEX CLOUD remains available.");
+            if(pairingPanel.getVisibility()!=View.VISIBLE)togglePairing();
+            return;
+        }
         if(jobId==null && ("poll".equals(action)||"cancel".equals(action))){
             remoteStatus.setText("No executor job yet. Submit a prompt first.");return;
         }
@@ -169,7 +271,7 @@ public final class CodexDeskActivity extends Activity {
         final String currentId=jobId;
         remoteClock.removeCallbacks(remoteTick);
         remoteBusy=true;
-        remoteStatus.setText("Executor: "+action+" requested…");
+        remoteStatus.setText("Compute host: "+action+" requested…");
         remoteWorker.execute(()->{
             JSONObject reply=null; Exception failure=null;
             try{
@@ -190,18 +292,22 @@ public final class CodexDeskActivity extends Activity {
                 remoteBusy=false;
                 if(isFinishing()||isDestroyed())return;
                 if(error!=null){
-                    remoteStatus.setText("Executor "+action+" failed: "+error.getMessage()+
-                        ". Check HTTPS, pairing and host; you may retry without discarding the draft.");
-                    if(jobId!=null)scheduleRemotePoll();
+                    remoteStatus.setText("Host "+action+" outcome unknown: "+error.getMessage()+
+                        ". Use REFRESH / RECOVER before retrying a submission. Draft retained.");
+                    if(jobId!=null && pairingToken!=null && pairingToken.length()>0)scheduleRemotePoll();
                     return;
                 }
                 if("probe".equals(action)){
-                    remoteStatus.setText("Executor paired · Protocol "+result.optInt("protocol",-1)+
+                    remoteStatus.setText("Host connected · Protocol "+result.optInt("protocol",-1)+
                         " · "+result.optString("executor","unknown"));
+                    rememberHost();
                     return;
                 }
-                if("submit".equals(action)||"recover".equals(action))
+                if("submit".equals(action)||"recover".equals(action)){
                     jobId=result.optString("id",null);
+                    rememberHost();
+                    computePrefs.edit().putString("job_id",jobId).apply();
+                }
                 String state=result.optString("state","unknown");
                 remoteStatus.setText("Executor "+state+" · Job "+result.optString("id","?")+
                     " · "+result.optString("message",""));
@@ -211,12 +317,21 @@ public final class CodexDeskActivity extends Activity {
             });
         });
     }
+    private void rememberHost(){
+        try{
+            String origin=CodexExecutorClient.serverOrigin(executorUrl.getText().toString());
+            computePrefs.edit().putString("host_origin",origin).apply();
+        }catch(Exception ignored){}
+    }
     private void scheduleRemotePoll(){
         remoteClock.removeCallbacks(remoteTick);
-        if(jobId!=null&&!isFinishing())remoteClock.postDelayed(remoteTick,3500);
+        if(jobId!=null&&!isFinishing()&&pairingToken!=null&&
+            pairingToken.length()>0)remoteClock.postDelayed(remoteTick,3500);
     }
     @Override protected void onPause(){
         remoteClock.removeCallbacks(remoteTick);
+        if(computePrefs!=null && prompt!=null)
+            computePrefs.edit().putString("draft",prompt.getText().toString()).apply();
         super.onPause();
     }
     @Override protected void onResume(){
@@ -236,6 +351,7 @@ public final class CodexDeskActivity extends Activity {
         TvUi.action(this,root,title,action);
     }
     private void scan(){
+        if(details==null)details=label("",15,TvUi.SUB);
         StringBuilder result=new StringBuilder();
         result.append("Fire OS/Android API: ").append(Build.VERSION.SDK_INT).append("\n");
         result.append("Device: ").append(Build.MANUFACTURER).append(" / ").append(Build.MODEL).append("\n");
@@ -268,6 +384,7 @@ public final class CodexDeskActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle out) {
         out.putString("fire_draft",prompt.getText().toString());
+        out.putString("compute_job",jobId);
         super.onSaveInstanceState(out);
     }
 
