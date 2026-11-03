@@ -2,6 +2,23 @@
 
 Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 9 / API 28)**. This project is independently versioned from Manifold Console.
 
+## Console v2: Compute and independent apps
+
+Fire Console Home now has **six Wii-style channels**: Inbox, Browser,
+Playroom, **Compute**, Apps, and Tools. Compute uses a cloud/server icon
+and is the single entry for remote Codex jobs and the no-pairing Codex
+Cloud fallback. Native APKs are first-class: Android TV's Leanback
+launcher discovers them without any Fire-specific manifest or SDK.
+
+The optional [Remote Adapter](AppOS/Remote/README.md) normalizes
+Fire D-pad/OK events inside apps that opt in; Signal Studio demonstrates
+real integration. The previous duplicate Dev Bridge updater and key log
+were **deleted** in favor of App Catalog and Input Lab. Voice, Canvas,
+the old WebView lab and terminal still exist under Apps/Tools/Advanced.
+
+[Architecture, deletions and Compute behavior](docs/CONSOLE_COMPUTE_AND_APPS.md).
+[Paired Codex host setup](docs/CODEX_EXECUTOR_SETUP.md).
+
 ## Independent Fire AppOS applications (Manifold-derived)
 
 Fire Console now includes an **independently packaged Signal Studio** reference
@@ -23,8 +40,8 @@ anchor for privileged autonomous agents.
 ## Fire Console — current launcher
 
 The existing `firetv-dev-bridge.apk` package now opens a **native channel home**
-inspired by the remote-first Wii-style channel metaphor. Its eight icon
-channels are **Inbox, Browser, Playroom, Codex, Canvas, Voice, Apps, Tools**.
+inspired by the remote-first Wii-style channel metaphor. Its six icon
+channels are **Inbox, Browser, Playroom, Compute, Apps, Tools**.
 D-pad moves focus, OK opens the selected channel, Back returns. This is a
 front end over the existing apps, **not** a replacement for Fire OS Home.
 
@@ -33,12 +50,12 @@ front end over the existing apps, **not** a replacement for Fire OS Home.
   proposed bookmark, then select PIN. Game audio continues in Browser.
 - **Apps** displays real installed TV apps via Android's Leanback registry
   and their installed icons; the existing update catalog is in Tools.
-- **Voice** tests the Fire OS keyboard in an actual text field, allows a
+- **Voice** (under Tools) tests the Fire OS keyboard in an actual text field, allows a
   safe `restartInput` of that field, and reports OS build, locale and
   recognition service availability. It cannot force-restart Amazon's
   system voice-recognition service. Do not clear Browser cookies/data as a
   voice-recovery step.
-- **Tools** preserves the complete original Dev Bridge, Input Lab,
+- **Tools** preserves the specialized Input Lab,
   App Catalog and device diagnostics. Canvas and Browser remain separate
   APKs to avoid replacing their installed data or sessions.
 
