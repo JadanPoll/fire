@@ -27,6 +27,7 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.InputType;
 import android.view.KeyEvent;
+import android.view.KeyCharacterMap;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -220,6 +221,99 @@ public final class BrowserActivity extends Activity {
     }
 
 
+
+    /**
+     * Amazon's keyboard may call performEditorAction(NEXT), commitText("\n")
+     * or sendKeyEvent, none of which is guaranteed to pass Activity.dispatchKeyEvent.
+     * Preserve Chromium's InputConnection for everything other than an explicit
+     * submit action while the ChatGPT composer (not an arbitrary form) has focus.
+     */
+    private final class BrowserWebView extends WebView {
+        BrowserWebView(){super(BrowserActivity.this);}
+        @Override public InputConnection onCreateInputConnection(EditorInfo editor){
+            InputConnection base=super.onCreateInputConnection(editor);
+            if(base==null)return null;
+            if(isChatGPT()){
+                editor.imeOptions=(editor.imeOptions&~EditorInfo.IME_MASK_ACTION) |
+                    EditorInfo.IME_ACTION_SEND;
+                post(BrowserActivity.this::refreshComposerFocus);
+            }
+            return new InputConnectionWrapper(base,false){
+                @Override public boolean performEditorAction(int action){
+                    if((action==EditorInfo.IME_ACTION_NEXT || action==EditorInfo.IME_ACTION_SEND
+                       || action==EditorInfo.IME_ACTION_GO || action==EditorInfo.IME_ACTION_DONE)
+                        && handleWebImeSubmit("editor action "+action))return true;
+                    return super.performEditorAction(action);
+                }
+                @Override public boolean commitText(CharSequence value,int cursorPosition){
+                    if(value!=null && "\n".contentEquals(value)
+                       && handleWebImeSubmit("IME committed newline"))return true;
+                    return super.commitText(value,cursorPosition);
+                }
+                @Override public boolean sendKeyEvent(KeyEvent event){
+                    int code=event.getKeyCode();
+                    boolean enter=code==KeyEvent.KEYCODE_ENTER ||
+                        code==KeyEvent.KEYCODE_NUMPAD_ENTER;
+                    if(enter && handleWebImeKey(event))return true;
+                    return super.sendKeyEvent(event);
+                }
+            };
+        }
+    }
+    private static final String COMPOSER_CHECK =
+        "(function(){var e=document.activeElement;"+
+        "var box=document.querySelector('#prompt-textarea,[contenteditable=\"true\"].ProseMirror');"+
+        "return !!(e&&box&&(e===box||box.contains(e)));})()";
+    private void refreshComposerFocus(){
+        if(web==null || !isChatGPT()){webEditorFocused=false;return;}
+        WebView active=web;
+        active.evaluateJavascript(COMPOSER_CHECK,v->{
+            if(web==active)webEditorFocused="true".equals(v);
+        });
+    }
+    private boolean handleWebImeKey(KeyEvent event){
+        // Hardware Shift+Enter must remain available for multiline prompts.
+        // A soft keyboard reporting Shift+Enter can still mean "Next".
+        boolean soft=(event.getFlags()&KeyEvent.FLAG_SOFT_KEYBOARD)!=0 ||
+            event.getDeviceId()==KeyCharacterMap.VIRTUAL_KEYBOARD;
+        if(event.isShiftPressed() && !soft)return false;
+        return handleWebImeSubmit("IME Enter"+(event.isShiftPressed()?" (soft Shift)":""));
+    }
+    private boolean handleWebImeSubmit(String source){
+        if(web==null || !isChatGPT() || !webEditorFocused)return false;
+        long now=SystemClock.uptimeMillis();
+        lastWebImeAction=source;
+        if(now-lastWebImeSubmitAt<750)return true;
+        lastWebImeSubmitAt=now;
+        web.post(()->sendFocusedComposer(source));
+        return true;
+    }
+    private void sendFocusedComposer(String source){
+        if(web==null || !isChatGPT())return;
+        WebView active=web;
+        // A conservative composer-only check prevents clicking a send button
+        // while the user was editing a separate search, login or other field.
+        String js="(function(){"+
+            "var e=document.activeElement;"+
+            "var box=document.querySelector('#prompt-textarea,[contenteditable=\"true\"].ProseMirror');"+
+            "if(!e||!box||!(e===box||box.contains(e)))return 'NOT_COMPOSER';"+
+            "var text=(box.value||box.textContent||'').trim();if(!text)return 'EMPTY';"+
+            "var selectors=['button[data-testid=\"send-button\"]',"+
+            "'button[data-testid=\"fruitjuice-send-button\"]',"+
+            "'button[aria-label=\"Send prompt\"]','button[aria-label=\"Send message\"]'];"+
+            "for(var s of selectors){var button=document.querySelector(s);"+
+            "if(button&&!button.disabled&&button.getAttribute('aria-disabled')!=='true'){"+
+            "button.click();return 'CLICK_ATTEMPTED';}}return 'SEND_UNAVAILABLE';})()";
+        active.evaluateJavascript(js,result->{
+            if(web!=active)return;
+            if("\"CLICK_ATTEMPTED\"".equals(result)){
+                webEditorFocused=false;
+                InputMethodManager im=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                if(im!=null)im.hideSoftInputFromWindow(active.getWindowToken(),0);
+                status.setText("IME "+source+": Send clicked; verify the message appeared.");
+            } else status.setText("IME "+source+": "+result+"; text preserved.");
+        });
+    }
     private void createWebView(){
         web=new BrowserWebView();
         web.setBackgroundColor(0xFFFFFFFF);
@@ -519,11 +613,9 @@ public final class BrowserActivity extends Activity {
         final WebView clicked=web;
         clicked.postDelayed(()->{
             if(web!=clicked)return;
-            clicked.evaluateJavascript("(function(){var e=document.activeElement;"+
-                "return e&&((e.isContentEditable)||(e.tagName==='TEXTAREA')||(e.tagName==='INPUT'))"+
-                "?'editable':'not editable';})()",result->{
+            clicked.evaluateJavascript(COMPOSER_CHECK,result->{
                 if(web!=clicked)return;
-                webEditorFocused="\"editable\"".equals(result);
+                webEditorFocused="true".equals(result);
                 if(webEditorFocused){
                     stopMotion();pointerMode=false;updateCursorVisual();
                     InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -846,6 +938,7 @@ public final class BrowserActivity extends Activity {
         sb.append("Page host: ").append(displayHost(web==null?null:web.getUrl())).append('\n');
         sb.append("Reduce motion: ").append(reducedMotion).append('\n');
         sb.append("Last raw Enter: ").append(lastRawEnter).append('\n');
+        sb.append("Last web IME submit: ").append(lastWebImeAction).append('\n');
         sb.append("Media-button shortcuts: ").append(remoteMediaShortcuts).append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
           .append("These numbers do not measure JavaScript heap or establish root cause.");
