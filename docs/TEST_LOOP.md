@@ -181,3 +181,56 @@ automatically; uninstalling/clearing Fire Browser's data removes its cookies.
 
 This work is code-verified and CI-built, not a claim that the intermittent
 device crash or logout was reproduced or eliminated.
+
+## Research-backed remote behavior (Fire Inbox queue, 2026-11-03)
+
+**Source / justification map** (source implementations first; all still require
+physical Fire TV validation):
+
+| Fire Browser mechanism | Existing concrete implementation |
+| --- | --- |
+| Precision pointer, key hold acceleration, mouse-wheel at page edge | [Comet CursorController](https://github.com/SamWylde/comet-tv/blob/main/app/src/main/java/com/tdarby/comet/input/CursorController.kt) and [TV Bro D-pad adapter](https://github.com/truefedex/tv-bro/blob/master/app/common/src/main/java/com/phlox/tvwebbrowser/utils/DPADNavigationEventsAdapter.kt) |
+| Foreground, opt-in MediaSession for Play/Pause and separate MEDIA_PLAY/MEDIA_PAUSE key codes | [Amazon MediaSession integration](https://developer.amazon.com/docs/fire-tv/mediasession-api-integration.html) and [Android MediaSession.Callback](https://developer.android.com/reference/android/media/session/MediaSession.Callback) |
+| Check → verify release checksum → cached APK → user-confirmed installer | Existing [Dev Bridge CatalogActivity](https://github.com/JadanPoll/fire/blob/main/app/src/main/java/dev/jadan/fire/CatalogActivity.java) and [Comet UpdateChecker](https://github.com/SamWylde/comet-tv/blob/main/app/src/main/java/com/tdarby/comet/update/UpdateChecker.kt) |
+| Keep pointer state when navigating pages | Explicit user requirement; addresses the actual `loadUrl()` reset. Comet has a deliberately different Back/toolbar policy, so this is not claimed as copied behavior. |
+
+### Minimal invariants and test flow
+
+1. Enable CURSOR. Navigate via link taps, Go, Back, and the Inbox menu.
+   The pointer remains active through URL navigations, including Back when
+   WebView history exists. Deliberately entering a native voice field or an
+   editable web composer still hands control to the keyboard/focus mode.
+2. In MENU → MORE select **Remote media shortcuts** (off by default).
+   Play/Pause, Play, or Pause should toggle pointer on every page; Rewind and
+   Fast Forward navigate history. Media keys are intercepted **while enabled**,
+   including on websites with video. The optional MediaSession is active only
+   while this Activity is resumed and is released on destruction. No
+   background receiver, notification, or playback capability is added.
+   **CURSOR remains the fallback** if Fire OS withholds a media key.
+   Check MENU → MORE → Browser diagnostics for `Last media delivery` and
+   `Media session active` when a shortcut doesn't work.
+3. To update on the TV, select **MENU → MORE → Check browser update**.
+   The app checks the existing pinned rolling GitHub release, verifies
+   `SHA256 firetv-browser.apk`, and downloads only after confirmation.
+   Reopening a verified version after a failed installer uses the cached APK.
+   Android must still confirm an installation; no silent self-install.
+   Do **not** uninstall the browser to update: in-place update preserves
+   app data, subject to Android signing rules and system behavior.
+4. Re-test previous observations: 25-dp pointer jumps, corner/edge scroll,
+   sign-in persistence, and intermittent WebView renderer termination.
+   **A successful APK build is not a successful physical-device test.**
+   Capture `python tools/firetv_test.py --serial TV_IP:5555 errors`
+   when the renderer crashes (review logs locally before sharing).
+
+**Safety:** Both the Dev Bridge and Fire Browser currently use a public
+development signing key. Updates preserve Android's normal signature checks,
+but the development signing key is not safe for production or sensitive
+account use. GitHub SHA-256 checks ensure downloaded file integrity relative
+to release metadata, not release publisher authenticity after account
+compromise. Do not use the self-updater to claim secure production updates.
+
+**Stopping rules:** Keep a feature only if it directly eliminates a
+reproduced UX failure, preserves a demonstrated existing workflow, or provides
+the minimum observation needed to diagnose one. No generic media framework,
+permission automation, background update scheduler, or site-specific
+pointer exception without evidence.
