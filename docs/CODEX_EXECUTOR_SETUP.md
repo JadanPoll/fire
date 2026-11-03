@@ -44,6 +44,12 @@ python3 tools/check_console_manifest.py
 
 Tests verify basic token rejection, localhost protocol, fake Codex JSON output, recovery and terminal Activity export contract. They do **not** prove real Codex authentication, on-TV long-press delivery, tunnel reachability or actual device performance. For those, run the above setup with a real authenticated Codex CLI and test on the physical Fire TV, observing status and result.
 
+## Reuse Codex's official remote protocol for deeper integration
+
+OpenAI already provides `codex app-server` with authenticated WebSocket transport and a schema for threads, turn events and approvals. It also provides `codex remote-control` and SSH remote project workflows, where supported. Those should be the first candidates for later **interactive** Fire Console sessions. Do **not** grow this minimal job API into a competing full Codex conversation protocol. The small HTTP wrapper here exists solely to establish a safe, one-shot, physical-TV execution loop with a trivial Android client.
+
+Official references: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [CLI reference](https://learn.chatgpt.com/docs/cli/reference), [Remote connections](https://learn.chatgpt.com/docs/remote-connections).
+
 ## Direction: factorized Manifold-style system
 
 Keep one **capability graph** across local and offshore execution, rather than building unrelated tools:
