@@ -10,6 +10,8 @@ import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.CookieManager;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import org.json.JSONArray;
 import java.util.ArrayList;
 import android.content.Context;
@@ -87,7 +89,7 @@ public final class BrowserActivity extends Activity {
     private MediaSession pointerMediaSession;
     private BrowserUpdater browserUpdater;
     private boolean browserForeground;
-    private long lastMediaToggleAt, lastMediaNavigationAt;
+    private long lastMediaNavigationAt;
     private String lastMediaDelivery="none";
     private boolean thirdPartyCookies;
     private final ExecutorService cookieWriter=Executors.newSingleThreadExecutor(r->{
@@ -106,9 +108,11 @@ public final class BrowserActivity extends Activity {
     private View cursor;
     private TextView status;
     private EditText address, draft;
-    private boolean pointerMode, okArmed;
+    private boolean pointerMode;
+    private boolean imeVisible;
+    private final RemoteInputPolicy remoteInputs=new RemoteInputPolicy();
     private float x=.5f, y=.48f;
-    private long lastOk;
+    private long lastOk; // diagnostics only; gesture ownership lives in RemoteInputPolicy
     // Synthesized mouse hover (not merely a drawn yellow cursor) makes sites
     // receive native WebView hover/mousemove events.
     private WebView hoveredWeb;
@@ -120,7 +124,7 @@ public final class BrowserActivity extends Activity {
     // frame-timed acceleration rather than an OS key-repeat-sized jump.
     private final Choreographer.FrameCallback pointerFrame = frameNs -> {
         frameScheduled=false;
-        if(!pointerMode || heldKey<0 || cursor==null)return;
+        if(!RemoteInputPolicy.pointerOwnsDpad(pointerMode,imeVisible) || heldKey<0 || cursor==null)return;
         if(lastFrameNs>0){
             float dt=Math.max(0f,Math.min(.05f,(frameNs-lastFrameNs)/1000000000f));
             float age=Math.max(0f,(SystemClock.uptimeMillis()-heldSince)/1000f);
@@ -158,6 +162,22 @@ public final class BrowserActivity extends Activity {
         root.setPadding(dp(5),dp(3),dp(5),dp(3));
         screen.addView(root,new FrameLayout.LayoutParams(-1,-1));
         setContentView(screen);
+        // AndroidX WindowInsetsCompat is the documented keyboard visibility
+        // owner (works on Fire OS 7/API 28 with adjustResize).
+        // Unlike focus guesses, this prevents a pointer press from hijacking
+        // D-pad input that currently belongs to the on-screen keyboard.
+        ViewCompat.setOnApplyWindowInsetsListener(screen,(v,insets)->{
+            boolean visible=insets.isVisible(WindowInsetsCompat.Type.ime());
+            if(imeVisible!=visible){
+                imeVisible=visible;
+                stopMotion();
+                remoteInputs.cancelOk();
+                if(visible)resetWebHover(true);
+                else if(pointerMode)v.post(()->emitWebHover(true));
+                updateCursorVisual();
+            }
+            return insets; // Never consume insets from the WebView.
+        });
 
         LinearLayout line=new LinearLayout(this);
         line.setOrientation(LinearLayout.HORIZONTAL);
@@ -392,6 +412,8 @@ public final class BrowserActivity extends Activity {
                 if(web!=view)return;
                 webEditorFocused=false;
                 pointerClickGeneration++;
+                remoteInputs.cancelOk();
+                stopMotion();
                 resetWebHover(false);
                 pageStartedAt=SystemClock.uptimeMillis();
                 lastProgress=-1;
@@ -569,9 +591,7 @@ public final class BrowserActivity extends Activity {
     private void toggleFromTransportAction(String source){
         if(!remoteMediaShortcuts || !browserForeground)return;
         lastMediaDelivery="media session: "+source;
-        long now=SystemClock.uptimeMillis();
-        if(now-lastMediaToggleAt<350)return;
-        lastMediaToggleAt=now;
+        if(!remoteInputs.mediaDown(0,SystemClock.uptimeMillis()))return;
         togglePointer();
         status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+" ("+source+").");
     }
@@ -588,9 +608,8 @@ public final class BrowserActivity extends Activity {
         if(event.getAction()!=KeyEvent.ACTION_DOWN || event.getRepeatCount()>0)return true;
         long now=SystemClock.uptimeMillis();
         if(toggle){
-            // Several Fire remotes issue both PLAY and PAUSE for one gesture.
-            if(now-lastMediaToggleAt>=300){
-                lastMediaToggleAt=now;
+            // Same debounce clock for Activity, session key, and transport call.
+            if(remoteInputs.mediaDown(event.getRepeatCount(),now)){
                 togglePointer();
                 status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+
                     " ("+source+").");
@@ -603,7 +622,9 @@ public final class BrowserActivity extends Activity {
     }
 
     private void showKeyboard(View view){
-        stopMotion();pointerMode=false;updateCursorVisual();
+        stopMotion();remoteInputs.cancelOk();
+        // A keyboard owns the D-pad only while visible. Preserve the user's
+        // pointer selection across this temporary focus/IME transition.
         view.requestFocus();
         InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
         if(input!=null)input.showSoftInput(view,InputMethodManager.SHOW_IMPLICIT);
@@ -650,12 +671,17 @@ public final class BrowserActivity extends Activity {
         address.setText("local:input-lab");
     }
     private void togglePointer(){
-        stopMotion();pointerMode=!pointerMode;
+        stopMotion();remoteInputs.cancelOk();
+        pointerMode=!pointerMode;
+        if(pointerMode && imeVisible){
+            // Explicit pointer activation is intent to exit text-entry mode.
+            InputMethodManager im=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            if(im!=null)im.hideSoftInputFromWindow(screen.getWindowToken(),0);
+        }
         updateCursorVisual();
         if(pointerMode){
-            if(web!=null)web.requestFocus();
             emitWebHover(true);
-            status.setText("Pointer ON. D-pad moves a mouse-style cursor; OK clicks once.");
+            status.setText("Pointer ON. D-pad moves the pointer; OK clicks once.");
         }else{
             resetWebHover(true);
             status.setText("Pointer OFF. D-pad navigates normal controls.");
@@ -687,15 +713,27 @@ public final class BrowserActivity extends Activity {
             }
             return true;
         }
-        if(pointerMode){
+        // Android's software keyboard must own D-pad/OK/Back while shown.
+        // WindowInsetsCompat is more reliable than "which view is focused",
+        // especially for Amazon's keyboard that takes focus asynchronously.
+        WindowInsetsCompat insets=ViewCompat.getRootWindowInsets(screen);
+        if(insets!=null)imeVisible=insets.isVisible(WindowInsetsCompat.Type.ime());
+        boolean pointerKeys=RemoteInputPolicy.pointerOwnsDpad(pointerMode,imeVisible);
+        if(pointerMode && !pointerKeys){
+            stopMotion();
+            remoteInputs.cancelOk();
+            return super.dispatchKeyEvent(ev);
+        }
+        if(pointerKeys){
             int k=ev.getKeyCode();
             if(k==KeyEvent.KEYCODE_BACK && ev.getAction()==KeyEvent.ACTION_UP){
-                stopMotion();okArmed=false;
+                stopMotion();remoteInputs.cancelOk();
                 if(web!=null && web.canGoBack()){
                     web.goBack();
                     status.setText("Back to previous webpage; pointer mode remains ON.");
                 }else{
                     pointerMode=false;updateCursorVisual();
+                    resetWebHover(true);
                     status.setText("No previous page. Pointer OFF; D-pad focus navigation restored.");
                 }
                 return true;
@@ -705,7 +743,7 @@ public final class BrowserActivity extends Activity {
                k==KeyEvent.KEYCODE_DPAD_UP||k==KeyEvent.KEYCODE_DPAD_DOWN){
                 if(ev.getAction()==KeyEvent.ACTION_UP){
                     if(heldKey==k)stopMotion();
-                } else if(ev.getAction()==KeyEvent.ACTION_DOWN){
+                }else if(ev.getAction()==KeyEvent.ACTION_DOWN){
                     lastPointerInputAt=SystemClock.uptimeMillis();
                     if(heldKey!=k){
                         heldKey=k;heldSince=lastMove=lastPointerInputAt;
@@ -714,15 +752,14 @@ public final class BrowserActivity extends Activity {
                         schedulePointerFrame();
                     }
                 }
-                // Ignore OS-generated key repeats; movement is based on elapsed time.
                 return true;
             }
-            if(k==KeyEvent.KEYCODE_DPAD_CENTER||k==KeyEvent.KEYCODE_ENTER){
-                if(ev.getAction()==KeyEvent.ACTION_DOWN && ev.getRepeatCount()==0)okArmed=true;
-                if(ev.getAction()==KeyEvent.ACTION_UP){
-                    if(okArmed && (lastOk==0||SystemClock.uptimeMillis()-lastOk>250))clickPointer();
-                    okArmed=false;
-                }
+            if(k==KeyEvent.KEYCODE_DPAD_CENTER||k==KeyEvent.KEYCODE_ENTER||
+                k==KeyEvent.KEYCODE_NUMPAD_ENTER||k==KeyEvent.KEYCODE_BUTTON_A){
+                if(ev.getAction()==KeyEvent.ACTION_DOWN)
+                    remoteInputs.okDown(ev.getRepeatCount());
+                if(ev.getAction()==KeyEvent.ACTION_UP &&
+                   remoteInputs.okUp(SystemClock.uptimeMillis()))clickPointer();
                 return true;
             }
         }
@@ -741,7 +778,7 @@ public final class BrowserActivity extends Activity {
     private void clickPointer(){
         if(screen==null||web==null)return;
         stopMotion();
-        okArmed=false;
+        remoteInputs.cancelOk();
         long time=SystemClock.uptimeMillis();
         lastOk=time;
         final long clickId=++pointerClickGeneration;
@@ -758,7 +795,11 @@ public final class BrowserActivity extends Activity {
         float rx=inWeb?webX:px,ry=inWeb?webY:py;
         // Touchscreen source is essential. An unspecified-source MotionEvent
         // can be interpreted differently by the Amazon Chromium WebView.
-        if(inWeb && !web.hasFocus())web.requestFocus();
+        if(inWeb){
+            // A real mouse sends HOVER_EXIT before its DOWN.
+            resetWebHover(true);
+            if(!web.hasFocus())web.requestFocus();
+        }
         MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,rx,ry,0);
         MotionEvent up=MotionEvent.obtain(time,time+60,MotionEvent.ACTION_UP,rx,ry,0);
         down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
@@ -770,7 +811,7 @@ public final class BrowserActivity extends Activity {
         if(!inWeb){
             View focused=screen.findFocus();
             if(focused instanceof EditText){
-                stopMotion();pointerMode=false;updateCursorVisual();
+                stopMotion();remoteInputs.cancelOk();
                 resetWebHover(true);
                 InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                 if(input!=null)input.showSoftInput(focused,InputMethodManager.SHOW_IMPLICIT);
@@ -1029,7 +1070,8 @@ public final class BrowserActivity extends Activity {
         lastHoverMs=0L;
     }
     private void emitWebHover(boolean force){
-        if(web==null || screen==null || !pointerMode){
+        if(web==null || screen==null ||
+           !RemoteInputPolicy.pointerOwnsDpad(pointerMode,imeVisible)){
             resetWebHover(true);return;
         }
         WebView target=web;
@@ -1064,13 +1106,13 @@ public final class BrowserActivity extends Activity {
     private void updateCursorVisual(){
         if(pointerButton!=null)pointerButton.setText(pointerMode?"POINTER ON":"CURSOR");
         if(cursor==null || screen==null)return;
-        cursor.setVisibility(pointerMode?View.VISIBLE:View.GONE);
+        cursor.setVisibility(pointerMode && !imeVisible?View.VISIBLE:View.GONE);
         if(screen.getWidth()==0 || screen.getHeight()==0)return;
         cursor.setTranslationX(x*screen.getWidth()-cursor.getWidth()*.5f);
         cursor.setTranslationY(y*screen.getHeight()-cursor.getHeight()*.5f);
     }
     private void moveCursor(int key,float delta){
-        if(!pointerMode || viewport==null)return;
+        if(!RemoteInputPolicy.pointerOwnsDpad(pointerMode,imeVisible) || viewport==null)return;
         float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
         if(key==KeyEvent.KEYCODE_DPAD_LEFT)x=Math.max(.005f,x-delta/w);
         if(key==KeyEvent.KEYCODE_DPAD_RIGHT)x=Math.min(.995f,x+delta/w);
@@ -1299,6 +1341,8 @@ public final class BrowserActivity extends Activity {
         sb.append("Media session active: ").append(pointerMediaSession!=null && pointerMediaSession.isActive()).append('\n');
         sb.append("Last media delivery: ").append(lastMediaDelivery).append('\n');
         sb.append("Navigation preserves pointer mode: yes").append('\n');
+        sb.append("Software keyboard visible: ").append(imeVisible).append('\n');
+        sb.append("Remote OK guard ms: ").append(RemoteInputPolicy.OK_DEBOUNCE_MS).append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
           .append("These numbers do not measure JavaScript heap or establish root cause.");
         String report=sb.toString();
@@ -1383,8 +1427,9 @@ public final class BrowserActivity extends Activity {
         web.evaluateJavascript(script,null);
     }
     @Override public void onBackPressed(){
-        if(pointerMode){
+        if(pointerMode && !imeVisible){
             stopMotion();
+            remoteInputs.cancelOk();
             if(web!=null&&web.canGoBack()){
                 web.goBack();
                 status.setText("Back to previous webpage; pointer remains ON.");
@@ -1399,6 +1444,7 @@ public final class BrowserActivity extends Activity {
     }
     @Override protected void onPause(){
         resetWebHover(true);
+        remoteInputs.cancelOk();
         browserForeground=false;
         refreshMediaSession();
         stopMotion();
@@ -1417,7 +1463,11 @@ public final class BrowserActivity extends Activity {
     }
     @Override public void onWindowFocusChanged(boolean hasFocus){
         super.onWindowFocusChanged(hasFocus);
-        if(!hasFocus)stopMotion();
+        if(!hasFocus){
+            stopMotion();
+            remoteInputs.cancelOk();
+            resetWebHover(true);
+        }
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);
