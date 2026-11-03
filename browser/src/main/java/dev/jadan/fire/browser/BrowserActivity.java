@@ -120,12 +120,7 @@ public final class BrowserActivity extends Activity {
     private final BindingSafety bindingSafety=new BindingSafety();
     private final Handler bindingClock=new Handler(Looper.getMainLooper());
     private boolean mediaHeld, mediaHoldTriggered, consumeEmergencyOkUp;
-    private final Runnable holdMediaAction=()->{
-        if(mediaHeld && browserForeground && bindings!=null && !imeVisible){
-            mediaHoldTriggered=true;
-            bindings.holdPlayPause();
-        }
-    };
+    private long mediaHoldSince;
     private final Runnable rescueAction=()->{
         if(bindingSafety.resetDue(SystemClock.uptimeMillis()))emergencyRestoreBindings();
     };
@@ -199,8 +194,7 @@ public final class BrowserActivity extends Activity {
                 if(visible){
                     bindingSafety.cancel();
                     bindingClock.removeCallbacks(rescueAction);
-                    bindingClock.removeCallbacks(holdMediaAction);
-                    mediaHeld=false;
+                                mediaHeld=false;
                     if(bindings!=null)bindings.stopInput();
                     resetWebHover(true);
                 }
@@ -708,23 +702,33 @@ public final class BrowserActivity extends Activity {
         long now=SystemClock.uptimeMillis();
         if(toggle){
             if(event.getAction()==KeyEvent.ACTION_UP){
+                // Only a measured held press can enter binding capture. Some
+                // Fire OS MediaSessions emit DOWN without UP: a timer alone
+                // would wrongly treat every tap as a long press.
+                if(mediaHeld && !mediaHoldTriggered &&
+                   now-mediaHoldSince>=750 && bindings!=null && !imeVisible){
+                    mediaHoldTriggered=true;
+                    bindings.holdPlayPause();
+                }
                 mediaHeld=false;
-                bindingClock.removeCallbacks(holdMediaAction);
                 return true;
             }
             if(event.getAction()!=KeyEvent.ACTION_DOWN)return true;
-            if(event.getRepeatCount()==0 && !mediaHeld){
+            if(event.getRepeatCount()==0){
                 mediaHeld=true;
+                mediaHoldSince=now;
                 mediaHoldTriggered=false;
-                bindingClock.removeCallbacks(holdMediaAction);
-                bindingClock.postDelayed(holdMediaAction,750);
+            }else if(mediaHeld && !mediaHoldTriggered &&
+                     now-mediaHoldSince>=750 && bindings!=null && !imeVisible){
+                mediaHoldTriggered=true;
+                bindings.holdPlayPause();
             }
-            // Preserve the old one-tap behavior even if Fire OS delivers only
-            // DOWN (some media transport paths do not report matching UP).
+            // Preserve prior tap behavior for media APIs without UP events.
+            // Hold capture is unavailable there; SETS is its reliable path.
             if(remoteInputs.mediaDown(event.getRepeatCount(),now)){
                 togglePointer();
                 status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+
-                    " ("+source+"). Hold to bind; SETS always available.");
+                    " ("+source+"). Hold to bind when delivered; SETS always available.");
             }
             return true;
         }
@@ -805,7 +809,6 @@ public final class BrowserActivity extends Activity {
         }
     }
     private void emergencyRestoreBindings(){
-        bindingClock.removeCallbacks(holdMediaAction);
         bindingClock.removeCallbacks(rescueAction);
         mediaHeld=false;mediaHoldTriggered=false;
         consumeEmergencyOkUp=true;
@@ -1822,7 +1825,6 @@ public final class BrowserActivity extends Activity {
         super.onBackPressed();
     }
     @Override protected void onPause(){
-        bindingClock.removeCallbacks(holdMediaAction);
         bindingClock.removeCallbacks(rescueAction);
         bindingSafety.cancel();
         consumeEmergencyOkUp=false;
@@ -1849,8 +1851,7 @@ public final class BrowserActivity extends Activity {
     @Override public void onWindowFocusChanged(boolean hasFocus){
         super.onWindowFocusChanged(hasFocus);
         if(!hasFocus){
-            bindingClock.removeCallbacks(holdMediaAction);
-            bindingClock.removeCallbacks(rescueAction);
+                bindingClock.removeCallbacks(rescueAction);
             bindingSafety.cancel();
             consumeEmergencyOkUp=false;
             mediaHeld=false;
@@ -1873,7 +1874,6 @@ public final class BrowserActivity extends Activity {
         super.onSaveInstanceState(out);
     }
     @Override protected void onDestroy(){
-        bindingClock.removeCallbacks(holdMediaAction);
         bindingClock.removeCallbacks(rescueAction);
         resetWebHover(false);
         if(browserUpdater!=null)browserUpdater.close();
