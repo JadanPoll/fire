@@ -97,6 +97,63 @@ tokens, and limits the number of pinned games to 16. The game itself runs in
 Fire Browser with its existing audio engine. Unpin only deletes a shortcut,
 never a website, browser storage or game.
 
+## Wii-style legacy channel refresh and terminal IME recovery (November 2026)
+
+The original Dev Bridge/Tools, Catalog, Codex, Voice, Playroom, Apps and
+Input Lab now use the same **light TV channel** visual vocabulary as Home:
+pale background, white rounded surfaces, blue D-pad focus outline,
+two-column action rows for wide screens, legible descriptions, and the
+same Back/OK behavior. A shared `TvUi` class centralizes presentation.
+This change deliberately **does not rewrite** network updates, Playroom
+preferences, the installed-app launcher registry, device capability checks,
+Codex job behavior, or Input Lab's normalization logic.
+
+The local terminal had a concrete TV usability defect: on launch it
+immediately focused the EditText and opened Fire OS's on-screen keyboard,
+while RUN/STOP/COPY/CLOSE were rendered *below* the output. Fire's keyboard
+could then cover the actionable controls. The terminal now:
+
+- opens with **TYPE** focused, not the text editor; Android soft input
+  is initially hidden and does not auto-reopen on D-pad focus
+- anchors COMMAND DECK, entry, TYPE/RUN/HIDE/STOP/COPY at the top of the
+  window; scrollable output occupies the lower region
+- uses `SOFT_INPUT_ADJUST_RESIZE` where Fire OS honors it, but relies on
+  the top-anchored command deck as a fallback when the keyboard overlays
+  rather than resizes
+- invokes the keyboard only through TYPE; Run and IME Done both hide it,
+  clear text focus, and return control to a visible button
+- retains command draft when another process is busy; restores the console
+  via Android Back; keeps command limits and local app-UID trust boundary
+
+The keyboard is owned by Amazon's OS, so a full-screen Fire IME can still
+temporarily occlude the Activity until **Back** or **Done** exits it.
+The app cannot control those OS-level surfaces or globally remap Back.
+The observed defect addressed here is *automatic keyboard entry plus
+bottom-positioned controls*, not a claim that third-party code can
+guarantee behavior of every Fire OS keyboard.
+
+### Physical Fire TV acceptance sequence
+
+1. Open Home → Codex (long OK), or Codex → Open Local Terminal.
+   The terminal must show **TYPE** focus and **no keyboard**.
+2. Move focus across TYPE/RUN/HIDE/STOP/COPY using D-pad; confirm
+   focus is visible and output remains in the lower panel.
+3. Select TYPE. Verify the keyboard opens, enter `pwd`, press its Done.
+   Confirm keyboard closes, output contains the workspace path,
+   and D-pad returns to a visible control.
+4. Repeat but press Back instead of Done; select RUN. No automatic
+   keyboard reappearance should occur. Use HIDE if necessary.
+5. Run a noisy command, then COPY, navigate Back, and reopen terminal.
+   No browser/game session should have been reset.
+6. Exercise Tools → Check/Install, Voice → keyboard test, Apps →
+   Catalog, Playroom → Play, Codex → executor pairing to ensure
+   actions and data paths still work.
+
+Automated validation: `python3 tools/check_tv_ui_contract.py`,
+`python3 tools/check_console_manifest.py`, Android unit tests and
+`:app:assembleRelease`. These are static/build checks; device acceptance
+is an additional requirement.
+
 ## Physical TV acceptance checks
 
 Perform from a trusted authorized ADB link:
