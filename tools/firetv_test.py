@@ -22,6 +22,9 @@ import sys
 import time
 
 PACKAGE = "dev.jadan.fire.browser"
+CONSOLE_PACKAGE = "dev.jadan.fire"
+CONSOLE_COMPONENT = CONSOLE_PACKAGE + "/.ConsoleActivity"
+VOICE_COMPONENT = CONSOLE_PACKAGE + "/.VoiceProbeActivity"
 COMPONENT = PACKAGE + "/.BrowserActivity"
 KEYS = {"up":19, "down":20, "left":21, "right":22, "ok":23,
         "back":4, "home":3, "menu":82}
@@ -139,6 +142,8 @@ def main():
     perf.add_argument("--output", type=Path)
     subs.add_parser("live")
     subs.add_parser("inbox", help="Open Fire Inbox and capture a non-posting screenshot")
+    subs.add_parser("console", help="Launch Fire Console channels and capture screenshot")
+    subs.add_parser("voice", help="Launch Fire OS keyboard/voice diagnostic and capture screenshot")
     errors = subs.add_parser("errors", help="Save selected browser/render crash logs")
     errors.add_argument("--output", type=Path)
     args = p.parse_args()
@@ -207,6 +212,16 @@ def main():
         print("Performance snapshot:", dest.resolve())
         print("Compare snapshots before/after a freeze, or inspect ChatGPT with the opt-in")
         print("WebView INSPECT control and desktop Chrome chrome://inspect/#devices.")
+    elif args.action in ("console", "voice"):
+        selected = CONSOLE_COMPONENT if args.action == "console" else VOICE_COMPONENT
+        print(run(cmd + ["shell", "am", "start", "-n", selected]).stdout.strip())
+        time.sleep(2.5)
+        screenshot(cmd, OUTPUT / (args.action + ".png"))
+        alive = run(cmd + ["shell", "pidof", CONSOLE_PACKAGE], check=False)
+        print("Fire Console process alive:", bool(alive.stdout.strip()))
+        if not alive.stdout.strip():
+            raise RuntimeError("Fire Console process exited after opening " + args.action)
+        print("This screenshot checks startup only. Real dictation requires Fire OS voice service.")
     elif args.action == "inbox":
         print(run(cmd + ["shell", "am", "start", "-n", COMPONENT,
                          "-a", "android.intent.action.VIEW", "-d", INBOX]).stdout.strip())
