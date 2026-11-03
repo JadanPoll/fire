@@ -43,7 +43,8 @@ jobs:
           gradle-version: '8.10.2'
       - name: Check remote test helper
         run: |
-          python3 -m py_compile tools/firetv_test.py
+          python3 -m py_compile tools/firetv_test.py tools/codex_executor.py
+          python3 -m unittest discover -s tools -p 'test_codex_executor.py' -v
           python3 tools/firetv_test.py --help >/dev/null
           python3 tools/check_console_manifest.py
       - name: Build APK and release notes
