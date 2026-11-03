@@ -12,6 +12,7 @@
         android:usesCleartextTraffic="false">
         <activity android:name=".FireBrowserActivity" android:exported="false" />
         <activity android:name=".CodexDeskActivity" android:exported="false" />
+        <activity android:name=".TerminalActivity" android:exported="false" />
         <activity android:name=".VoiceProbeActivity" android:exported="false" />
         <activity android:name=".CatalogActivity" android:exported="false" />
         <activity android:name=".InputLabActivity" android:exported="false" />
