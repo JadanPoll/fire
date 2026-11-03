@@ -314,7 +314,9 @@ public final class BrowserActivity extends Activity {
             }
             @Override public void stateChanged(boolean capture,boolean mapped){
                 stopMotion();remoteInputs.cancelOk();
-                pointerMode=capture;updateCursorVisual();
+                pointerMode=capture;
+                if(cursor!=null)cursor.invalidate();
+                updateCursorVisual();
                 if(mapped&&web!=null)web.requestFocus();
             }
             @Override public void performTarget(BrowserBindings.Target target){
@@ -685,6 +687,9 @@ public final class BrowserActivity extends Activity {
         status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+" ("+source+").");
     }
     private boolean handleMediaShortcut(KeyEvent event,String source){
+        // MediaSession events can bypass Activity.dispatchKeyEvent. The same
+        // browser-local mapping priority applies in either route.
+        if(bindings!=null && bindings.onKey(event,SystemClock.uptimeMillis()))return true;
         if(!remoteMediaShortcuts || !browserForeground)return false;
         int key=event.getKeyCode();
         boolean toggle=key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
@@ -694,16 +699,31 @@ public final class BrowserActivity extends Activity {
         if(!toggle && !back && !forward)return false;
         lastMediaDelivery=source+": "+KeyEvent.keyCodeToString(key)+
             " "+(event.getAction()==KeyEvent.ACTION_DOWN?"DOWN":"UP");
-        if(event.getAction()!=KeyEvent.ACTION_DOWN || event.getRepeatCount()>0)return true;
         long now=SystemClock.uptimeMillis();
         if(toggle){
-            // Same debounce clock for Activity, session key, and transport call.
+            if(event.getAction()==KeyEvent.ACTION_UP){
+                mediaHeld=false;
+                bindingClock.removeCallbacks(holdMediaAction);
+                return true;
+            }
+            if(event.getAction()!=KeyEvent.ACTION_DOWN)return true;
+            if(event.getRepeatCount()==0 && !mediaHeld){
+                mediaHeld=true;
+                mediaHoldTriggered=false;
+                bindingClock.removeCallbacks(holdMediaAction);
+                bindingClock.postDelayed(holdMediaAction,750);
+            }
+            // Preserve the old one-tap behavior even if Fire OS delivers only
+            // DOWN (some media transport paths do not report matching UP).
             if(remoteInputs.mediaDown(event.getRepeatCount(),now)){
                 togglePointer();
                 status.setText("Remote pointer "+(pointerMode?"ON":"OFF")+
-                    " ("+source+").");
+                    " ("+source+"). Hold to bind; SETS always available.");
             }
-        }else if(now-lastMediaNavigationAt>=300){
+            return true;
+        }
+        if(event.getAction()==KeyEvent.ACTION_DOWN &&
+           event.getRepeatCount()==0 && now-lastMediaNavigationAt>=300){
             lastMediaNavigationAt=now;
             if(back)browseBack();else browseForward();
         }
@@ -1324,6 +1344,8 @@ public final class BrowserActivity extends Activity {
         if(cursor==null || screen==null)return;
         int visibility=pointerMode && !imeVisible?View.VISIBLE:View.GONE;
         if(cursor.getVisibility()!=visibility)cursor.setVisibility(visibility);
+        // Color is only redrawn in binding-capture mode, not on every
+        // ordinary animation frame in a heavyweight WebView.
         if(bindings!=null&&bindings.captureMode())cursor.invalidate();
         if(screen.getWidth()==0 || screen.getHeight()==0)return;
         cursor.setTranslationX(x*screen.getWidth()-cursor.getWidth()*.5f);
