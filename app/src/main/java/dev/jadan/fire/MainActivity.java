@@ -79,24 +79,31 @@ public final class MainActivity extends Activity {
         root.addView(detail);
         root.addView(TvUi.section(this, "UPDATE & INSTALL"));
 
-        Button check = action("CHECK LATEST GITHUB BUILD", root, this::checkRelease);
-        install = action("DOWNLOAD & INSTALL (SYSTEM CONFIRMATION)", root, this::downloadRelease);
+        LinearLayout update=TvUi.actionRow(this,root);
+        Button check=TvUi.actionInRow(this,update,"CHECK GITHUB BUILD",this::checkRelease);
+        install=TvUi.actionInRow(this,update,"INSTALL VERIFIED UPDATE",this::downloadRelease);
         install.setEnabled(false);
-        root.addView(TvUi.section(this, "LABS & CHANNELS"));
-        action("VOICE PREFLIGHT — CHECK MICROPHONE", root, () ->
-                startActivity(new Intent(this, VoiceProbeActivity.class)));
-        action("APP CATALOG — INSTALL & LAUNCH", root, () ->
-                startActivity(new Intent(this, CatalogActivity.class)));
-        action("INPUT LAB — VIRTUAL POINTER", root, () ->
-                startActivity(new Intent(this, InputLabActivity.class)));
-        action("OPEN STANDALONE FIRE BROWSER", root, this::openStandaloneBrowser);
-        action("FIRE BROWSER LAB — WEBVIEW + REMOTE POINTER", root, () ->
-                startActivity(new Intent(this, FireBrowserActivity.class)));
-        action("ON-FIRE CODEX — SPEAK, TYPE, WORK", root, () ->
-                startActivity(new Intent(this, CodexDeskActivity.class)));
-        root.addView(TvUi.section(this, "RECOVERY & EVIDENCE"));
-        action("RETRY LAST VERIFIED APK (NO DOWNLOAD)", root, this::retryInstall);
-        action("SHARE LOCAL DIAGNOSTICS", root, this::shareDiagnostics);
+
+        root.addView(TvUi.section(this,"LABS & CHANNELS"));
+        LinearLayout channels=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,channels,"VOICE / MIC DIAGNOSTICS",
+            ()->startActivity(new Intent(this,VoiceProbeActivity.class)));
+        TvUi.actionInRow(this,channels,"APP CATALOG / INSTALL",
+            ()->startActivity(new Intent(this,CatalogActivity.class)));
+        LinearLayout inputRow=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,inputRow,"INPUT LAB / VIRTUAL POINTER",
+            ()->startActivity(new Intent(this,InputLabActivity.class)));
+        TvUi.actionInRow(this,inputRow,"FIRE BROWSER",this::openStandaloneBrowser);
+        LinearLayout experiments=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,experiments,"WEBVIEW BROWSER LAB",
+            ()->startActivity(new Intent(this,FireBrowserActivity.class)));
+        TvUi.actionInRow(this,experiments,"CODEX WORKBENCH",
+            ()->startActivity(new Intent(this,CodexDeskActivity.class)));
+
+        root.addView(TvUi.section(this,"RECOVERY & EVIDENCE"));
+        LinearLayout recovery=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,recovery,"RETRY VERIFIED APK",this::retryInstall);
+        TvUi.actionInRow(this,recovery,"SHARE LOCAL DIAGNOSTICS",this::shareDiagnostics);
         root.addView(label("REMOTE INPUT EVENTS (this app only)", 17, 0xFF55C4FF));
         keyLog = label("Press remote buttons to observe key-down events.", 15, 0xFFFFFFFF);
         root.addView(keyLog);
