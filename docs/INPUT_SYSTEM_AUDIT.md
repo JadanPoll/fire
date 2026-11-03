@@ -42,6 +42,23 @@ is never invisible.
 6. **IME submit:** only submit the ChatGPT composer on the release half of a
    keyboard Enter event, never both DOWN and UP.
 
+### Exact event aliases and timing caveat
+
+The platform key-code aliases are documented by [Android TV's controller
+guide](https://developer.android.com/training/tv/get-started/controllers) and
+[Amazon's controller-input reference](https://developer.amazon.com/docs/fire-tv/game-controller-input.html).
+Amazon specifically warns that controller A may produce both BUTTON_A and
+DPAD_CENTER, and that unconsumed primary events can cause double inputs. Fire
+Browser handles the selection family as a single logical press and returns
+`true` when it consumes a key.
+
+The **450ms debounce threshold** is an *initial engineering parameter*, not
+a value guaranteed by Android, Amazon, Comet, or TV Bro. To avoid guessing
+about a particular Fire remote, MENU → MORE → Browser diagnostics now includes
+the last 16 direction/OK/media key transitions and IME visibility transitions,
+with key codes and relative timestamps only (no URLs, typed text or cookies).
+Use those observations to refine the guard, not to add blind delays.
+
 ## Continuous integration vs physical TV acceptance
 
 The pure-Java `RemoteInputPolicyTest` exercises duplicate OK events, key
