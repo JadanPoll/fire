@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "capabilities": [
+    {
+      "id": "signal.synthetic",
+      "description": "Generate deterministic synthetic signals without hardware",
+      "implemented": true,
+      "risk": "none",
+      "provider": "Applications/SignalStudio/src/main/java/dev/jadan/fire/signalstudio/SignalMath.java"
+    },
+    {
+      "id": "input.dpad",
+      "description": "Foreground directional controls supplied by Android TV",
+      "implemented": true,
+      "risk": "low",
+      "provider": "Applications/SignalStudio/src/main/java/dev/jadan/fire/signalstudio/SignalActivity.java"
+    },
+    {
+      "id": "display.canvas",
+      "description": "Draw native pixels in the foreground Android Activity",
+      "implemented": true,
+      "risk": "low",
+      "provider": "Applications/SignalStudio/src/main/java/dev/jadan/fire/signalstudio/SignalActivity.java"
+    }
+  ]
+}
