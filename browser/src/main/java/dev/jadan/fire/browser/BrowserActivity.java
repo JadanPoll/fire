@@ -1105,12 +1105,15 @@ public final class BrowserActivity extends Activity {
     private void clickPointer(){
         if(screen==null||web==null)return;
         stopMotion();
+        // Screen-coordinate overlays sit visually above WebView. Give them
+        // priority or a "native" pointer tap will click through into the page.
+        float globalPx=x*screen.getWidth(),globalPy=y*screen.getHeight();
+        int gameKey=gameKeyAt(globalPx,globalPy);
         if(bindings!=null && bindings.captureMode()){
-            float px=x*screen.getWidth(),py=y*screen.getHeight();
-            int gameKey=gameKeyAt(px,py);
+            float px=globalPx,py=globalPy;
             if(gameKey>=0){
                 bindings.captureTarget(new BrowserBindings.Target(gameKey));
-                return; // app-owned game-key buttons are bindable without firing
+                return; // binding a key must not type into the webpage
             }
             int[] screenLocation=new int[2],webLocation=new int[2];
             screen.getLocationOnScreen(screenLocation);
@@ -1130,6 +1133,10 @@ public final class BrowserActivity extends Activity {
         remoteInputs.cancelOk();
         long time=SystemClock.uptimeMillis();
         lastOk=time;
+        if(gameKey>=0){
+            sendGameKey(gameKey);
+            return; // never click WebView behind the GAME KEYS overlay
+        }
         final long clickId=++pointerClickGeneration;
         float px=x*screen.getWidth(),py=y*screen.getHeight();
         int[] screenLocation=new int[2],webLocation=new int[2];
@@ -1424,6 +1431,10 @@ public final class BrowserActivity extends Activity {
             resetWebHover(true);return;
         }
         WebView target=web;
+        if(gameKeyAt(x*screen.getWidth(),y*screen.getHeight())>=0){
+            resetWebHover(true);
+            return; // overlay owns this region, not the webpage underneath
+        }
         if(target.getWidth()<2 || target.getHeight()<2 || !target.isAttachedToWindow()){
             resetWebHover(false);return;
         }
