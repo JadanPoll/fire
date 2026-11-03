@@ -66,14 +66,13 @@ public final class CatalogActivity extends Activity {
         super.onCreate(state);
         ScrollView scroller=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(30,22,30,22);
-        root.setBackgroundColor(0xFF102132);
+        TvUi.page(this,root);
         scroller.addView(root);setContentView(scroller);
-        root.addView(label("FIRE  /  APP CATALOG",26,0xFF64C8FF));
-        root.addView(label("Install, update or launch approved GitHub-built apps.",16,0xFFFFFFFF));
+        root.addView(TvUi.header(this,"APPS  /  CATALOG"));
+        root.addView(TvUi.text(this,"Verified Fire channels · installation always confirmed by Android",16,TvUi.SUB));
         status=label("Catalog not yet loaded.",17,0xFFCADBE8);
         root.addView(status);
+        root.addView(TvUi.section(this,"FIRE CHANNELS"));
         addButton(root,"REFRESH CATALOG",this::loadCatalog).requestFocus();
         addButton(root,"RETRY VERIFIED INSTALL (NO DOWNLOAD)",this::retryInstall);
         list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);
@@ -82,15 +81,11 @@ public final class CatalogActivity extends Activity {
         loadCatalog();
     }
 
-    private TextView label(String text, int sp, int color) {
-        TextView t=new TextView(this); t.setText(text);t.setTextSize(sp);t.setTextColor(color);
-        t.setPadding(0,12,0,12);return t;
+    private TextView label(String value,int sp,int color){
+        return TvUi.text(this,value,sp,sp>=17?TvUi.INK:TvUi.SUB);
     }
-    private Button addButton(LinearLayout parent,String text,Runnable callback) {
-        Button b=new Button(this);b.setAllCaps(false);b.setText(text);
-        b.setMinHeight(72);b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xFF2D4B65);
-        b.setOnFocusChangeListener((v,focus)->b.setBackgroundColor(focus?0xFF176FA3:0xFF2D4B65));
-        b.setOnClickListener(v->callback.run());parent.addView(b);return b;
+    private Button addButton(LinearLayout parent,String title,Runnable action){
+        return TvUi.action(this,parent,title,action);
     }
     private static HttpURLConnection open(String url) throws Exception {
         HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();
@@ -134,9 +129,13 @@ public final class CatalogActivity extends Activity {
                     busy=false;apps.clear();apps.addAll(found);
                     list.removeAllViews();
                     for(App app:apps) {
-                        list.addView(label(app.name+" — "+app.description,18,0xFFFFFFFF));
-                        addButton(list,"INSTALL / UPDATE: "+app.name,()->download(app));
-                        addButton(list,"OPEN IF INSTALLED: "+app.name,()->launch(app));
+                        LinearLayout card=TvUi.panel(this);
+                        card.addView(TvUi.section(this,app.name));
+                        card.addView(TvUi.text(this,app.description,15,TvUi.SUB));
+                        LinearLayout appActions=TvUi.actionRow(this,card);
+                        TvUi.actionInRow(this,appActions,"INSTALL / UPDATE",()->download(app));
+                        TvUi.actionInRow(this,appActions,"OPEN INSTALLED APP",()->launch(app));
+                        TvUi.addPanel(this,list,card);
                     }
                     status.setText("Catalog loaded: "+apps.size()+" apps. Select an action.");
                 });

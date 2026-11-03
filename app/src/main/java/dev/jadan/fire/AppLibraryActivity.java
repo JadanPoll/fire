@@ -34,19 +34,16 @@ public final class AppLibraryActivity extends Activity {
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFFEDF5FA);
+        root.setBackgroundColor(TvUi.BG);
         root.setPadding(dp(24),dp(17),dp(24),dp(18));
         scroll.addView(root);setContentView(scroll);
-        TextView title=text("APPLICATIONS  /  LIBRARY",28,dark);
+        TextView title=TvUi.header(this,"APPLICATIONS  /  LIBRARY");
         root.addView(title);
         status=text("Choose an installed TV application. Back returns to Fire Console.",15,0xFF617A91);
         root.addView(status);
-        Button manager=new Button(this);
-        manager.setText("APP CATALOG  ·  INSTALL / UPDATE FIRE CHANNELS");
-        manager.setAllCaps(false);manager.setTextColor(0xFFFFFFFF);
-        manager.setBackgroundColor(0xFF286F98);
-        manager.setOnClickListener(v->startActivity(new Intent(this,CatalogActivity.class)));
-        root.addView(manager,new LinearLayout.LayoutParams(-1,dp(62)));
+        Button manager=TvUi.action(this,root,
+            "APP CATALOG  /  INSTALL & UPDATE FIRE CHANNELS",
+            ()->startActivity(new Intent(this,CatalogActivity.class)));
 
         PackageManager pm=getPackageManager();
         Intent launcher=new Intent(Intent.ACTION_MAIN);

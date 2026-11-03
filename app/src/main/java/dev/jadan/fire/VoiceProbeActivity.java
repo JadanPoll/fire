@@ -43,17 +43,14 @@ public final class VoiceProbeActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF102132);
-        root.setPadding(dp(28),dp(20),dp(28),dp(20));
+        TvUi.page(this,root);
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);
         setContentView(scroll);
-        root.addView(text("VOICE PREFLIGHT",26,0xFF64CAFF));
+        root.addView(TvUi.header(this,"VOICE  /  RECOVERY"));
         root.addView(text("A cheap test of what this particular Fire TV actually exposes.",17,0xFFE6F0F6));
         report = text("",16,0xFFE6F0F6);
-        root.addView(report);
-        root.addView(text("FIRE KEYBOARD DICTATION / RECOVERY",21,0xFF64CAFF));
+        root.addView(TvUi.section(this,"FIRE KEYBOARD & DICTATION"));
         root.addView(text("Dictation here belongs to Fire OS, not this app. If its system service fails, reopening an app cannot restart it.",15,0xFFBFD7E6));
         keyboardTest=new EditText(this);
         keyboardTest.setTextColor(0xFF16283B);
@@ -64,6 +61,7 @@ public final class VoiceProbeActivity extends Activity {
         keyboardTest.setMaxLines(4);
         keyboardTest.setHint("Speak a short sentence through the Fire keyboard, or type it");
         keyboardTest.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_DONE);
+        TvUi.field(this,keyboardTest);
         root.addView(keyboardTest,new LinearLayout.LayoutParams(-1,dp(100)));
         keyboardStatus=text("No input yet. Voice is optional; typed characters are a separate test.",16,0xFFDBECF6);
         root.addView(keyboardStatus);
@@ -76,13 +74,18 @@ public final class VoiceProbeActivity extends Activity {
             }
             @Override public void afterTextChanged(Editable edit){}
         });
-        button(root,"OPEN FIRE KEYBOARD FOR VOICE TEST",this::testKeyboard);
-        button(root,"RECONNECT THIS TEXT FIELD (SAFE)",this::reconnectKeyboard);
+        LinearLayout keyboardOps=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,keyboardOps,"OPEN FIRE KEYBOARD",this::testKeyboard);
+        TvUi.actionInRow(this,keyboardOps,"RECONNECT TEXT FIELD",this::reconnectKeyboard);
         root.addView(text("RECONNECT only refreshes this app's input connection. If the mic button instead opens Alexa, disappears, or crashes, the problem can be in the Fire OS keyboard/voice service.",14,0xFF9FC1D7));
-        button(root,"OPEN FIRE TV SYSTEM SETTINGS",this::openSystemSettings);
-        Button scan = button(root,"SCAN AUDIO INPUTS AND SPEECH SERVICES",this::scan);
-        button(root,"TRY ANDROID SPEECH RECOGNITION",this::trySpeech);
-        button(root,"COPY DIAGNOSTIC REPORT",this::copy);
+        root.addView(TvUi.section(this,"DIAGNOSTICS & RECOVERY"));
+        LinearLayout diagnostics=TvUi.actionRow(this,root);
+        Button scan=TvUi.actionInRow(this,diagnostics,"SCAN AUDIO / SPEECH",this::scan);
+        TvUi.actionInRow(this,diagnostics,"TEST ANDROID RECOGNIZER",this::trySpeech);
+        LinearLayout utilities=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,utilities,"FIRE TV SETTINGS",this::openSystemSettings);
+        TvUi.actionInRow(this,utilities,"COPY REPORT",this::copy);
+        root.addView(report);
         root.addView(text("Alexa remote voice button is system-owned and cannot be intercepted as an ordinary app key. " +
                 "A reported recognition service or microphone does not prove that Alexa remote audio is available.",
                 15,0xFFABC4D8));
@@ -93,22 +96,11 @@ public final class VoiceProbeActivity extends Activity {
     private int dp(int v) {
         return (int)(v * getResources().getDisplayMetrics().density + .5f);
     }
-    private TextView text(String value,int sp,int color) {
-        TextView t = new TextView(this);
-        t.setText(value);t.setTextSize(sp);t.setTextColor(color);
-        t.setPadding(0,dp(9),0,dp(9));
-        return t;
+    private TextView text(String value,int sp,int color){
+        return TvUi.text(this,value,sp,sp>=16?TvUi.INK:TvUi.SUB);
     }
-    private Button button(LinearLayout root,String label,Runnable fn) {
-        Button b = new Button(this);
-        b.setText(label);b.setAllCaps(false);b.setMinHeight(dp(64));
-        b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xFF2D4B65);
-        b.setOnFocusChangeListener((v,focused)->b.setBackgroundColor(focused?0xFF176FA3:0xFF2D4B65));
-        b.setOnClickListener(v->fn.run());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1,-2);
-        params.bottomMargin = dp(8);
-        root.addView(b,params);
-        return b;
+    private Button button(LinearLayout root,String name,Runnable fn){
+        return TvUi.action(this,root,name,fn);
     }
 
     private void show(String details) {
