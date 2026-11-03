@@ -39,6 +39,9 @@ final class CodexExecutorClient {
         body.put("prompt",prompt);
         return request(origin,token,"POST","/v1/jobs",body);
     }
+    static JSONObject recover(String origin,String token) throws Exception {
+        return request(origin,token,"GET","/v1/jobs/latest",null);
+    }
     static JSONObject poll(String origin,String token,String id) throws Exception {
         return request(origin,token,"GET","/v1/jobs/"+UUID.fromString(id).toString(),null);
     }
