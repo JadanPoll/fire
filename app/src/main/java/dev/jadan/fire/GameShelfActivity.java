@@ -39,11 +39,11 @@ public final class GameShelfActivity extends Activity {
         scroll.setFillViewport(true);
         LinearLayout root=new LinearLayout(this);
         root.setPadding(dp(30),dp(22),dp(30),dp(24));
-        root.setBackgroundColor(0xFFEEF6FA);
+        root.setBackgroundColor(TvUi.BG);
         root.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(root);setContentView(scroll);
 
-        TextView heading=label("PLAYROOM  /  GAME CHANNELS",28,navy);
+        TextView heading=TvUi.header(this,"PLAYROOM  /  GAME CHANNELS");
         root.addView(heading);
         root.addView(label("Save the web games you create. Open them in Fire Browser. No game files are copied.",16,0xFF58728A));
         status=label("Ready. Select a game or pin a new HTTPS address.",14,0xFF46677E);
@@ -55,12 +55,14 @@ public final class GameShelfActivity extends Activity {
         urlInput.setSingleLine(true);urlInput.setTextSize(17);
         urlInput.setHint("https://... game URL");urlInput.setImeOptions(EditorInfo.IME_ACTION_DONE);
         urlInput.setTextColor(navy);urlInput.setBackgroundColor(0xFFFFFFFF);
+        TvUi.field(this,urlInput);
         root.addView(urlInput,new LinearLayout.LayoutParams(-1,dp(56)));
         titleInput=new EditText(this);
         titleInput.setSingleLine(true);titleInput.setTextSize(16);
         titleInput.setHint("Name (optional, e.g. Subway Surfers)");
         titleInput.setTextColor(navy);titleInput.setBackgroundColor(0xFFFFFFFF);
         LinearLayout.LayoutParams titleLP=new LinearLayout.LayoutParams(-1,dp(50));
+        TvUi.field(this,titleInput);
         titleLP.topMargin=dp(6);root.addView(titleInput,titleLP);
         button(root,"PIN THIS GAME",this::pin);
         root.addView(label("Queries and fragments are intentionally not saved, to avoid storing sign-in tokens.",13,0xFF6C8295));
@@ -83,10 +85,7 @@ public final class GameShelfActivity extends Activity {
         t.setPadding(0,dp(9),0,dp(7));return t;
     }
     private void button(LinearLayout root,String name,Runnable run){
-        Button b=new Button(this);b.setText(name);b.setAllCaps(false);
-        b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xFF246589);
-        b.setMinHeight(dp(52));b.setOnClickListener(v->run.run());
-        root.addView(b,new LinearLayout.LayoutParams(-1,dp(56)));
+        TvUi.action(this,root,name,run);
     }
 
     private static String cleanUrl(String raw){
@@ -148,16 +147,14 @@ public final class GameShelfActivity extends Activity {
             lp.bottomMargin=dp(9);list.addView(row,lp);
             TextView title=label(name,20,navy);title.setSingleLine(true);
             row.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-            Button play=new Button(this);play.setText("PLAY");play.setAllCaps(false);
+            Button play=TvUi.button(this,"PLAY",()->ConsoleLaunch.openBrowser(this,url,status));
             row.addView(play);
-            play.setOnClickListener(v->ConsoleLaunch.openBrowser(this,url,status));
-            Button remove=new Button(this);remove.setText("×");remove.setTextSize(22);
-            row.addView(remove);
-            remove.setOnClickListener(v->new AlertDialog.Builder(this)
+            Button remove=TvUi.button(this,"UNPIN",()->new AlertDialog.Builder(this)
                 .setTitle("Unpin "+name+"?")
                 .setMessage("Remove only this launcher shortcut; the website and browser data remain untouched.")
                 .setPositiveButton("UNPIN",(d,w)->remove(url))
                 .setNegativeButton("Cancel",null).show());
+            row.addView(remove);
         }
     }
     private void remove(String url){
