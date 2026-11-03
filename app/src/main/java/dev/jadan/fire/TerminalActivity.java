@@ -91,6 +91,7 @@ public final class TerminalActivity extends Activity {
         button(actions,"HIDE",this::hideKeyboard);
         button(actions,"STOP",this::stop);
         button(actions,"COPY",this::copy);
+        button(actions,"EXIT",()->{hideKeyboard();finish();});
         TvUi.addPanel(this,root,deck);
 
         LinearLayout outputDeck=TvUi.panel(this);
