@@ -40,11 +40,28 @@ final class BrowserBindings {
     static final class Target {
         final boolean web;
         final float x,y;
+        final int virtualKey;
         Target(boolean web,float x,float y){
             this.web=web;
             this.x=Math.max(0.005f,Math.min(.995f,x));
             this.y=Math.max(0.005f,Math.min(.995f,y));
+            this.virtualKey=-1;
         }
+        Target(int keyCode){
+            if(!allowedVirtualKey(keyCode))
+                throw new IllegalArgumentException("Unsupported game key");
+            this.web=false;this.x=0;this.y=0;
+            this.virtualKey=keyCode;
+        }
+        boolean isVirtualKey(){return virtualKey>=0;}
+    }
+    static boolean allowedVirtualKey(int k){
+        return k==KeyEvent.KEYCODE_DPAD_UP || k==KeyEvent.KEYCODE_DPAD_DOWN ||
+            k==KeyEvent.KEYCODE_DPAD_LEFT || k==KeyEvent.KEYCODE_DPAD_RIGHT ||
+            k==KeyEvent.KEYCODE_SPACE || k==KeyEvent.KEYCODE_ENTER ||
+            k==KeyEvent.KEYCODE_ESCAPE || k==KeyEvent.KEYCODE_A ||
+            k==KeyEvent.KEYCODE_B || k==KeyEvent.KEYCODE_W ||
+            k==KeyEvent.KEYCODE_S || k==KeyEvent.KEYCODE_D;
     }
     private static final class Set {
         final String id;
@@ -192,9 +209,12 @@ final class BrowserBindings {
             showWheel();return;
         }
         TextView message=new TextView(activity);
-        String where=target.web?"webpage":"browser controls";
-        message.setText("TARGET: "+where+" "+Math.round(target.x*100)+"%, "+
-            Math.round(target.y*100)+"%\n\nPress a remote D-pad direction, Rewind / Fast Forward, or supported gamepad button. BACK cancels.\n\nAmazon's system keyboard is outside this browser; bind a webpage's own keys or controls instead.");
+        String where=target.isVirtualKey()?
+            "GAME KEY "+KeyEvent.keyCodeToString(target.virtualKey):
+            target.web?"webpage":"browser controls";
+        message.setText("TARGET: "+where+(target.isVirtualKey()?"":" "+
+            Math.round(target.x*100)+"%, "+Math.round(target.y*100)+"%")+
+            "\n\nPress a remote D-pad direction, Rewind / Fast Forward, or supported gamepad button. BACK cancels.\n\nFire Browser's GAME KEYS can be bound; Amazon's separate system keyboard cannot.");
         message.setTextSize(18);message.setPadding(dp(22),dp(20),dp(22),dp(20));
         AlertDialog dialog=new AlertDialog.Builder(activity)
             .setTitle("Bind remote button · "+set.label)
@@ -233,9 +253,11 @@ final class BrowserBindings {
         set.targets.put(key,target);
         persist();
         host.status(set.label+" · "+KeyEvent.keyCodeToString(key)+" → "+
-            (target.web?"webpage":"browser control")+
-            " at "+Math.round(target.x*100)+"%, "+Math.round(target.y*100)+
-            "% · aim and OK for another, SETS to activate");
+            (target.isVirtualKey()?KeyEvent.keyCodeToString(target.virtualKey):
+                target.web?"webpage click":"browser control click")+
+            (target.isVirtualKey()?"":(" at "+Math.round(target.x*100)+"%, "+
+                Math.round(target.y*100)+"%"))+
+            " · aim and OK for another, SETS to activate");
     }
     private static String cleanLabel(String label){
         if(label==null)return "";
@@ -386,7 +408,9 @@ final class BrowserBindings {
         String[] items=new String[codes.size()];
         for(int i=0;i<codes.size();i++)
             items[i]=KeyEvent.keyCodeToString(codes.get(i))+" → "+
-                (set.targets.get(codes.get(i)).web?"webpage":"browser controls");
+                (set.targets.get(codes.get(i)).isVirtualKey()?
+                    KeyEvent.keyCodeToString(set.targets.get(codes.get(i)).virtualKey):
+                    set.targets.get(codes.get(i)).web?"webpage":"browser controls");
         new AlertDialog.Builder(activity).setTitle("Remove binding · "+set.label)
             .setItems(items,(d,which)->{
                 set.targets.remove(codes.get(which));persist();
@@ -426,7 +450,8 @@ final class BrowserBindings {
                 for(java.util.Map.Entry<Integer,Target> entry:set.targets.entrySet()){
                     Target t=entry.getValue();
                     items.put(new JSONObject().put("key",entry.getKey())
-                        .put("web",t.web).put("x",t.x).put("y",t.y));
+                        .put("web",t.web).put("x",t.x).put("y",t.y)
+                        .put("vk",t.virtualKey));
                 }
                 data.put(new JSONObject().put("id",set.id).put("label",set.label)
                     .put("host",set.host).put("bindings",items));
@@ -454,7 +479,10 @@ final class BrowserBindings {
                     JSONObject t=targets.optJSONObject(j);if(t==null)continue;
                     int key=t.optInt("key",-1);
                     double px=t.optDouble("x",-1),py=t.optDouble("y",-1);
-                    if(allowedKey(key)&&Double.isFinite(px)&&Double.isFinite(py)&&
+                    int vk=t.optInt("vk",-1);
+                    if(allowedKey(key) && allowedVirtualKey(vk))
+                        set.targets.put(key,new Target(vk));
+                    else if(allowedKey(key)&&Double.isFinite(px)&&Double.isFinite(py)&&
                         px>=0&&px<=1&&py>=0&&py<=1)
                         set.targets.put(key,new Target(t.optBoolean("web",true),
                             (float)px,(float)py));
