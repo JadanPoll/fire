@@ -47,6 +47,7 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_codex_executor.py' -v
           python3 tools/firetv_test.py --help >/dev/null
           python3 tools/check_console_manifest.py
+          python3 tools/check_tv_ui_contract.py
       - name: Build APK and release notes
         shell: bash
         run: |
