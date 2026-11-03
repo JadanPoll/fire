@@ -73,20 +73,6 @@ public final class BrowserActivity extends Activity {
     private boolean devtoolsEnabled;
     private boolean remoteMediaShortcuts;
     private String lastRecordedUrl="";
-    // Comet/TV Bro principle: a tiny precise initial nudge, followed by
-    // frame-timed acceleration rather than an OS key-repeat-sized jump.
-    private final Choreographer.FrameCallback pointerFrame = frameNs -> {
-        frameScheduled=false;
-        if(!pointerMode || heldKey<0 || cursor==null)return;
-        if(lastFrameNs>0){
-            float dt=Math.max(0f,Math.min(.05f,(frameNs-lastFrameNs)/1000000000f));
-            float age=Math.max(0f,(SystemClock.uptimeMillis()-heldSince)/1000f);
-            float speed=Math.min(560f,75f+600f*age);
-            moveCursor(heldKey,dpFloat(speed)*dt);
-        }
-        lastFrameNs=frameNs;
-        schedulePointerFrame();
-    };
     private static final String PROBE = "https://fire-input-test.invalid/";
     private WebView web;
     private FrameLayout screen;
@@ -102,6 +88,21 @@ public final class BrowserActivity extends Activity {
     private float x=.5f, y=.48f;
     private long lastOk;
     private String lastPage = "No page yet";
+    // Comet/TV Bro principle: a tiny precise initial nudge, followed by
+    // frame-timed acceleration rather than an OS key-repeat-sized jump.
+    private final Choreographer.FrameCallback pointerFrame = frameNs -> {
+        frameScheduled=false;
+        if(!pointerMode || heldKey<0 || cursor==null)return;
+        if(lastFrameNs>0){
+            float dt=Math.max(0f,Math.min(.05f,(frameNs-lastFrameNs)/1000000000f));
+            float age=Math.max(0f,(SystemClock.uptimeMillis()-heldSince)/1000f);
+            float speed=Math.min(560f,75f+600f*age);
+            moveCursor(heldKey,dpFloat(speed)*dt);
+        }
+        lastFrameNs=frameNs;
+        schedulePointerFrame();
+    };
+
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
