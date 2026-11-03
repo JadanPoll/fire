@@ -99,6 +99,7 @@ public final class BrowserActivity extends Activity {
     private FrameLayout screen;
     private LinearLayout root;
     private LinearLayout toolsPanel;
+    private Button pointerButton;
     private boolean webEditorFocused;
     private String lastRawEnter="none";
     private FrameLayout viewport;
@@ -169,7 +170,7 @@ public final class BrowserActivity extends Activity {
         line.addView(address,new LinearLayout.LayoutParams(0,dp(42),1));
         button(line,"GO",this::goAddress);
         button(line,"MENU",this::toggleTools);
-        button(line,"CURSOR",this::togglePointer);
+        pointerButton=button(line,"CURSOR",this::togglePointer);
         // Float over the page instead of resizing WebView every time the menu opens.
         toolsPanel=new LinearLayout(this);
         toolsPanel.setOrientation(LinearLayout.HORIZONTAL);
@@ -469,7 +470,7 @@ public final class BrowserActivity extends Activity {
         viewport.addView(web,0,new FrameLayout.LayoutParams(-1,-1));
     }
     private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
-    private void button(LinearLayout bar,String name,Runnable run) {
+    private Button button(LinearLayout bar,String name,Runnable run) {
         Button b=new Button(this);
         b.setText(name);b.setAllCaps(false);b.setTextSize(13);
         b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xFF255477);
@@ -478,6 +479,7 @@ public final class BrowserActivity extends Activity {
         b.setOnFocusChangeListener((v,focus)->b.setBackgroundColor(focus?0xFF1786BD:0xFF255477));
         b.setOnClickListener(v->run.run());
         bar.addView(b,new LinearLayout.LayoutParams(-2,dp(40)));
+        return b;
     }
     private void showMore(){
         // Keep uncommon operations reachable without putting 20 buttons on screen.
@@ -947,6 +949,7 @@ public final class BrowserActivity extends Activity {
         }
     }
     private void updateCursorVisual(){
+        if(pointerButton!=null)pointerButton.setText(pointerMode?"POINTER ON":"CURSOR");
         if(cursor==null || screen==null)return;
         cursor.setVisibility(pointerMode?View.VISIBLE:View.GONE);
         if(screen.getWidth()==0 || screen.getHeight()==0)return;
