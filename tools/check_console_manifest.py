@@ -33,6 +33,9 @@ assert ".ConsoleActivity" in app, "Console launcher not declared"
 assert ".MainActivity" in app, "Dev Bridge developer tools must remain"
 assert ".VoiceProbeActivity" in app, "voice troubleshooting must remain"
 assert ".CodexDeskActivity" in app
+assert ".TerminalActivity" in app
+terminal,_=app[".TerminalActivity"]
+assert terminal.get(attr("exported"))=="false", "Terminal must not be externally invokable"
 assert ".CatalogActivity" in app
 assert ".InputLabActivity" in app
 assert ".AppLibraryActivity" in app
