@@ -27,6 +27,12 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import java.io.File;
 import java.util.Arrays;
+import org.json.JSONObject;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.InputType;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * On-device Codex UX. Real on-TV entry and Codex Cloud opening are available now.
@@ -38,6 +44,15 @@ public final class CodexDeskActivity extends Activity {
     private EditText prompt;
     private TextView details, feedback, speechStatus;
     private String lastInput="";
+    private EditText executorUrl, pairingToken;
+    private TextView remoteStatus, remoteOutput;
+    private final ExecutorService remoteWorker = Executors.newSingleThreadExecutor();
+    private final Handler remoteClock = new Handler(Looper.getMainLooper());
+    private boolean remoteBusy;
+    private String jobId;
+    private final Runnable remoteTick = () -> {
+        if (jobId != null && !remoteBusy) remoteAction("poll");
+    };
     private static final String CODEX_URL = "https://chatgpt.com/codex";
     private static final String CHAT_URL = "https://chatgpt.com/";
     private static final String SILK_PACKAGE = "com.amazon.cloud9";
@@ -93,11 +108,117 @@ public final class CodexDeskActivity extends Activity {
         button(root,"REFRESH ON-FIRE CAPABILITIES",this::scan);
         feedback=label("Browser handoff is optional; the speech-dictated prompt stays in this app. No Codex credentials are stored.",15,0xFF9FC8DD);
         root.addView(feedback);
+        buildExecutorUi(root);
         root.addView(label("If ChatGPT fails to load, choose a different browser, try ChatGPT Home, or open Silk directly. An old browser can fail even when our link opens correctly. Native Codex remains a separate execution path.",14,0xFFACC3D3));
         if (b!=null) prompt.setText(b.getString("fire_draft",""));
         scan();
         browserDiagnostics();
     }
+    /**
+     * The executor stores Codex auth on the remote host; only a temporary
+     * pairing token is entered on Fire. It is never persisted or copied.
+     */
+    private void buildExecutorUi(LinearLayout root){
+        root.addView(label("PAIRED CODEX EXECUTOR  /  REMOTE",21,0xFF64CAFF));
+        root.addView(label("Run real Codex CLI in a trusted remote workspace. The host must already be authenticated and exposed through a protected HTTPS proxy. No ADB bridge or Codex account tokens are sent from Fire.",14,0xFFACC3D3));
+        executorUrl = new EditText(this);
+        executorUrl.setSingleLine(true);
+        executorUrl.setTextColor(0xFF102132);
+        executorUrl.setBackgroundColor(0xFFE3EEF5);
+        executorUrl.setHint("https://your-private-executor.example");
+        executorUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        root.addView(executorUrl,new LinearLayout.LayoutParams(-1,-2));
+        pairingToken = new EditText(this);
+        pairingToken.setSingleLine(true);
+        pairingToken.setTextColor(0xFF102132);
+        pairingToken.setBackgroundColor(0xFFE3EEF5);
+        pairingToken.setHint("Executor pairing token (not OpenAI credentials)");
+        pairingToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        root.addView(pairingToken,new LinearLayout.LayoutParams(-1,-2));
+        button(root,"TEST EXECUTOR PAIRING",()->remoteAction("probe"));
+        button(root,"RUN DRAFT WITH CODEX ON PAIRED WORKSPACE",()->remoteAction("submit"));
+        button(root,"REFRESH EXECUTOR RESULT",()->remoteAction("poll"));
+        button(root,"RECOVER LATEST JOB (AFTER NETWORK FAILURE)",()->remoteAction("recover"));
+        button(root,"STOP CURRENT EXECUTOR JOB",()->remoteAction("cancel"));
+        remoteStatus=label("Not paired. Enter HTTPS origin and token from your trusted executor. Pairing details are not stored.",15,0xFFACDBF1);
+        root.addView(remoteStatus);
+        remoteOutput=label("",15,0xFFE1F0F7);
+        remoteOutput.setTextIsSelectable(true);
+        root.addView(remoteOutput);
+        button(root,"OPEN LOCAL TERMINAL (APP SANDBOX)",()->
+            startActivity(new Intent(this,TerminalActivity.class)));
+    }
+    private void remoteAction(String action){
+        if(remoteBusy || remoteStatus==null)return;
+        if(jobId==null && ("poll".equals(action)||"cancel".equals(action))){
+            remoteStatus.setText("No executor job yet. Submit a prompt first.");return;
+        }
+        final String origin=executorUrl.getText().toString().trim();
+        final String secret=pairingToken.getText().toString();
+        final String draft=prompt.getText().toString();
+        final String currentId=jobId;
+        remoteClock.removeCallbacks(remoteTick);
+        remoteBusy=true;
+        remoteStatus.setText("Executor: "+action+" requested…");
+        remoteWorker.execute(()->{
+            JSONObject reply=null; Exception failure=null;
+            try{
+                if("probe".equals(action))
+                    reply=CodexExecutorClient.probe(origin,secret);
+                else if("submit".equals(action))
+                    reply=CodexExecutorClient.submit(origin,secret,draft);
+                else if("recover".equals(action))
+                    reply=CodexExecutorClient.recover(origin,secret);
+                else if("cancel".equals(action))
+                    reply=CodexExecutorClient.cancel(origin,secret,currentId);
+                else
+                    reply=CodexExecutorClient.poll(origin,secret,currentId);
+            }catch(Exception ex){failure=ex;}
+            final JSONObject result=reply;
+            final Exception error=failure;
+            runOnUiThread(()->{
+                remoteBusy=false;
+                if(isFinishing()||isDestroyed())return;
+                if(error!=null){
+                    remoteStatus.setText("Executor "+action+" failed: "+error.getMessage()+
+                        ". Check HTTPS, pairing and host; you may retry without discarding the draft.");
+                    if(jobId!=null)scheduleRemotePoll();
+                    return;
+                }
+                if("probe".equals(action)){
+                    remoteStatus.setText("Executor paired · Protocol "+result.optInt("protocol",-1)+
+                        " · "+result.optString("executor","unknown"));
+                    return;
+                }
+                if("submit".equals(action)||"recover".equals(action))
+                    jobId=result.optString("id",null);
+                String state=result.optString("state","unknown");
+                remoteStatus.setText("Executor "+state+" · Job "+result.optString("id","?")+
+                    " · "+result.optString("message",""));
+                String text=result.optString("output","");
+                if(!text.isEmpty())remoteOutput.setText(text);
+                if("running".equals(state)||"queued".equals(state))scheduleRemotePoll();
+            });
+        });
+    }
+    private void scheduleRemotePoll(){
+        remoteClock.removeCallbacks(remoteTick);
+        if(jobId!=null&&!isFinishing())remoteClock.postDelayed(remoteTick,3500);
+    }
+    @Override protected void onPause(){
+        remoteClock.removeCallbacks(remoteTick);
+        super.onPause();
+    }
+    @Override protected void onResume(){
+        super.onResume();
+        if(jobId!=null)scheduleRemotePoll();
+    }
+    @Override protected void onDestroy(){
+        remoteClock.removeCallbacks(remoteTick);
+        remoteWorker.shutdownNow();
+        super.onDestroy();
+    }
+
     private TextView label(String t,int sp,int color){
         TextView v=new TextView(this);v.setText(t);v.setTextSize(sp);v.setTextColor(color);
         v.setPadding(0,12,0,12);return v;
