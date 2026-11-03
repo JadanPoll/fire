@@ -45,6 +45,12 @@ class AppOsContractTest(unittest.TestCase):
             with self.subTest(key=key),self.assertRaises(contract.ContractError):
                 contract.check_recipe(invalid)
 
+    def test_catalog_uses_android_tv_launcher_not_only_phone_launcher(self):
+        source=(ROOT/"app/src/main/java/dev/jadan/fire/CatalogActivity.java").read_text(encoding="utf-8")
+        tv=source.index("getLeanbackLaunchIntentForPackage(app.packageId)")
+        generic=source.index("getLaunchIntentForPackage(app.packageId)",tv)
+        self.assertLess(tv,generic)
+
     def test_extra_recipe_command_rejected(self):
         invalid=dict(RECIPE)
         invalid["command"]="rm -rf /"
