@@ -57,6 +57,8 @@ class ExecutorContractTest(unittest.TestCase):
                 with self.assertRaises(HTTPError) as denied:
                     call("/v1/jobs/latest", auth=False)
                 self.assertEqual(401, denied.exception.code)
+                _, health = call("/v1/health")
+                self.assertEqual({"ok": True, "protocol": 1, "executor": "codex-cli"}, health)
                 with self.assertRaises(HTTPError) as absent:
                     call("/v1/jobs/latest")
                 self.assertEqual(404, absent.exception.code)
