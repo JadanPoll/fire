@@ -26,3 +26,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // Reuses the same private FileProvider implementation as the existing Dev Bridge.
+    implementation 'androidx.core:core:1.15.0'
+}
