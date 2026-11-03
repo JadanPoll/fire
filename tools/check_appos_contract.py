@@ -14,7 +14,32 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 ANDROID_NS="{http://schemas.android.com/apk/res/android}"
-CAPABILITIES=frozenset({"signal.synthetic","input.dpad","display.canvas"})
+def capability_ids(root):
+    """Only known, evidenced capabilities are discoverable; not permission grants."""
+    path=root/"AppOS/Contracts/capabilities.json"
+    registry=json.loads(path.read_text(encoding="utf-8"))
+    require(registry.get("schema_version")==1 and
+            type(registry.get("capabilities")) is list,
+            "invalid capability registry")
+    ids=set()
+    for item in registry["capabilities"]:
+        require(type(item) is dict and set(item)==
+                {"id","description","implemented","risk","provider"},
+                "invalid capability descriptor")
+        identifier=item["id"]
+        require(type(identifier) is str and
+                re.fullmatch(r"[a-z][a-z0-9]*(?:[.][a-z0-9]+){1,6}",identifier) and
+                identifier not in ids,"invalid/duplicate capability identity")
+        require(type(item["implemented"]) is bool and
+                type(item["description"]) is str and
+                item["risk"] in ("none","low","device","network","filesystem"),
+                "invalid capability evidence")
+        if item["implemented"]:
+            provider=item["provider"]
+            require(type(provider) is str and provider and
+                    (root/provider).is_file(),"implemented provider missing")
+            ids.add(identifier)
+    return frozenset(ids)
 VALID_CATEGORIES=frozenset({"Audio & Signals","Interaction & Play","Development",
                              "Camera & Vision","Hardware"})
 
@@ -59,8 +84,9 @@ def validate_manifest(data,location,root):
             re.fullmatch(r"dev[.]jadan[.]fire[.][a-z][a-z0-9.]*",entry["package"]),
             "invalid Android package/launcher")
     caps=data["capabilities"]
+    allowed=capability_ids(root)
     require(type(caps) is list and len(caps)==len(set(map(str,caps))) and
-            all(type(c) is str and c in CAPABILITIES for c in caps),
+            all(type(c) is str and c in allowed for c in caps),
             "unknown/duplicate capability")
     require(data["storage"]=={"scope":"app"},"invalid storage scope")
     require(type(data["ui"]) is dict and
