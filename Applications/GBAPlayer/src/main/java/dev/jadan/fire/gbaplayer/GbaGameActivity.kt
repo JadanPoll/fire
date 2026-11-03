@@ -12,6 +12,7 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -199,6 +200,18 @@ class GbaGameActivity : ComponentActivity() {
         }
         return super.dispatchKeyEvent(event)
     }
+    override fun onGenericMotionEvent(event:MotionEvent):Boolean{
+        if(ready && (event.source and InputDevice.SOURCE_JOYSTICK)==InputDevice.SOURCE_JOYSTICK){
+            retro.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD,
+                event.getAxisValue(MotionEvent.AXIS_HAT_X),
+                event.getAxisValue(MotionEvent.AXIS_HAT_Y),0)
+            retro.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT,
+                event.getAxisValue(MotionEvent.AXIS_X),
+                event.getAxisValue(MotionEvent.AXIS_Y),0)
+            return true
+        }
+        return super.onGenericMotionEvent(event)
+    }
     private fun handleMedia(event:KeyEvent):Boolean{
         if(event.action!=KeyEvent.ACTION_DOWN || event.repeatCount!=0)return true
         val now=SystemClock.uptimeMillis()
@@ -266,7 +279,8 @@ class GbaGameActivity : ComponentActivity() {
                 "SAVE GAME SRAM",
                 "SAVE SNAPSHOT",
                 "LOAD SNAPSHOT…",
-                "EXIT TO GBA LIBRARY"
+                "SAVE CARTRIDGE RAM & EXIT",
+                "EXIT NOW (SKIP SAVE)"
             )){_,selection->
                 when(selection){
                     1->pulse(KeyEvent.KEYCODE_BUTTON_B)
@@ -277,7 +291,8 @@ class GbaGameActivity : ComponentActivity() {
                     6->save(false,false)
                     7->save(true,false)
                     8->confirmLoadSnapshot()
-                    9->finish()
+                    9->save(false,true)
+                    10->finish()
                 }
             }
             .setNegativeButton("CLOSE",null)
