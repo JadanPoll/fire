@@ -28,6 +28,7 @@ KEYS = {"up":19, "down":20, "left":21, "right":22, "ok":23,
 OUTPUT = Path(".fire-tests")
 RELEASE = "https://api.github.com/repos/JadanPoll/fire/releases/tags/firetv-dev-bridge-latest"
 ASSET = "firetv-browser.apk"
+INBOX = "https://fire-inbox-jadan.brinyduck2.chatgpt.site/"
 MAX_SIZE = 64 * 1024 * 1024
 
 def run(cmd, *, timeout=25, binary=False, check=True):
@@ -137,6 +138,9 @@ def main():
     perf = subs.add_parser("perf", help="Save local WebView/memory/frame diagnostics")
     perf.add_argument("--output", type=Path)
     subs.add_parser("live")
+    subs.add_parser("inbox", help="Open Fire Inbox and capture a non-posting screenshot")
+    errors = subs.add_parser("errors", help="Save selected browser/render crash logs")
+    errors.add_argument("--output", type=Path)
     args = p.parse_args()
     if not shutil.which(args.adb) and not Path(args.adb).is_file():
         p.error("adb missing. Install official Android SDK platform-tools.")
@@ -203,6 +207,29 @@ def main():
         print("Performance snapshot:", dest.resolve())
         print("Compare snapshots before/after a freeze, or inspect ChatGPT with the opt-in")
         print("WebView INSPECT control and desktop Chrome chrome://inspect/#devices.")
+    elif args.action == "inbox":
+        print(run(cmd + ["shell", "am", "start", "-n", COMPONENT,
+                         "-a", "android.intent.action.VIEW", "-d", INBOX]).stdout.strip())
+        time.sleep(2.5)
+        screenshot(cmd, OUTPUT / "inbox.png")
+        alive = run(cmd + ["shell", "pidof", PACKAGE], check=False)
+        print("Browser alive:", bool(alive.stdout.strip()))
+        print("Screenshot alone does not prove authentication or a successful POST.")
+    elif args.action == "errors":
+        dest = args.output or OUTPUT / (
+            "browser-errors-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        selected = ["FireBrowser:D", "AndroidRuntime:E", "chromium:E",
+                    "cr_AwContents:E", "WebViewFactory:E"]
+        result = run(cmd + ["logcat", "-d", "-t", "700", "-v", "threadtime",
+                            "-s"] + selected, timeout=30, check=False)
+        text = ("Fire Browser crash/renderer log snapshot\n"
+                "Source: local ADB logcat, selected tags only; log buffer not cleared.\n"
+                "Review for sensitive information before sharing.\n\n" +
+                ((result.stdout or result.stderr or "No matching logs").strip()[:160000]) + "\n")
+        dest.write_text(text, encoding="utf-8")
+        print("Crash log:", dest.resolve())
+        print("No credentials or messages are intentionally collected, but review the file before sharing.")
     elif args.action == "live":
         scrcpy = shutil.which("scrcpy")
         if not scrcpy:
