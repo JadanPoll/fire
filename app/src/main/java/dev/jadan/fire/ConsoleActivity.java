@@ -30,7 +30,6 @@ import android.widget.TextView;
  */
 public final class ConsoleActivity extends Activity {
     static final String BROWSER="dev.jadan.fire.browser";
-    static final String CANVAS="dev.jadan.fire.canvas";
     static final String INBOX="https://fire-inbox-jadan.brinyduck2.chatgpt.site/";
     private TextView status;
     private final int navy=0xFF0F2441, muted=0xFFACBED4;
@@ -71,19 +70,18 @@ public final class ConsoleActivity extends Activity {
         intro.setPadding(0,0,0,dp(13));
         content.addView(intro);
 
+        // Only permanent destinations deserve Home space. Early diagnostic
+        // experiments remain in Tools; independent APKs belong to Apps.
         final Channel[] channels={
-            new Channel("Inbox","Notes and Fire TV messages",0xFF23A8BF,0,()->openBrowser(INBOX)),
+            new Channel("Inbox","Messages and notes",0xFF23A8BF,0,()->openBrowser(INBOX)),
             new Channel("Browser","Browse and work",0xFF268ED0,1,()->openBrowser(null)),
-            new Channel("Playroom","Pinned browser games",0xFFE5A84C,2,
+            new Channel("Playroom","Games and experiments",0xFFE5A84C,2,
                 ()->startActivity(new Intent(this,GameShelfActivity.class))),
-            new Channel("Codex","Build and experiment",0xFF8573D0,3,
+            new Channel("Compute","Offshore work and Codex",0xFF8573D0,3,
                 ()->startActivity(new Intent(this,CodexDeskActivity.class))),
-            new Channel("Canvas","Remote drawing lab",0xFF53A891,4,()->openPackage(CANVAS)),
-            new Channel("Voice","Keyboard voice recovery",0xFFE08E83,5,
-                ()->startActivity(new Intent(this,VoiceProbeActivity.class))),
-            new Channel("Apps","Installed TV applications",0xFF5D9CB6,6,
+            new Channel("Apps","Independent applications",0xFF5D9CB6,6,
                 ()->startActivity(new Intent(this,AppLibraryActivity.class))),
-            new Channel("Tools","Updates and device labs",0xFF71849A,7,
+            new Channel("Tools","Updates and diagnostics",0xFF71849A,7,
                 ()->startActivity(new Intent(this,MainActivity.class)))
         };
 
@@ -94,8 +92,8 @@ public final class ConsoleActivity extends Activity {
             LinearLayout.LayoutParams rowLP=new LinearLayout.LayoutParams(-1,0,1);
             rowLP.bottomMargin=dp(13);
             content.addView(strip,rowLP);
-            for(int col=0;col<4;col++){
-                Channel channel=channels[row*4+col];
+            for(int col=0;col<3;col++){
+                Channel channel=channels[row*3+col];
                 FrameLayout tile=tile(channel);
                 LinearLayout.LayoutParams cardLP=new LinearLayout.LayoutParams(0,-1,1);
                 if(col>0)cardLP.leftMargin=dp(14);
@@ -181,27 +179,8 @@ public final class ConsoleActivity extends Activity {
                     " · Open Tools → App Catalog if missing");
             }
         });
-        if("Codex".equals(item.name)){
-            // Developer shortcut: long-press OK while Codex is focused.
-            // No hidden network listener or system-wide key interception.
-            card.setLongClickable(true);
-            card.setOnLongClickListener(v->{
-                startActivity(new Intent(this,TerminalActivity.class));
-                return true;
-            });
-        }
         card.setContentDescription(item.name+": "+item.subtitle);
         return card;
-    }
-
-    private void openPackage(String packageId){
-        Intent launch=getPackageManager().getLaunchIntentForPackage(packageId);
-        if(launch==null){
-            status.setText("Not installed: "+packageId+
-                ". Open Tools → App Catalog to install or update.");
-            return;
-        }
-        startActivity(launch);
     }
 
     void openBrowser(String targetUrl){
@@ -248,25 +227,20 @@ public final class ConsoleActivity extends Activity {
                     p.setStyle(Paint.Style.FILL);
                     canvas.drawCircle(62,47,3,p);canvas.drawCircle(69,55,3,p);
                     break;
-                case 3: // console command
+                case 3: // Compute: cloud with remote server/terminal
                     p.setStyle(Paint.Style.STROKE);
-                    canvas.drawRoundRect(22,24,78,76,7,7,p);
-                    line(canvas,31,39,43,50,5);line(canvas,43,50,31,61,5);
-                    line(canvas,48,62,65,62,4);
-                    break;
-                case 4: // drawing brush
-                    p.setStyle(Paint.Style.STROKE);
-                    line(canvas,31,70,68,30,9);
-                    p.setStyle(Paint.Style.FILL);
-                    Path tip=new Path();tip.moveTo(26,77);tip.lineTo(33,58);tip.lineTo(45,70);tip.close();
-                    canvas.drawPath(tip,p);
-                    break;
-                case 5: // mic
-                    p.setStyle(Paint.Style.STROKE);
-                    canvas.drawRoundRect(41,24,59,57,9,9,p);
-                    Path curve=new Path();curve.moveTo(30,48);curve.cubicTo(30,77,70,77,70,48);
-                    canvas.drawPath(curve,p);
-                    line(canvas,50,69,50,78,4);line(canvas,39,78,61,78,4);
+                    p.setStrokeWidth(5);
+                    Path cloud=new Path();
+                    cloud.moveTo(28,65);
+                    cloud.cubicTo(16,65,16,47,30,44);
+                    cloud.cubicTo(31,28,49,25,59,37);
+                    cloud.cubicTo(73,32,83,43,80,55);
+                    cloud.cubicTo(87,65,79,73,68,73);
+                    cloud.lineTo(30,73);
+                    canvas.drawPath(cloud,p);
+                    canvas.drawRoundRect(34,50,66,67,3,3,p);
+                    line(canvas,40,58,46,58,3);line(canvas,40,63,46,63,3);
+                    line(canvas,53,63,60,63,3);
                     break;
                 case 6: // four applications
                     for(int i=0;i<2;i++)for(int j=0;j<2;j++)
