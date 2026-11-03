@@ -93,11 +93,7 @@ The lowest-friction remote iteration is: python tools/firetv_test.py --connect F
 ### Browser navigation, history and performance (latest revision)
 
 The address bar now treats plain words and questions as Google searches;
-hostnames remain HTTPS web navigation. MENU toggles browser tools; on
-ChatGPT/Google, delivered Play/Pause keys toggle the full-window pointer,
-and delivered Rewind/FF keys navigate browser history. On arbitrary media
-sites those buttons retain media semantics. Fire TV Home/Alexa/volume stay
-system-managed.
+hostnames remain HTTPS web navigation. MENU toggles browser tools. The optional REMOTE toggle enables Play/Pause=pointer and Rewind/FF=browser history on ChatGPT/Google when Fire OS delivers them. REMOTE is off by default to preserve media playback. Home/Alexa/volume remain system-managed.
 
 The pointer overlay covers native browser buttons as well as the webpage,
 and redirects clicks to the appropriate existing Android control rather
