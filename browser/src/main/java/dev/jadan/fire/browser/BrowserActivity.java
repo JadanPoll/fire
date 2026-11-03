@@ -197,6 +197,7 @@ public final class BrowserActivity extends Activity {
         };
         cursor.setFocusable(false);
         cursor.setClickable(false);
+        cursor.setElevation(dp(20));
         cursor.setVisibility(View.GONE);
         // A small composited layer moves without invalidating an entire TV-sized
         // transparent view on every frame over a heavy Chromium page.
@@ -742,10 +743,10 @@ public final class BrowserActivity extends Activity {
     private void moveCursor(int key,float delta){
         if(!pointerMode || viewport==null)return;
         float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
-        if(key==KeyEvent.KEYCODE_DPAD_LEFT)x=Math.max(.02f,x-delta/w);
-        if(key==KeyEvent.KEYCODE_DPAD_RIGHT)x=Math.min(.98f,x+delta/w);
-        if(key==KeyEvent.KEYCODE_DPAD_UP)y=Math.max(.02f,y-delta/h);
-        if(key==KeyEvent.KEYCODE_DPAD_DOWN)y=Math.min(.98f,y+delta/h);
+        if(key==KeyEvent.KEYCODE_DPAD_LEFT)x=Math.max(.005f,x-delta/w);
+        if(key==KeyEvent.KEYCODE_DPAD_RIGHT)x=Math.min(.995f,x+delta/w);
+        if(key==KeyEvent.KEYCODE_DPAD_UP)y=Math.max(.005f,y-delta/h);
+        if(key==KeyEvent.KEYCODE_DPAD_DOWN)y=Math.min(.995f,y+delta/h);
         updateCursorVisual();
     }
     private void applyPageZoom(){
