@@ -41,13 +41,13 @@ public final class InputLabActivity extends Activity {
         private boolean left, right, up, down, okArmed;
         private long leftSince, rightSince, upSince, downSince, lastFrame, lastAccepted;
         private String event = "Press D-pad to move. OK selects the tile under the pointer.";
-        private final int[] tiles = {0xFF1E4E6E,0xFF275775,0xFF1E4E6E,0xFF275775,
-                0xFF275775,0xFF1E4E6E,0xFF275775,0xFF1E4E6E,
-                0xFF1E4E6E,0xFF275775,0xFF1E4E6E,0xFF275775};
+        private final int[] tiles = {0xFFFFFFFF,0xFFE0EEF7,0xFFFFFFFF,0xFFE0EEF7,
+                0xFFE0EEF7,0xFFFFFFFF,0xFFE0EEF7,0xFFFFFFFF,
+                0xFFFFFFFF,0xFFE0EEF7,0xFFFFFFFF,0xFFE0EEF7};
 
         LabView() {
             super(InputLabActivity.this);
-            setBackgroundColor(0xFF0C1B2A);
+            setBackgroundColor(TvUi.BG);
         }
 
         private void text(Canvas c, String s, float x, float y, float sp, int color) {
@@ -94,13 +94,13 @@ public final class InputLabActivity extends Activity {
             if (dx!=0 || dy!=0) movePixels(dx,dy);
 
             float w = getWidth(), h = getHeight();
-            text(c,"INPUT LAB  /  VIRTUAL POINTER", w*.07f,h*.10f,24,0xFF64CAFF);
+            text(c,"INPUT LAB  /  VIRTUAL POINTER", w*.07f,h*.10f,24,TvUi.INK);
             text(c,"Stable pointer speed  •  raw repeat independent  •  OK cooldown 260 ms",
-                    w*.07f,h*.16f,15,0xFFCFDEE9);
+                    w*.07f,h*.16f,15,TvUi.SUB);
             text(c,String.format(java.util.Locale.US,
                     "RAW %d   REPEATS %d   ACCEPTED %d   SUPPRESSED %d",
                     rawDown,rawRepeat,accepted,suppressed),
-                    w*.07f,h*.22f,16,0xFFFFFFFF);
+                    w*.07f,h*.22f,16,TvUi.INK);
 
             float l=gridLeft(),t=gridTop();
             float cellW=(gridRight()-l)/4f,cellH=(gridBottom()-t)/3f;
@@ -109,31 +109,31 @@ public final class InputLabActivity extends Activity {
                 int index=row*4+col;
                 float x=l+col*cellW, y=t+row*cellH;
                 rect.set(x+5,y+5,x+cellW-5,y+cellH-5);
-                paint.setColor(activatedTile==index+1?0xFF186C54:tiles[index]);
+                paint.setColor(activatedTile==index+1?0xFFC8E9DC:tiles[index]);
                 paint.setStyle(Paint.Style.FILL);
                 c.drawRoundRect(rect,12,12,paint);
                 if(selected==index+1) {
-                    paint.setColor(0xFFB4E8FF);
+                    paint.setColor(TvUi.ACCENT);
                     paint.setStyle(Paint.Style.STROKE);
                     paint.setStrokeWidth(3f);
                     c.drawRoundRect(rect,12,12,paint);
                     paint.setStyle(Paint.Style.FILL);
                 }
-                text(c,String.valueOf(index+1),x+cellW*.42f,y+cellH*.55f,23,0xFFFFFFFF);
+                text(c,String.valueOf(index+1),x+cellW*.42f,y+cellH*.55f,23,TvUi.INK);
             }
 
             float px=posX(),py=posY();
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(4f);
-            paint.setColor(0xFFFFCF68);
+            paint.setColor(0xFFCA8431);
             c.drawCircle(px,py,16,paint);
             c.drawLine(px-28,py,px+28,py,paint);
             c.drawLine(px,py-28,px,py+28,paint);
             paint.setStyle(Paint.Style.FILL);
 
-            text(c,"INTENT: "+event,w*.07f,h*.85f,16,0xFFFFFFFF);
+            text(c,"INTENT: "+event,w*.07f,h*.85f,16,TvUi.INK);
             text(c,"D-PAD: move  •  OK/ENTER: activate  •  BACK: leave",
-                    w*.07f,h*.93f,15,0xFF9FB4C6);
+                    w*.07f,h*.93f,15,TvUi.SUB);
             if (left||right||up||down) postInvalidateOnAnimation();
         }
 
