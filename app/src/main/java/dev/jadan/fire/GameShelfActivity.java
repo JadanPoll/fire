@@ -90,16 +90,7 @@ public final class GameShelfActivity extends Activity {
     }
 
     private static String cleanUrl(String raw){
-        if(raw==null)return null;
-        try{
-            Uri uri=Uri.parse(raw.trim());
-            if(!"https".equalsIgnoreCase(uri.getScheme())||uri.getHost()==null ||
-                uri.getHost().isEmpty() || uri.getUserInfo()!=null)return null;
-            // Never persist access tokens or transient OAuth state in a game shortcut.
-            String path=uri.getEncodedPath();
-            return new Uri.Builder().scheme("https").encodedAuthority(uri.getEncodedAuthority())
-                .encodedPath(path==null||path.isEmpty()?"/":path).build().toString();
-        }catch(RuntimeException ex){return null;}
+        return GameUrlPolicy.sanitize(raw);
     }
     private JSONArray entries(){
         try{return new JSONArray(prefs.getString(KEY,"[]"));}
