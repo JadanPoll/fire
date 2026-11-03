@@ -532,7 +532,7 @@ public final class BrowserActivity extends Activity {
             "Page smaller","Page larger","Reset zoom to 100%","Input test page",
             "Browser diagnostics","Inspect with Chrome","Reduced motion",
             "Remote media shortcuts","Allow third-party cookies for sign-in",
-            "Check browser update"};
+            "Check browser update","Pin webpage to Playroom"};
         new AlertDialog.Builder(this).setTitle("Browser options")
             .setItems(actions,(dlg,index)->{
                 switch(index){
@@ -550,8 +550,32 @@ public final class BrowserActivity extends Activity {
                     case 11:toggleRemoteShortcuts();break;
                     case 12:toggleThirdPartyCookies();break;
                     case 13:if(browserUpdater!=null)browserUpdater.check();break;
+                    case 14:pinCurrentPage();break;
                 }
             }).setNegativeButton("Close",null).show();
+    }
+
+    private void pinCurrentPage(){
+        if(web==null || web.getUrl()==null || !web.getUrl().startsWith("https://")){
+            status.setText("Open an HTTPS game page before pinning it.");return;
+        }
+        String current=web.getUrl();
+        // The Console validates and strips transient URL tokens. A normal
+        // app-to-app SEND intent pre-fills a draft and requires a real user
+        // confirmation before anything is saved as a channel.
+        try{
+            Intent share=new Intent(Intent.ACTION_SEND);
+            share.setClassName("dev.jadan.fire","dev.jadan.fire.GameShelfActivity");
+            share.setType("text/plain");
+            share.putExtra(Intent.EXTRA_TEXT,current);
+            String title=web.getTitle();
+            if(title!=null)share.putExtra(Intent.EXTRA_SUBJECT,
+                title.length()>60?title.substring(0,60):title);
+            startActivity(share);
+            status.setText("Opened Playroom pin draft. Confirm PIN there to save.");
+        }catch(RuntimeException ex){
+            status.setText("Fire Console Playroom not installed. Update Fire Console through the App Catalog.");
+        }
     }
 
     private void toggleTools(){
