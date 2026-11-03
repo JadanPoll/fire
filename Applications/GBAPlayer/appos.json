@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "fire.playroom.gba",
+  "name": "Fire GBA",
+  "version": "0.1.0",
+  "entry": {
+    "type": "android-tv",
+    "package": "dev.jadan.fire.gbaplayer",
+    "category": "android.intent.category.LEANBACK_LAUNCHER"
+  },
+  "capabilities": ["emulator.gba", "input.dpad", "display.canvas", "storage.app", "audio.output"],
+  "storage": {"scope": "app"},
+  "ui": {"integration": "managed-navigation", "category": "Interaction & Play"},
+  "build": {"project": ":gbaplayer", "asset": "firetv-gba-player.apk"}
+}
