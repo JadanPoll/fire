@@ -234,3 +234,20 @@ reproduced UX failure, preserves a demonstrated existing workflow, or provides
 the minimum observation needed to diagnose one. No generic media framework,
 permission automation, background update scheduler, or site-specific
 pointer exception without evidence.
+
+## Native hover and text-entry pointer contract — 2026-11-03
+
+Reference behavior:
+- [Android WebView / View generic hover events](https://developer.android.com/reference/android/webkit/WebView#onGenericMotionEvent(android.view.MotionEvent)): `ACTION_HOVER_ENTER`, `ACTION_HOVER_MOVE`, `ACTION_HOVER_EXIT` with mouse source. The browser now dispatches those at the real pointer coordinates. Movement-only hover is throttled to <= 30 Hz. Unlike CSS/JS site injection, this lets the WebView itself decide whether and how to expose controls; some sites can still ignore hover.
+- [Comet CursorController](https://github.com/SamWylde/comet-tv/blob/main/app/src/main/java/com/tdarby/comet/input/CursorController.kt): explicit `SOURCE_TOUCHSCREEN` on synthesized taps (the previous Fire Browser code omitted this), using one DOWN/UP pair for click.
+- [TV Bro D-pad/IME adapter](https://github.com/truefedex/tv-bro/blob/master/app/common/src/main/java/com/phlox/tvwebbrowser/utils/DPADNavigationEventsAdapter.kt): keyboard ownership is a distinct input state from pointer movement; avoid switching arbitrary site controls because a deferred focus callback ran.
+- [Amazon Fire TV MediaSession](https://developer.amazon.com/docs/fire-tv/mediasession-api-integration.html): media keys may arrive through MediaSession rather than Activity keys. Fire Browser registers for transport controls while foreground, defaults the remote shortcut ON unless explicitly disabled in preferences, and keeps CURSOR available as fallback.
+
+Physical TV acceptance cases (not simulated by CI):
+1. On a real video page, move the pointer over a playing video and check if that player's standard hover controls appear; repeat near playback seek bar, over a fullscreen button, and on a non-video section. Site-specific click/touch-only video players may still differ.
+2. On a page with multiple textboxes and links, OK-click one textbox, type into it, dismiss the keyboard, and navigate again. Exactly one tap per OK event; no focus jump from a second forced `requestFocus()`; selected pointer mode remains visible. Repeat after navigating to a second URL.
+3. Press the Fire TV Play/Pause remote button twice, allowing >350ms between presses. The `POINTER ON` toolbar label should toggle correspondingly. If it does not, open MENU → MORE → Browser diagnostics and inspect `Media session active` and `Last media delivery`. ADB can generate a comparable key: `adb shell input keyevent 85`; actual remote delivery can differ.
+4. Keep media shortcuts OFF from MORE when using that remote key for ordinary website video playback.
+5. During all tests, confirm Fire Inbox native VOICE → SEND still posts, and no stored note or session is modified by pointer movement.
+
+A successful GitHub Actions build verifies Java/resource compatibility only. Do not mark these Fire Inbox bug reports done without actual Fire TV evidence.
