@@ -67,7 +67,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
           cp canvas/build/outputs/apk/release/canvas-release.apk dist/firetv-remote-canvas.apk
           cp browser/build/outputs/apk/release/browser-release.apk dist/firetv-browser.apk
-          cp Applications/SignalStudio/build/outputs/apk/release/SignalStudio-release.apk dist/firetv-signal-studio.apk
+          cp Applications/SignalStudio/build/outputs/apk/release/signalstudio-release.apk dist/firetv-signal-studio.apk
           cp Applications/SignalStudio/appos.json dist/firetv-signal-studio.appos.json
           BRIDGE_SHA="$(sha256sum dist/firetv-dev-bridge.apk | cut -d' ' -f1)"
           CANVAS_SHA="$(sha256sum dist/firetv-remote-canvas.apk | cut -d' ' -f1)"
