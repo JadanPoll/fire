@@ -17,6 +17,7 @@ on:
     branches: [main]
     paths:
       - 'browser/**'
+      - 'app/**'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
@@ -44,12 +45,13 @@ jobs:
         run: |
           python3 -m py_compile tools/firetv_test.py
           python3 tools/firetv_test.py --help >/dev/null
+          python3 tools/check_console_manifest.py
       - name: Build APK and release notes
         shell: bash
         run: |
           set -euo pipefail
           base64 -d signing/lab.keystore.base64 > signing/lab.keystore
-          gradle --no-daemon :browser:testReleaseUnitTest :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease
+          gradle --no-daemon :browser:testReleaseUnitTest :app:testReleaseUnitTest :app:assembleRelease :canvas:assembleRelease :browser:assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/firetv-dev-bridge.apk
           cp canvas/build/outputs/apk/release/canvas-release.apk dist/firetv-remote-canvas.apk
@@ -70,7 +72,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: firetv-dev-bridge-latest
-          name: Fire TV Dev Bridge (lab)
+          name: Fire Console and Dev Bridge (lab)
           prerelease: true
           make_latest: false
           files: |

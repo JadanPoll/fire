@@ -11,6 +11,13 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.EditorInfo;
+import android.text.TextWatcher;
+import android.text.Editable;
+import android.widget.EditText;
+import java.util.Locale;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.view.View;
@@ -28,7 +35,9 @@ import java.util.ArrayList;
  */
 public final class VoiceProbeActivity extends Activity {
     private static final int SPEECH_REQUEST = 101;
-    private TextView report;
+    private TextView report, keyboardStatus;
+    private EditText keyboardTest;
+    private int keyboardCharacters;
     private String lastReport = "";
 
     @Override public void onCreate(Bundle state) {
@@ -44,6 +53,33 @@ public final class VoiceProbeActivity extends Activity {
         root.addView(text("A cheap test of what this particular Fire TV actually exposes.",17,0xFFE6F0F6));
         report = text("",16,0xFFE6F0F6);
         root.addView(report);
+        root.addView(text("FIRE KEYBOARD DICTATION / RECOVERY",21,0xFF64CAFF));
+        root.addView(text("Dictation here belongs to Fire OS, not this app. If its system service fails, reopening an app cannot restart it.",15,0xFFBFD7E6));
+        keyboardTest=new EditText(this);
+        keyboardTest.setTextColor(0xFF16283B);
+        keyboardTest.setHintTextColor(0xFF6B8195);
+        keyboardTest.setBackgroundColor(0xFFE2F1F8);
+        keyboardTest.setTextSize(19);
+        keyboardTest.setMinLines(2);
+        keyboardTest.setMaxLines(4);
+        keyboardTest.setHint("Speak a short sentence through the Fire keyboard, or type it");
+        keyboardTest.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_DONE);
+        root.addView(keyboardTest,new LinearLayout.LayoutParams(-1,dp(100)));
+        keyboardStatus=text("No input yet. Voice is optional; typed characters are a separate test.",16,0xFFDBECF6);
+        root.addView(keyboardStatus);
+        keyboardTest.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence value,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence value,int start,int before,int count){
+                keyboardCharacters=value.length();
+                keyboardStatus.setText("Keyboard delivered "+keyboardCharacters+
+                    " characters. This proves text arrival, not whether voice recognition worked.");
+            }
+            @Override public void afterTextChanged(Editable edit){}
+        });
+        button(root,"OPEN FIRE KEYBOARD FOR VOICE TEST",this::testKeyboard);
+        button(root,"RECONNECT THIS TEXT FIELD (SAFE)",this::reconnectKeyboard);
+        root.addView(text("RECONNECT only refreshes this app's input connection. If the mic button instead opens Alexa, disappears, or crashes, the problem can be in the Fire OS keyboard/voice service.",14,0xFF9FC1D7));
+        button(root,"OPEN FIRE TV SYSTEM SETTINGS",this::openSystemSettings);
         Button scan = button(root,"SCAN AUDIO INPUTS AND SPEECH SERVICES",this::scan);
         button(root,"TRY ANDROID SPEECH RECOGNITION",this::trySpeech);
         button(root,"COPY DIAGNOSTIC REPORT",this::copy);
@@ -85,6 +121,13 @@ public final class VoiceProbeActivity extends Activity {
         sb.append("Device: ").append(Build.MANUFACTURER).append(" ").append(Build.MODEL).append("\n");
         sb.append("Android ").append(Build.VERSION.RELEASE).append(" / API ")
                 .append(Build.VERSION.SDK_INT).append("\n");
+        sb.append("OS build: ").append(Build.DISPLAY).append("\n");
+        sb.append("Device locale: ").append(Locale.getDefault().toLanguageTag()).append("\n");
+        try {
+            String ime=Settings.Secure.getString(getContentResolver(),Settings.Secure.DEFAULT_INPUT_METHOD);
+            sb.append("Current keyboard package/service: ").append(ime==null?"unknown":ime).append("\n");
+        }catch(RuntimeException ex){sb.append("Current keyboard service: not readable\n");}
+        sb.append("Current test field characters: ").append(keyboardCharacters).append("\n");
         PackageManager pm = getPackageManager();
         sb.append("Android declares microphone feature: ")
                 .append(pm.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)).append("\n");
@@ -105,6 +148,41 @@ public final class VoiceProbeActivity extends Activity {
         sb.append("\nNext: select TRY to see whether Android can return a transcript.\n");
         sb.append("Nothing is recorded or uploaded by this app.\n");
         show(sb.toString());
+    }
+
+    private void testKeyboard(){
+        keyboardTest.requestFocus();
+        keyboardTest.post(()->{
+            InputMethodManager ime=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            boolean requested=ime!=null && ime.showSoftInput(keyboardTest,InputMethodManager.SHOW_IMPLICIT);
+            keyboardStatus.setText("Keyboard show request "+(requested?"accepted":"not confirmed")+
+                ". The system controls whether its microphone can dictate.");
+        });
+    }
+
+    private void reconnectKeyboard(){
+        // Android's documented restartInput resets this EditText's
+        // InputConnection. It cannot restart or repair the system's
+        // microphone/voice-recognition service.
+        InputMethodManager ime=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        if(ime==null){
+            keyboardStatus.setText("Input method manager unavailable. Try Fire TV system settings.");return;
+        }
+        ime.hideSoftInputFromWindow(keyboardTest.getWindowToken(),0);
+        keyboardTest.clearFocus();
+        keyboardTest.requestFocus();
+        ime.restartInput(keyboardTest);
+        keyboardStatus.setText("Reconnected this app's text field without deleting any data. Requesting keyboard…");
+        keyboardTest.post(()->ime.showSoftInput(keyboardTest,InputMethodManager.SHOW_IMPLICIT));
+    }
+
+    private void openSystemSettings(){
+        try{
+            startActivity(new Intent(Settings.ACTION_SETTINGS));
+            keyboardStatus.setText("Opened system settings. No settings were changed automatically.");
+        }catch(Exception ex){
+            keyboardStatus.setText("Fire TV settings unavailable via this shortcut; use Fire TV Home → Settings.");
+        }
     }
 
     private void trySpeech() {

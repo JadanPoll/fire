@@ -5,7 +5,7 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <application
-        android:label="Fire TV Dev Bridge"
+        android:label="Fire Console"
         android:icon="@drawable/tv_icon"
         android:banner="@drawable/tv_banner"
         android:theme="@android:style/Theme.Material.NoActionBar"
@@ -15,7 +15,19 @@
         <activity android:name=".VoiceProbeActivity" android:exported="false" />
         <activity android:name=".CatalogActivity" android:exported="false" />
         <activity android:name=".InputLabActivity" android:exported="false" />
-        <activity android:name=".MainActivity" android:exported="true" android:banner="@drawable/tv_banner">
+        <activity android:name=".AppLibraryActivity" android:exported="false" />
+        <activity android:name=".GameShelfActivity" android:exported="true"
+            android:label="Pin to Fire Playroom">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".MainActivity" android:exported="true" android:label="Developer Tools" />
+        <activity android:name=".ConsoleActivity" android:exported="true"
+            android:label="Fire Console" android:banner="@drawable/tv_banner"
+            android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
