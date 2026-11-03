@@ -114,3 +114,18 @@ Optional **MOTION** disables animations/transitions on pages without
 disabling content, but it is not a proven optimization for ChatGPT's JS work.
 Do not remove images, GPU acceleration or authenticated site features just
 to make a synthetic performance benchmark look better.
+
+## Remote keys and keyboard boundaries
+
+MENU opens or closes TOOLS. The pointer now covers both webpage and native
+browser controls. Fire Home, Alexa microphone and volume remain system-owned.
+TOOLS -> REMOTE opts into Play/Pause=pointer and Rewind/FF=browser history
+on ChatGPT/Google; off by default to preserve normal media behavior. Media
+keys may not reach the app on every Fire OS hardware/software combination.
+
+A raw unmodified Enter received by the app while ChatGPT's web editor is
+focused now attempts Send. Shift+Enter is not remapped. But the Fire TV
+software keyboard can commit a newline directly without a KeyEvent;
+Java key mapping cannot guarantee it becomes ChatGPT Send. The native
+SPEAK/SEND controls remain available. STATS records only last raw Enter
+key metadata, not typed text, to distinguish these cases.
