@@ -211,6 +211,9 @@ def make_handler(executor, secret):
 
         def do_GET(self):
             if not self.authorized(): return
+            if self.path == "/v1/health":
+                self.reply(200, {"ok": True, "protocol": 1, "executor": "codex-cli"})
+                return
             if self.path == "/v1/jobs/latest":
                 job = executor.read_latest()
             else:
