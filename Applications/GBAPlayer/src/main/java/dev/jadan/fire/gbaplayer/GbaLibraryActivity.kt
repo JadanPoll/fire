@@ -105,7 +105,7 @@ class GbaLibraryActivity : Activity() {
         list.removeAllViews()
         if(!privateRoms.exists())privateRoms.mkdirs()
         val games=privateRoms.listFiles()?.filter{
-            it.isFile && it.extension.equals("gba",true) && it.length() in 192..MAX_ROM
+            it.isFile && it.extension.equals("gba",true) && it.length() in 192L..MAX_ROM
         }?.sortedBy{it.name.lowercase(Locale.ROOT)}?.take(48) ?: emptyList()
         if(games.isEmpty()){
             list.addView(text("No imported games. Transfer a .gba into Downloads/FirePlayroom/GBA or use the file picker.",16))
@@ -143,7 +143,7 @@ class GbaLibraryActivity : Activity() {
         val source=File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             "FirePlayroom/GBA")
         val files=source.listFiles()?.filter{
-            it.isFile && it.extension.equals("gba",true) && it.length() in 192..MAX_ROM
+            it.isFile && it.extension.equals("gba",true) && it.length() in 192L..MAX_ROM
         }?.sortedBy{it.name}?.take(48) ?: emptyList()
         if(files.isEmpty()){
             status.text="No .gba files found at Downloads/FirePlayroom/GBA. Use Console Playroom import first."
