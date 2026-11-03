@@ -41,6 +41,13 @@ assert "LivePairing.token" in compute
 assert 'putString("token"' not in compute
 assert "setShowSoftInputOnFocus(true);" in compute
 assert "setShowSoftInputOnFocus(false);" in compute
+# Inbox form is now a compatibility fallback, not the only transport.
+browser=(repo/"browser/src/main/java/dev/jadan/fire/browser/BrowserActivity.java").read_text()
+assert "fetch(url,{method:'GET',credentials:'same-origin',cache:'no-store'})" in browser
+assert 'private void submitInboxForm(WebView target,String value)' in browser
+assert 'if(confirmed && (m.id===id||o.id===id))' in browser
+assert 'Check Inbox before trying again' in browser
+assert 'if(value.length()>1200)' in browser
 # Independent native app can opt into a single adapter, no Console dependency.
 assert "TvRemoteAdapter" in signal
 assert "import dev.jadan.fire.remote" in signal
