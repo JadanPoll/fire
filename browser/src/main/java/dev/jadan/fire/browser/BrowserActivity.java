@@ -14,6 +14,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import org.json.JSONArray;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -111,6 +112,11 @@ public final class BrowserActivity extends Activity {
     private boolean pointerMode;
     private boolean imeVisible;
     private final RemoteInputPolicy remoteInputs=new RemoteInputPolicy();
+    private final ArrayDeque<String> remoteTrace=new ArrayDeque<>();
+    private void traceInput(String description){
+        if(remoteTrace.size()>=16)remoteTrace.removeFirst();
+        remoteTrace.addLast((SystemClock.uptimeMillis()%1000000)+"ms "+description);
+    }
     private float x=.5f, y=.48f;
     private long lastOk; // diagnostics only; gesture ownership lives in RemoteInputPolicy
     // Synthesized mouse hover (not merely a drawn yellow cursor) makes sites
@@ -170,6 +176,7 @@ public final class BrowserActivity extends Activity {
             boolean visible=insets.isVisible(WindowInsetsCompat.Type.ime());
             if(imeVisible!=visible){
                 imeVisible=visible;
+                traceInput("software keyboard "+(visible?"VISIBLE":"HIDDEN"));
                 stopMotion();
                 remoteInputs.cancelOk();
                 if(visible)resetWebHover(true);
@@ -695,6 +702,20 @@ public final class BrowserActivity extends Activity {
     }
     @Override public boolean dispatchKeyEvent(KeyEvent ev){
         int key=ev.getKeyCode();
+        if(ev.getAction()==KeyEvent.ACTION_UP ||
+           (ev.getAction()==KeyEvent.ACTION_DOWN && ev.getRepeatCount()<=1)){
+            if(key==KeyEvent.KEYCODE_DPAD_CENTER || key==KeyEvent.KEYCODE_ENTER ||
+               key==KeyEvent.KEYCODE_BUTTON_A || key==KeyEvent.KEYCODE_BUTTON_SELECT ||
+               key==KeyEvent.KEYCODE_DPAD_UP || key==KeyEvent.KEYCODE_DPAD_DOWN ||
+               key==KeyEvent.KEYCODE_DPAD_LEFT || key==KeyEvent.KEYCODE_DPAD_RIGHT ||
+               key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || key==KeyEvent.KEYCODE_MEDIA_PLAY ||
+               key==KeyEvent.KEYCODE_MEDIA_PAUSE || key==KeyEvent.KEYCODE_BACK){
+                traceInput(KeyEvent.keyCodeToString(key)+
+                    (ev.getAction()==KeyEvent.ACTION_DOWN?" DOWN":" UP")+
+                    (ev.getRepeatCount()>0?" repeat="+ev.getRepeatCount():"")+
+                    (imeVisible?" [IME]":pointerMode?" [POINTER]":" [FOCUS]"));
+            }
+        }
         if(key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER)
             lastRawEnter=KeyEvent.keyCodeToString(key)+", shift="+ev.isShiftPressed()+
                 ", "+(ev.getAction()==KeyEvent.ACTION_UP?"UP":"DOWN");
@@ -1357,6 +1378,8 @@ public final class BrowserActivity extends Activity {
         sb.append("Navigation preserves pointer mode: yes").append('\n');
         sb.append("Software keyboard visible: ").append(imeVisible).append('\n');
         sb.append("Remote OK guard ms: ").append(RemoteInputPolicy.OK_DEBOUNCE_MS).append('\n');
+        sb.append("Last remote event transitions (codes only):").append('\n');
+        for(String transition:remoteTrace)sb.append("  ").append(transition).append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
           .append("These numbers do not measure JavaScript heap or establish root cause.");
         String report=sb.toString();
