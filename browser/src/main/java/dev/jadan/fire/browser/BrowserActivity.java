@@ -62,6 +62,7 @@ public final class BrowserActivity extends Activity {
     private long lastProgressAt, pageStartedAt, lastLoadMillis;
     private boolean reducedMotion;
     private boolean devtoolsEnabled;
+    private boolean remoteMediaShortcuts;
     private String lastRecordedUrl="";
     private final Runnable pointerTick = new Runnable() {
         @Override public void run() {
@@ -95,6 +96,7 @@ public final class BrowserActivity extends Activity {
         textZoom=Math.max(55,Math.min(200,prefs.getInt("text_zoom",85)));
         pageZoom=Math.max(50,Math.min(160,prefs.getInt("page_zoom",85)));
         reducedMotion=prefs.getBoolean("reduced_motion",false);
+        remoteMediaShortcuts=prefs.getBoolean("remote_media_shortcuts",false);
         screen=new FrameLayout(this);
         root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -146,6 +148,7 @@ public final class BrowserActivity extends Activity {
         button(reading,"HOME",()->loadUrl(HOME));
         button(reading,"STATS",this::showDiagnostics);
         button(reading,"INSPECT",this::toggleInspection);
+        button(reading,"REMOTE",this::toggleRemoteShortcuts);
         button(reading,"MOTION",this::toggleReducedMotion);
 
         LinearLayout composing=new LinearLayout(this);
@@ -398,7 +401,7 @@ public final class BrowserActivity extends Activity {
             return true;
         }
         // Do not hijack playback keys on arbitrary video/media websites.
-        if(nonMediaSite() && (key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+        if(remoteMediaShortcuts && nonMediaSite() && (key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
             key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || key==KeyEvent.KEYCODE_MEDIA_REWIND)){
             if(ev.getAction()==KeyEvent.ACTION_UP){
                 if(key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)togglePointer();
@@ -633,7 +636,7 @@ public final class BrowserActivity extends Activity {
      */
     private static boolean isMeaningfulUrl(String raw){
         try {
-            if(raw==null || raw.length()>2048)return false;
+            if(raw==null || raw.equals(PROBE) || raw.length()>2048)return false;
             Uri u=Uri.parse(raw);
             if(!"https".equalsIgnoreCase(u.getScheme()))return false;
             String host=u.getHost();
@@ -683,6 +686,16 @@ public final class BrowserActivity extends Activity {
     }
     private static String historyLabel(String url,String title){
         String s=title==null?"":title.trim().replace('\n',' ');
+        // A generic "Google" title is not enough to distinguish searches.
+        try {
+            Uri u=Uri.parse(url);
+            String h=u.getHost();
+            if(h!=null&&h.contains("google.")&&"/search".equals(u.getPath())){
+                String query=u.getQueryParameter("q");
+                if(query!=null&&!query.isEmpty())return "Google · "+
+                    (query.length()>45?query.substring(0,42)+"…":query);
+            }
+        }catch(Exception ignored){} 
         // A generic site title isn't enough to distinguish two conversations.
         if(s.length()>0 && s.length()<=120 && !s.startsWith("http")
                 && !("ChatGPT".equalsIgnoreCase(s) && url.contains("/c/"))){
@@ -781,6 +794,7 @@ public final class BrowserActivity extends Activity {
         sb.append("Page host: ").append(displayHost(web==null?null:web.getUrl())).append('\n');
         sb.append("Reduce motion: ").append(reducedMotion).append('\n');
         sb.append("Last raw Enter: ").append(lastRawEnter).append('\n');
+        sb.append("Media-button shortcuts: ").append(remoteMediaShortcuts).append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
           .append("These numbers do not measure JavaScript heap or establish root cause.");
         String report=sb.toString();
@@ -791,6 +805,13 @@ public final class BrowserActivity extends Activity {
                 if(cm!=null)cm.setPrimaryClip(ClipData.newPlainText("Fire Browser diagnostics",report));
                 status.setText("Diagnostics copied; safe to share (does not include URLs or cookies).");
             }).setNegativeButton("Close",null).show();
+    }
+    private void toggleRemoteShortcuts(){
+        remoteMediaShortcuts=!remoteMediaShortcuts;
+        prefs.edit().putBoolean("remote_media_shortcuts",remoteMediaShortcuts).apply();
+        status.setText(remoteMediaShortcuts?
+            "Remote shortcuts ON: Play/Pause=pointer, Rewind/FF=Back/Forward on ChatGPT/Google. MENU=tools.":
+            "Media buttons restored to normal media handling. MENU still opens tools.");
     }
     private void toggleInspection(){
         if(devtoolsEnabled){
