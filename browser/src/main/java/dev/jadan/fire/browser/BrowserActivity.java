@@ -1,6 +1,11 @@
 package dev.jadan.fire.browser;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.net.Uri;
+import android.view.Gravity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.webkit.RenderProcessGoneDetail;
@@ -43,6 +48,7 @@ import org.json.JSONObject;
  */
 public final class BrowserActivity extends Activity {
     private static final String HOME = "https://chatgpt.com/";
+    private static final String SEARCH = "https://www.google.com/search?q=";
     private static final String PREFS = "browser_state";
     private SharedPreferences prefs;
     private int textZoom = 85;
@@ -51,6 +57,9 @@ public final class BrowserActivity extends Activity {
     private int heldKey = -1;
     private long heldSince, lastMove;
     private int rendererRecoveries;
+    private int lastProgress=-1;
+    private long lastProgressAt, pageStartedAt, lastLoadMillis;
+    private boolean reducedMotion;
     private final Runnable pointerTick = new Runnable() {
         @Override public void run() {
             if(!pointerMode || heldKey < 0 || cursor == null) return;
@@ -77,6 +86,7 @@ public final class BrowserActivity extends Activity {
         prefs=getSharedPreferences(PREFS,MODE_PRIVATE);
         textZoom=Math.max(55,Math.min(200,prefs.getInt("text_zoom",85)));
         pageZoom=Math.max(50,Math.min(160,prefs.getInt("page_zoom",85)));
+        reducedMotion=prefs.getBoolean("reduced_motion",false);
         LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFF0F1C29);
@@ -89,7 +99,7 @@ public final class BrowserActivity extends Activity {
         address=new EditText(this);
         address.setSingleLine(true);
         address.setTextSize(13);
-        address.setHint("https://...");
+        address.setHint("Search Google or enter a web address");
         address.setTextColor(0xFF112233);
         address.setBackgroundColor(0xFFD7EAF6);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
@@ -98,7 +108,7 @@ public final class BrowserActivity extends Activity {
             return false;
         });
         line.addView(address,new LinearLayout.LayoutParams(0,dp(42),1));
-        button(line,"GO",this::goAddress);
+        button(line,"GO / SEARCH",this::goAddress);
         LinearLayout toolsPanel=new LinearLayout(this);
         toolsPanel.setOrientation(LinearLayout.VERTICAL);
         root.addView(toolsPanel,new LinearLayout.LayoutParams(-1,-2));
@@ -127,6 +137,8 @@ public final class BrowserActivity extends Activity {
         button(reading,"PAGE +",()->zoomPage(true));
         button(reading,"FIT",this::resetZoom);
         button(reading,"HOME",()->loadUrl(HOME));
+        button(reading,"STATS",this::showDiagnostics);
+        button(reading,"MOTION",this::toggleReducedMotion);
 
         LinearLayout composing=new LinearLayout(this);
         composing.setOrientation(LinearLayout.HORIZONTAL);
@@ -184,7 +196,7 @@ public final class BrowserActivity extends Activity {
         if(getIntent().getBooleanExtra("test_lab",false))loadProbe();
         else if(fromLink!=null && fromLink.startsWith("https://"))loadUrl(fromLink);
         else if(restore.startsWith("https://"))loadUrl(restore);
-        else loadUrl(prefs.getString("last_url",HOME));
+        else {String last=prefs.getString("last_url",HOME);loadUrl(isMeaningfulUrl(last)?last:HOME);}
         address.requestFocus();
     }
 
@@ -213,13 +225,28 @@ public final class BrowserActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         if(Build.VERSION.SDK_INT>=26)settings.setSafeBrowsingEnabled(true);
         web.setWebViewClient(new WebViewClient(){
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
+                if(web!=view)return;
+                pageStartedAt=SystemClock.uptimeMillis();
+                lastProgress=-1;
+            }
             @Override public void onPageFinished(WebView view,String url) {
                 if(web != view) return;
-                lastPage=url;
+                lastLoadMillis=pageStartedAt>0?SystemClock.uptimeMillis()-pageStartedAt:0;
                 address.setText(url.equals(PROBE)?"local:input-lab":url);
-                if(url.startsWith("https://")) rememberPage(url);
+                if(isMeaningfulUrl(url)) {
+                    lastPage=url;
+                    rememberPage(url,view.getTitle());
+                }
                 applyPageZoom();
-                status.setText("Ready: "+url+"  |  text "+textZoom+"%, page "+pageZoom+"%. Native SPEAK→SEND bypasses web IME.");
+                applyReducedMotion();
+                status.setText("Ready: "+displayHost(url)+" · load "+lastLoadMillis+"ms · text "+
+                    textZoom+"%, page "+pageZoom+"%.");
+            }
+            @Override public void doUpdateVisitedHistory(WebView view,String url,boolean isReload){
+                if(web!=view || !isMeaningfulUrl(url))return;
+                lastPage=url;
+                if(!isReload)rememberPage(url,view.getTitle());
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest req,WebResourceError err) {
                 if(req.isForMainFrame()) status.setText("Main page error: "+err.getDescription()+" ("+err.getErrorCode()+")");
@@ -255,7 +282,11 @@ public final class BrowserActivity extends Activity {
         });
         web.setWebChromeClient(new WebChromeClient(){
             @Override public void onProgressChanged(WebView view,int progress){
-                if(progress<100)status.setText("Rendering page… "+progress+"%");
+                if(view!=web || progress>=100)return;
+                long now=SystemClock.uptimeMillis();
+                if((progress<lastProgress+10 || now-lastProgressAt<250)&&progress>5)return;
+                lastProgress=progress;lastProgressAt=now;
+                status.setText("Loading "+displayHost(view.getUrl())+"… "+progress+"%");
             }
         });
         viewport.addView(web,0,new FrameLayout.LayoutParams(-1,-1));
@@ -289,9 +320,15 @@ public final class BrowserActivity extends Activity {
     }
     private void goAddress(){
         String u=address.getText().toString().trim();
+        if(u.isEmpty())return;
         if(u.equalsIgnoreCase("local:input-lab")){loadProbe();return;}
-        if(!u.contains("://"))u="https://"+u;
-        loadUrl(u);
+        if(u.startsWith("https://")){loadUrl(u);return;}
+        if(u.contains("://")){status.setText("Only HTTPS websites are supported.");return;}
+        // Interpret free-form text as a search rather than pretending it is a hostname.
+        if(u.indexOf(' ')>=0 || u.indexOf('.')<0 || u.startsWith("?")){
+            loadUrl(SEARCH+Uri.encode(u));return;
+        }
+        loadUrl("https://"+u);
     }
     private void loadProbe(){
         stopMotion();pointerMode=false;cursor.invalidate();
@@ -495,35 +532,190 @@ public final class BrowserActivity extends Activity {
         if(web!=null)web.getSettings().setTextZoom(textZoom);
         status.setText("Text size "+textZoom+"% (saved); fixed CSS text may require PAGE−.");
     }
-    private void rememberPage(String url){
-        if(url.length()>1500)return;
-        prefs.edit().putString("last_url",url).apply();
+
+    private static String displayHost(String raw){
+        try {Uri u=Uri.parse(raw);String host=u.getHost();return host==null?"Local page":host;}
+        catch(Exception ex){return "Page";}
+    }
+
+    /**
+     * A transient OAuth callback is not a destination. Never retain it as
+     * a recently visited site OR as the page to restore at startup.
+     */
+    private static boolean isMeaningfulUrl(String raw){
+        try {
+            if(raw==null || raw.length()>2048)return false;
+            Uri u=Uri.parse(raw);
+            if(!"https".equalsIgnoreCase(u.getScheme()))return false;
+            String host=u.getHost();
+            if(host==null || host.isEmpty())return false;
+            host=host.toLowerCase(java.util.Locale.US);
+            if(host.equals("accounts.google.com")||host.endsWith(".accounts.google.com")
+               ||host.equals("login.microsoftonline.com")||host.equals("appleid.apple.com")
+               ||host.startsWith("auth.")||host.startsWith("login.")
+               ||host.contains(".auth0.com"))return false;
+            String path=u.getPath();
+            if(path!=null){
+                for(String segment:path.toLowerCase(java.util.Locale.US).split("/")){
+                    if(segment.equals("oauth")||segment.equals("authorize")||segment.equals("callback")
+                       ||segment.equals("signin")||segment.equals("login")
+                       ||segment.equals("sso")||segment.equals("sign-in")
+                       ||segment.equals("auth")||segment.equals("consent")
+                       ||segment.equals("verify")||segment.equals("verification"))return false;
+                }
+            }
+            for(String key:u.getQueryParameterNames()){
+                String name=key.toLowerCase(java.util.Locale.US);
+                if(name.equals("code")||name.equals("state")||name.equals("token")
+                    ||name.equals("access_token")||name.equals("refresh_token")
+                    ||name.equals("id_token")||name.equals("session_state")
+                    ||name.equals("oauth_token")||name.equals("redirect_uri")
+                    ||name.equals("code_challenge")||name.equals("client_secret")
+                    ||name.equals("error_description"))return false;
+            }
+            return true;
+        }catch(Exception ex){return false;}
+    }
+    private static String cleanHistoryUrl(String url){
+        if(!isMeaningfulUrl(url))return null;
+        try {
+            Uri u=Uri.parse(url);
+            Uri.Builder b=u.buildUpon().fragment(null).clearQuery();
+            // Remove URL tracking while preserving links that require other parameters.
+            for(String key:u.getQueryParameterNames()){
+                String k=key.toLowerCase(java.util.Locale.US);
+                if(k.startsWith("utm_")||k.equals("fbclid")||k.equals("gclid")
+                    ||k.equals("msclkid")||k.equals("ref_src"))continue;
+                for(String value:u.getQueryParameters(key))b.appendQueryParameter(key,value);
+            }
+            String clean=b.build().toString();
+            return clean.length()<=1800?clean:null;
+        }catch(Exception ex){return null;}
+    }
+    private static String historyLabel(String url,String title){
+        String s=title==null?"":title.trim().replace('\n',' ');
+        if(s.length()>0 && s.length()<=120 && !s.startsWith("http")){
+            return s.length()>65?s.substring(0,62)+"…":s;
+        }
+        try {
+            Uri uri=Uri.parse(url);
+            String host=uri.getHost();
+            String path=uri.getPath();
+            if(host==null)return "Webpage";
+            if(host.contains("google.") && "/search".equals(path)){
+                String query=uri.getQueryParameter("q");
+                if(query!=null)return "Google · "+(query.length()>45?query.substring(0,42)+"…":query);
+            }
+            if("chatgpt.com".equals(host) && path!=null && path.startsWith("/c/")){
+                return "ChatGPT · conversation "+path.substring(3,Math.min(path.length(),11));
+            }
+            String label=host+(path==null||path.equals("/")?"":path);
+            return label.length()>68?label.substring(0,65)+"…":label;
+        }catch(Exception ex){return "Webpage";}
+    }
+    private static String entryUrl(JSONArray history,int index){
+        Object entry=history.opt(index);
+        if(entry instanceof String)return (String)entry;
+        if(entry instanceof JSONObject)return ((JSONObject)entry).optString("url","");
+        return "";
+    }
+    private void rememberPage(String url,String title){
+        final String clean=cleanHistoryUrl(url);
+        if(clean==null)return;
+        prefs.edit().putString("last_url",clean).apply();
         try {
             JSONArray old=new JSONArray(prefs.getString("recents","[]"));
-            JSONArray recent=new JSONArray();
-            recent.put(url);
-            for(int i=0;i<old.length() && recent.length()<16;i++){
-                String prior=old.optString(i);
-                if(prior.startsWith("https://")&&!prior.equals(url))recent.put(prior);
+            JSONArray updated=new JSONArray();
+            JSONObject first=new JSONObject();
+            first.put("url",clean);
+            first.put("title",historyLabel(clean,title));
+            updated.put(first);
+            for(int i=0;i<old.length() && updated.length()<16;i++){
+                String previous=cleanHistoryUrl(entryUrl(old,i));
+                if(previous==null || previous.equals(clean))continue;
+                JSONObject item=new JSONObject();
+                item.put("url",previous);
+                JSONObject orig=old.optJSONObject(i);
+                String previousTitle=orig==null?"":orig.optString("title","");
+                item.put("title",historyLabel(previous,previousTitle));
+                updated.put(item);
             }
-            prefs.edit().putString("recents",recent.toString()).apply();
-        }catch(Exception ignored){prefs.edit().putString("recents",new JSONArray().put(url).toString()).apply();}
+            prefs.edit().putString("recents",updated.toString()).apply();
+        }catch(Exception ex){
+            // A bad history entry must never prevent a page from loading.
+            status.setText("History not updated; browser remains usable.");
+        }
     }
     private void showRecent(){
         try {
-            JSONArray data=new JSONArray(prefs.getString("recents","[]"));
-            if(data.length()==0){
-                status.setText("No recent pages yet. Browse a site to save it locally.");return;
+            JSONArray raw=new JSONArray(prefs.getString("recents","[]"));
+            java.util.ArrayList<String> urls=new java.util.ArrayList<>();
+            java.util.ArrayList<String> labels=new java.util.ArrayList<>();
+            for(int i=0;i<raw.length() && urls.size()<16;i++){
+                String url=cleanHistoryUrl(entryUrl(raw,i));
+                if(url==null||urls.contains(url))continue;
+                urls.add(url);
+                JSONObject obj=raw.optJSONObject(i);
+                labels.add(historyLabel(url,obj==null?"":obj.optString("title","")));
             }
-            final String[] urls=new String[data.length()];
-            for(int i=0;i<urls.length;i++)urls[i]=data.optString(i);
-            new AlertDialog.Builder(this).setTitle("Recent pages (local to Fire Browser)")
-                .setItems(urls,(dialog,index)->loadUrl(urls[index]))
-                .setNeutralButton("Clear", (dialog,which)->{
+            if(urls.isEmpty()){
+                status.setText("No useful recent destinations. OAuth callbacks are excluded.");return;
+            }
+            new AlertDialog.Builder(this).setTitle("Recent destinations")
+                .setItems(labels.toArray(new String[0]),(dialog,index)->loadUrl(urls.get(index)))
+                .setNeutralButton("Clear",(dialog,which)->{
                     prefs.edit().remove("last_url").remove("recents").apply();
-                    status.setText("Recent pages cleared.");
+                    status.setText("Recent destinations cleared.");
                 }).setNegativeButton("Cancel",null).show();
         }catch(Exception ex){status.setText("Recent pages unavailable: "+ex.getMessage());}
+    }
+    private void showDiagnostics(){
+        ActivityManager.MemoryInfo mi=new ActivityManager.MemoryInfo();
+        ActivityManager am=(ActivityManager)getSystemService(Context.ACTIVITY_SERVICE);
+        if(am!=null)am.getMemoryInfo(mi);
+        PackageInfo provider=WebView.getCurrentWebViewPackage();
+        StringBuilder sb=new StringBuilder();
+        sb.append("Device: ").append(Build.MANUFACTURER).append(" ").append(Build.MODEL)
+          .append(" / API ").append(Build.VERSION.SDK_INT).append('\n');
+        sb.append("WebView: ").append(provider==null?"unknown":provider.packageName+" "+provider.versionName).append('\n');
+        sb.append("RAM available: ").append(mi.availMem/(1024*1024)).append(" MiB");
+        sb.append(" / system low-memory: ").append(mi.lowMemory).append('\n');
+        Runtime runtime=Runtime.getRuntime();
+        sb.append("App Java heap used: ").append((runtime.totalMemory()-runtime.freeMemory())/(1024*1024))
+          .append(" MiB; total: ").append(runtime.totalMemory()/(1024*1024)).append(" MiB\n");
+        sb.append("Renderer recoveries: ").append(rendererRecoveries).append('\n');
+        sb.append("Last document load callback: ").append(lastLoadMillis).append("ms\n");
+        sb.append("Current page progress: ").append(lastProgress).append("%\n");
+        sb.append("Page host: ").append(displayHost(web==null?null:web.getUrl())).append('\n');
+        sb.append("Reduce motion: ").append(reducedMotion).append('\n');
+        sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
+          .append("These numbers do not measure JavaScript heap or establish root cause.");
+        String report=sb.toString();
+        new AlertDialog.Builder(this).setTitle("Browser diagnostics")
+            .setMessage(report)
+            .setPositiveButton("COPY",(dlg,which)->{
+                ClipboardManager cm=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+                if(cm!=null)cm.setPrimaryClip(ClipData.newPlainText("Fire Browser diagnostics",report));
+                status.setText("Diagnostics copied; safe to share (does not include URLs or cookies).");
+            }).setNegativeButton("Close",null).show();
+    }
+    private void toggleReducedMotion(){
+        reducedMotion=!reducedMotion;
+        prefs.edit().putBoolean("reduced_motion",reducedMotion).apply();
+        applyReducedMotion();
+        status.setText("Reduced page motion "+(reducedMotion?"enabled":"disabled")+
+            ". Optional experiment; may not accelerate JavaScript execution.");
+    }
+    private void applyReducedMotion(){
+        if(web==null)return;
+        final String script="(function(){"+
+            "var e=document.getElementById('firetv-reduced-motion');"+
+            "if(!"+reducedMotion+"){if(e)e.remove();return 'off';}"+
+            "if(!e){e=document.createElement('style');e.id='firetv-reduced-motion';"+
+            "e.textContent='*,*::before,*::after{animation-duration:0.01ms !important;"+
+            "transition-duration:0s !important;scroll-behavior:auto !important;}';"+
+            "(document.head||document.documentElement).appendChild(e);}return 'on';})()";
+        web.evaluateJavascript(script,null);
     }
     @Override public void onBackPressed(){
         if(pointerMode){stopMotion();pointerMode=false;cursor.invalidate();return;}
