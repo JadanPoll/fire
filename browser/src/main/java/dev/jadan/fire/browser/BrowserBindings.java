@@ -270,29 +270,65 @@ final class BrowserBindings {
         parent.addView(b,params);
         return b;
     }
+    /**
+     * A 3×3 D-pad-native wheel. Centre always restores normal control;
+     * up to eight named slots surround it. Advanced editing remains below.
+     */
     void showWheel(){
         if(activity.isFinishing()||dialogOpen)return;
         dialogOpen=true;
-        final ScrollView scroll=new ScrollView(activity);
+        ScrollView scroll=new ScrollView(activity);
         LinearLayout column=new LinearLayout(activity);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setPadding(dp(16),dp(10),dp(16),dp(12));
         scroll.addView(column);
-        column.addView(label("Choose a labelled set · OFF always restores normal input. Profiles only act inside their saved website.",16));
+        column.addView(label("D-pad selects a named set. Centre turns custom controls OFF. Back closes without changes.",16));
         final AlertDialog[] holder=new AlertDialog[1];
+        final Button[] preferred=new Button[1];
         Runnable close=()->{if(holder[0]!=null)holder[0].dismiss();};
-        item(column,"NORMAL BROWSER  /  DISABLE ALL BINDINGS",()->{
-            close.run();disable("Normal browser controls restored.");
-        });
         Set selected=selected();
-        for(Set set:new ArrayList<>(sets)){
-            String title=set.label+"  ·  "+set.host+"  ·  "+set.targets.size()+" bindings"+
-                (set.id.equals(selectedId)?"  [SELECTED]":"");
-            item(column,title,()->{close.run();activate(set);});
+        for(int row=0;row<3;row++){
+            LinearLayout strip=new LinearLayout(activity);
+            strip.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams stripLP=new LinearLayout.LayoutParams(-1,-2);
+            stripLP.bottomMargin=dp(5);
+            column.addView(strip,stripLP);
+            for(int col=0;col<3;col++){
+                int cell=row*3+col;
+                int slot=cell<4?cell:cell-1;
+                Set set=cell==4?null:(slot<sets.size()?sets.get(slot):null);
+                Button b=new Button(activity);
+                b.setAllCaps(false);
+                b.setTextSize(15);
+                b.setMinHeight(dp(68));
+                b.setText(cell==4?"NORMAL\nOFF":
+                    set==null?"+":
+                    set.label+"\n"+set.targets.size()+" keys");
+                b.setEnabled(cell==4 || set!=null);
+                b.setTextColor(0xFF193850);
+                b.setBackgroundColor(cell==4?0xFFDBF7E9:0xFFF1F8FF);
+                b.setOnFocusChangeListener((v,focused)->{
+                    GradientDrawable bg=new GradientDrawable();
+                    bg.setColor(focused?0xFFD8EDFF:(cell==4?0xFFDBF7E9:0xFFF1F8FF));
+                    bg.setCornerRadius(dp(13));
+                    bg.setStroke(dp(focused?4:1),focused?0xFF1285C4:0xFFBED7E9);
+                    b.setBackground(bg);
+                });
+                LinearLayout.LayoutParams tileLP=new LinearLayout.LayoutParams(0,dp(76),1);
+                if(col>0)tileLP.leftMargin=dp(6);
+                strip.addView(b,tileLP);
+                if(cell==4){
+                    b.setOnClickListener(v->{close.run();disable("Normal browser controls restored.");});
+                    if(preferred[0]==null)preferred[0]=b;
+                }else if(set!=null){
+                    b.setOnClickListener(v->{close.run();activate(set);});
+                    if(set.id.equals(selectedId))preferred[0]=b;
+                }
+            }
         }
         item(column,"+ NEW LABELLED SET FOR THIS PAGE",()->{close.run();createSet();});
         if(selected!=null){
-            item(column,"EDIT  /  BIND TARGETS IN "+selected.label,()->{
+            item(column,"BIND TARGETS  /  "+selected.label,()->{
                 close.run();enterCapture();
             });
             item(column,"REMOVE A BINDING",()->{close.run();removeBinding();});
@@ -309,6 +345,7 @@ final class BrowserBindings {
             .create();
         holder[0].setOnDismissListener(d->dialogOpen=false);
         holder[0].show();
+        if(preferred[0]!=null)preferred[0].requestFocus();
     }
     private void createSet(){
         if(sets.size()>=MAX_SETS){
