@@ -1,3 +1,5 @@
+> **Current architecture:** [Console consolidation, Compute and native app modes](CONSOLE_COMPUTE_AND_APPS.md). Normal independent Android TV APKs require neither this repository-local manifest nor an AppOS SDK. The manifest described here is *optional*, for reviewed apps built in this repository. Remote input normalization is [an opt-in library](../AppOS/Remote/README.md).
+
 # Fire AppOS v1 — faithful Manifold Console adaptation
 
 ## Investigated source architecture
