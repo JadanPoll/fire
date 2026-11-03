@@ -43,6 +43,7 @@ class Executor:
         self.lock = threading.Lock()
         self.jobs = {}
         self.active = None
+        self.latest = None
 
     def submit(self, prompt):
         if not isinstance(prompt, str) or not 0 < len(prompt.strip()) <= PROMPT_LIMIT:
@@ -55,6 +56,11 @@ class Executor:
                        updatedAt=int(time.time()), output="", cancel=False, process=None)
             self.jobs[job_id] = job
             self.active = job_id
+            self.latest = job_id
+            if len(self.jobs) > 50:
+                for old in list(self.jobs)[:-50]:
+                    if old != self.active:
+                        del self.jobs[old]
         threading.Thread(target=self._run, args=(job_id, prompt), daemon=True).start()
         return self.read(job_id)
 
@@ -64,6 +70,11 @@ class Executor:
             if job is None:
                 return None
             return {key: job[key] for key in ("id", "state", "message", "updatedAt", "output")}
+
+    def read_latest(self):
+        with self.lock:
+            job = self.jobs.get(self.latest)
+            return self.read_terminal(job) if job else None
 
     def cancel(self, job_id):
         with self.lock:
@@ -90,7 +101,7 @@ class Executor:
         env.pop("FIRE_CODEX_BIND", None)
         # No arbitrary shell string, cwd, binary, approvals, or model is supplied
         # by the TV. The host operator chooses this repository at startup.
-        argv = [self.codex, "exec", "--json", "--sandbox", "workspace-write",
+        argv = [self.codex, "--ask-for-approval", "never", "exec", "--json", "--sandbox", "workspace-write",
                 "--skip-git-repo-check", prompt]
         proc = None
         output = ""
@@ -200,9 +211,12 @@ def make_handler(executor, secret):
 
         def do_GET(self):
             if not self.authorized(): return
-            job_id = self.route_id()
-            job = executor.read(job_id) if job_id else None
-            self.reply(200, job) if job else self.reply(404, {"error": "Unknown job (executor may have restarted)"})
+            if self.path == "/v1/jobs/latest":
+                job = executor.read_latest()
+            else:
+                job_id = self.route_id()
+                job = executor.read(job_id) if job_id else None
+            self.reply(200, job) if job else self.reply(404, {"error": "No known job (executor may have restarted)"})
 
         def do_POST(self):
             if not self.authorized(): return
