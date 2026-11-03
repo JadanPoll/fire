@@ -1,35 +1,40 @@
-# Independent application authoring — Fire AppOS v1
+# Agent app integration — minimum viable contract
 
-Read `docs/FIRE_APPOS.md` and `Applications/SignalStudio/appos.json`
-before changing any app packaging or lifecycle behavior.
+**Do not start by studying Fire Console internals.** Build the most natural
+Android TV application for the task. An independent agent can work in another
+repository and deliver an ordinary installable APK.
 
-Prefer normal platform-native projects. **Do not import Fire Console's
-Activity classes** or require an in-process plugin interface. Every app
-has a stable Android package identity and its own source directory.
+## Native pass-through (default)
 
-Your app provides:
-- `appos.json` with a v1, validated identity, launcher and capabilities
-- Android TV `MAIN` + `LEANBACK_LAUNCHER` Activity, independently installable
-- narrow deterministic tests and a D-pad / Back physical acceptance sequence
-- build output and exact release-asset name, with SHA-256 and source revision
+- Declare a `MAIN` + `LEANBACK_LAUNCHER` Activity and normal app icon.
+- Use your preferred engine: Java/Kotlin, Android GameActivity/NDK C/C++,
+  Unity, Godot, libretro, or Android-compatible native software.
+- Handle input/rendering/audio/storage **directly** through Android.
+- Ship a signed APK through the usual Android installation process.
+- Fire Console's Apps page discovers the APK from the OS registry—no Fire
+  Console source modification and **no mandatory AppOS manifest or SDK**.
 
-Apps may use Java, Kotlin, C/C++ through the NDK, or other Android-compatible
-engines, provided the resulting Android TV package meets this contract.
+## Remote adapter (only if needed)
 
-Capability declarations **do not grant rights**. Use Android permissions and
-the user's explicit consent; do not add a shell command, ADB endpoint,
-arbitrary remote execution, global key remapping or automatic downloads to
-the manifest. Treat external agent output as untrusted until reviewed.
+The optional `AppOS/Remote` module normalizes Fire remote KeyEvents inside
+your own app. Use it if you need stable D-pad/OK/long-OK controls instead of
+duplicating Fire-specific input work. See
+[`AppOS/Remote/README.md`](../AppOS/Remote/README.md) and
+`Applications/SignalStudio/SignalActivity.java` for the exact wiring.
+If your engine already handles Fire input, don't add the adapter.
 
-`tools/check_appos_contract.py --json` gives a small, inspectable AppOS
-discovery index without importing or executing application code. Do not
-send the entire repository to an agent when its scope is one capability.
+## Optional repository-local publishing
 
-Prefer direct Lib-style calls for cheap work. Consider Switchboard-like
-shared ownership only for demonstrably expensive or exclusive resources.
-Latent-like resource enforcement needs actual OS facilities and independent
-evidence, not a declarative flag.
+Apps maintained in this repo can provide `appos.json` plus a reviewed
+Gradle module and CI release asset. `tools/check_appos_contract.py --json`
+validates those *curated* apps. This schema is not a universal ABI and
+does not authorize any capability or permission.
 
-No app may hold Home/Back, the on-screen keyboard, browser state or
-installer hostage. Preserve user exit paths and saved data. If you need
-changes outside your app directory, state precisely why.
+When adding an app, keep it in its own source boundary, test the cheapest
+realistic flow, preserve Back/Home exits, and avoid requesting privileges
+unrelated to its purpose. Explain any change outside the app's directory.
+
+**Stopping point:** a new agent-created APK can be installed, found in
+Apps and launched on TV; normalized input works if explicitly opted in.
+Do not add a daemon, broker, custom launcher or generic cross-app service
+before a demonstrable workload needs one.

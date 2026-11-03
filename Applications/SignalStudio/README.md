@@ -8,7 +8,7 @@ vocabulary. It does **not** import Manifold's Python/Tk GUI or run an agent.
 - `appos.json`: identity, Android launcher and capability *declarations*
 - `src/main/assets/example.recipe.json`: constrained, nonexecutable recipe
 - `SignalMath.java`: pure signal algorithm
-- `SignalActivity.java`: TV-oriented native UI and D-pad input
+- `SignalActivity.java`: TV-oriented UI using the **optional shared Remote Adapter** instead of hand-written Fire key timing
 - `src/test`: deterministic reference and invalid-workload tests
 
 ## Interaction
@@ -26,7 +26,7 @@ From the repository root, with Android SDK and Gradle installed:
 
 ```sh
 python3 tools/check_appos_contract.py
-gradle :signalstudio:testReleaseUnitTest :signalstudio:assembleRelease
+gradle :remoteinput:testReleaseUnitTest :signalstudio:testReleaseUnitTest :signalstudio:assembleRelease
 ```
 
 GitHub Actions builds `firetv-signal-studio.apk`, produces a SHA-256 in the
@@ -39,7 +39,7 @@ registry. Fire Console's Java implementation need not change.
 
 Successful compilation proves that the APK builds, not that its focus,
 frame timing, button mapping or redraw are verified on physical Fire OS.
-The app has its **own Android UID and data directory**; the v1 manifest
+This reference opts into the shared input library, but other native Android TV apps need not. The app has its **own Android UID and data directory**; the v1 manifest
 doesn't grant or enforce privileges. All APKs use the current lab signing
 identity, which is public and unsuitable for production trust.
 

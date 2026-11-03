@@ -1,10 +1,10 @@
-# Fire Console — paired Codex executor and hidden terminal
+# Compute — trusted Codex executor and optional local terminal
 
 ## What this actually does
 
-The **Codex** channel can now submit a prompt to a user-operated remote executor running the official Codex CLI. This is a real `codex exec` invocation on a trusted computer, not a fake hosted chat UI and not local native Codex execution on the Fire TV. The Fire TV only displays progress and final agent text, and offers refresh/cancel/recover. Source edits occur in the remote workspace.
+The **Compute** channel can submit a prompt to a user-operated remote executor running the official Codex CLI. This is a real `codex exec` invocation on a trusted computer, not a fake hosted chat UI and not local native Codex execution on the Fire TV. The Fire TV only displays progress and final agent text, and offers refresh/cancel/recover. Source edits occur in the remote workspace.
 
-**Hidden local terminal:** Focus the **Codex** tile on Fire Console and *long-press OK* to open a terminal using Fire Console's existing Android app UID. A visible fallback is **Codex → OPEN LOCAL TERMINAL (APP SANDBOX)** if Fire OS does not deliver a long click. This terminal runs `/system/bin/sh -c`, without root, ADB, Termux integration, remote shell or shared user-space packages. It has an explicit Run button, Stop, Copy, a per-command 15-second limit and a 24 KB output limit. App-private working directory starts at `files/workspace`.
+**Local terminal:** Open **Tools → LOCAL TERMINAL**, or Compute → **ADVANCED / DIAGNOSTICS → LOCAL TERMINAL**. The old hidden long-OK launcher shortcut was removed to avoid accidental invocation and keep Compute focused on remote work. This terminal runs `/system/bin/sh -c`, without root, ADB, Termux integration, remote shell or shared user-space packages. It has an explicit Run button, Stop, Copy, a per-command 15-second limit and a 24 KB output limit. App-private working directory starts at `files/workspace`.
 
 The terminal is **not a security sandbox against the user**; a shell can operate with the permissions of this app, including its storage. It is deliberately not exported via Android intents or connected to the network. This is an advanced local feature for the device owner, not the mechanism used to accept remote tasks.
 

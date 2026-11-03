@@ -10,16 +10,17 @@ existing independent apps:
 
 | Channel | Actual destination | Preserved existing work |
 | --- | --- | --- |
-| Inbox | Fire Browser opening the deployed Fire Inbox URL | Browser cookies, note posting |
-| Browser | `dev.jadan.fire.browser` | WebView session, tabs/history/recovery, updates |
-| Playroom | `GameShelfActivity`, user-pinned HTTPS game URLs | Browser runs the existing game, including its audio |
-| Codex | `CodexDeskActivity` | Native prompt and Codex/Silk handoffs |
-| Canvas | `dev.jadan.fire.canvas` | Entire drawing app and its data |
-| Voice | `VoiceProbeActivity` | Existing audio/speech service probe + non-destructive IME test |
-| Apps | `AppLibraryActivity` | Real installed Leanback app registry, native icons |
-| Tools | Original `MainActivity` | Dev Bridge, App Catalog, input lab, verified updates |
+| Inbox | Fire Browser / deployed Fire Inbox | Browser cookies and notes |
+| Browser | `dev.jadan.fire.browser` | Browser history, sessions, input mapping |
+| Playroom | `GameShelfActivity` / GBA room | Pinned HTTPS games, native game integrations |
+| Compute | `CodexDeskActivity` in streamlined mode | Trusted Codex executor and Cloud fallback |
+| Apps | `AppLibraryActivity` | Normal independent Android TV launcher registry, including Canvas |
+| Tools | `MainActivity` | App Catalog, terminal, Voice, Input Lab and legacy browser lab |
 
-**No packages were merged or deleted.** Package and signing identities are
+**No installed app packages were merged or deleted.** The redundant Dev Bridge
+updater and second key logger were removed from source in the Console v2
+consolidation; Catalog and Input Lab retain the underlying user workflows.
+Package and signing identities are
 unchanged. Updating `firetv-dev-bridge.apk` in place preserves the Dev
 Bridge's existing app data. The separate Fire Browser still needs its own
 updated `firetv-browser.apk` for Browser → MORE → Pin webpage to Playroom.
@@ -134,7 +135,7 @@ guarantee behavior of every Fire OS keyboard.
 
 ### Physical Fire TV acceptance sequence
 
-1. Open Home → Codex (long OK), or Codex → Open Local Terminal.
+1. Open Home → Tools → LOCAL TERMINAL.
    The terminal must show **TYPE** focus and **no keyboard**.
 2. Move focus across TYPE/RUN/HIDE/STOP/COPY using D-pad; confirm
    focus is visible and output remains in the lower panel.
@@ -164,7 +165,7 @@ python tools/firetv_test.py --serial TV_IP:5555 voice
 python tools/firetv_test.py --serial TV_IP:5555 inbox
 ```
 
-Then navigate through all eight channels using only D-pad/OK/Back, confirm
+Then navigate through all six Home channels using only D-pad/OK/Back, confirm
 installed-app icons and real Playroom game playback/audio, pin/unpin a test
 HTTPS game URL, test Fire OS keyboard dictation in Voice, try a safe reconnect,
 and return to Browser without losing cookies or input state. The screenshots
