@@ -107,6 +107,9 @@ public final class BrowserActivity extends Activity {
     private String lastRawEnter="none";
     private FrameLayout viewport;
     private View cursor;
+    private LinearLayout gameKeysPanel;
+    private final java.util.LinkedHashMap<View,Integer> gameKeys=new java.util.LinkedHashMap<>();
+    private boolean gameKeysVisible;
     private TextView status;
     private EditText address, draft;
     private boolean pointerMode;
@@ -203,6 +206,7 @@ public final class BrowserActivity extends Activity {
                 }
                 else if(pointerMode)v.post(()->emitWebHover(true));
                 updateCursorVisual();
+                updateGameKeys();
             }
             return insets; // Never consume insets from the WebView.
         });
@@ -226,6 +230,7 @@ public final class BrowserActivity extends Activity {
         button(line,"MENU",this::toggleTools);
         pointerButton=button(line,"CURSOR",this::togglePointer);
         button(line,"SETS",()->{if(bindings!=null)bindings.showWheel();});
+        button(line,"KEYS",this::toggleGameKeys);
         // Float over the page instead of resizing WebView every time the menu opens.
         toolsPanel=new LinearLayout(this);
         toolsPanel.setOrientation(LinearLayout.HORIZONTAL);
@@ -271,6 +276,7 @@ public final class BrowserActivity extends Activity {
         viewport=new FrameLayout(this);
         root.addView(viewport,new LinearLayout.LayoutParams(-1,0,1));
         createWebView();
+        createGameKeysPalette();
         cursor=new View(this){
             final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override protected void onDraw(Canvas c) {
@@ -973,6 +979,10 @@ public final class BrowserActivity extends Activity {
      */
     private void deliverMappedTouch(BrowserBindings.Target target){
         if(!browserForeground || imeVisible || screen==null || web==null)return;
+        if(target.isVirtualKey()){
+            sendGameKey(target.virtualKey);
+            return;
+        }
         View receiver=target.web?web:screen;
         if(receiver.getWidth()<2||receiver.getHeight()<2 ||
            !receiver.isAttachedToWindow())return;
@@ -998,6 +1008,88 @@ public final class BrowserActivity extends Activity {
             down.recycle();up.recycle();
         }
     }
+    /**
+     * A browser-owned virtual game pad. Amazon's separate system IME is not
+     * part of the Activity's view tree and cannot be clicked this way.
+     * Native buttons intentionally stay available to ordinary pointer taps.
+     */
+    private void createGameKeysPalette(){
+        gameKeysPanel=new LinearLayout(this);
+        gameKeysPanel.setOrientation(LinearLayout.HORIZONTAL);
+        gameKeysPanel.setBackgroundColor(0xEE16364F);
+        gameKeysPanel.setPadding(dp(6),dp(5),dp(6),dp(5));
+        gameKeysPanel.setVisibility(View.GONE);
+        final int[] keys={
+            KeyEvent.KEYCODE_DPAD_LEFT,KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN,KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_SPACE,KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_A,KeyEvent.KEYCODE_B,KeyEvent.KEYCODE_W,
+            KeyEvent.KEYCODE_S,KeyEvent.KEYCODE_D,KeyEvent.KEYCODE_ESCAPE
+        };
+        final String[] labels={"←","↑","↓","→","SPACE","ENTER","A","B","W","S","D","ESC"};
+        for(int i=0;i<keys.length;i++){
+            final int code=keys[i];
+            Button button=new Button(this);
+            button.setAllCaps(false);
+            button.setText(labels[i]);
+            button.setTextSize(12);
+            button.setTextColor(0xFFFFFFFF);
+            button.setMinHeight(dp(46));
+            button.setBackgroundColor(0xFF225F86);
+            button.setOnFocusChangeListener((v,focus)->
+                button.setBackgroundColor(focus?0xFF1298C8:0xFF225F86));
+            button.setOnClickListener(v->sendGameKey(code));
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,dp(50),1);
+            params.rightMargin=dp(2);
+            gameKeysPanel.addView(button,params);
+            gameKeys.put(button,code);
+        }
+        FrameLayout.LayoutParams layout=new FrameLayout.LayoutParams(-1,dp(60),Gravity.BOTTOM);
+        layout.bottomMargin=dp(30); // Keep native status diagnostics visible.
+        screen.addView(gameKeysPanel,layout);
+    }
+    private void toggleGameKeys(){
+        gameKeysVisible=!gameKeysVisible;
+        updateGameKeys();
+        if(status!=null)status.setText(gameKeysVisible?
+            "GAME KEYS visible. CURSOR to tap; BIND cursor can assign remote keys. KEYS hides overlay.":
+            "Game key palette hidden. Saved key bindings still work without the overlay.");
+    }
+    private void updateGameKeys(){
+        if(gameKeysPanel==null)return;
+        int desired=gameKeysVisible&&!imeVisible?View.VISIBLE:View.GONE;
+        if(gameKeysPanel.getVisibility()!=desired)gameKeysPanel.setVisibility(desired);
+    }
+    private int gameKeyAt(float screenX,float screenY){
+        if(gameKeysPanel==null||gameKeysPanel.getVisibility()!=View.VISIBLE)return -1;
+        int[] screenLoc=new int[2];screen.getLocationOnScreen(screenLoc);
+        for(java.util.Map.Entry<View,Integer> e:gameKeys.entrySet()){
+            View view=e.getKey();
+            if(!view.isShown()||view.getWidth()==0||view.getHeight()==0)continue;
+            int[] loc=new int[2];view.getLocationOnScreen(loc);
+            float left=loc[0]-screenLoc[0],top=loc[1]-screenLoc[1];
+            if(screenX>=left&&screenX<left+view.getWidth()&&
+               screenY>=top&&screenY<top+view.getHeight())return e.getValue();
+        }
+        return -1;
+    }
+    private void sendGameKey(int code){
+        if(!browserForeground||imeVisible||web==null||!web.isAttachedToWindow()||
+            !BrowserBindings.allowedVirtualKey(code))return;
+        // A native KeyEvent path, not a privileged system input injection
+        // and not site-specific JavaScript. Some games/WebViews may decline
+        // these events, so test on the actual Fire OS renderer.
+        web.requestFocus();
+        long now=SystemClock.uptimeMillis();
+        KeyEvent down=new KeyEvent(now,now,KeyEvent.ACTION_DOWN,code,0,
+            0,KeyCharacterMap.VIRTUAL_KEYBOARD,0,0,InputDevice.SOURCE_KEYBOARD);
+        KeyEvent up=new KeyEvent(now,now+40,KeyEvent.ACTION_UP,code,0,
+            0,KeyCharacterMap.VIRTUAL_KEYBOARD,0,0,InputDevice.SOURCE_KEYBOARD);
+        web.dispatchKeyEvent(down);
+        web.dispatchKeyEvent(up);
+        lastPointerEvent="native game key "+KeyEvent.keyCodeToString(code);
+    }
+
     private static final String WEB_EDITOR_CHECK =
         "(function(){var e=document.activeElement;if(!e)return 'NONE';"+
         "var c=document.querySelector('#prompt-textarea,[contenteditable=\"true\"].ProseMirror');"+
@@ -1012,6 +1104,11 @@ public final class BrowserActivity extends Activity {
         stopMotion();
         if(bindings!=null && bindings.captureMode()){
             float px=x*screen.getWidth(),py=y*screen.getHeight();
+            int gameKey=gameKeyAt(px,py);
+            if(gameKey>=0){
+                bindings.captureTarget(new BrowserBindings.Target(gameKey));
+                return; // app-owned game-key buttons are bindable without firing
+            }
             int[] screenLocation=new int[2],webLocation=new int[2];
             screen.getLocationOnScreen(screenLocation);
             web.getLocationOnScreen(webLocation);
@@ -1595,6 +1692,10 @@ public final class BrowserActivity extends Activity {
             sb.append("Cookie lookup: unavailable").append('\n');
         }
         sb.append("Last web IME submit: ").append(lastWebImeAction).append('\n');
+        sb.append("Control bindings: ").append(bindings==null?"unavailable":
+          bindings.activeMode()?"ACTIVE "+bindings.selectedLabel():
+          bindings.captureMode()?"CAPTURE "+bindings.selectedLabel():"OFF").append('\n');
+        sb.append("Game-key overlay: ").append(gameKeysVisible).append('\n');
         sb.append("Media-button shortcuts: ").append(remoteMediaShortcuts).append('\n');
         sb.append("Media session active: ").append(pointerMediaSession!=null && pointerMediaSession.isActive()).append('\n');
         sb.append("Last media delivery: ").append(lastMediaDelivery).append('\n');
