@@ -9,3 +9,7 @@ rootProject.name = 'FireTVDevBridge'
 include ':app'
 include ':canvas'
 include ':browser'
+
+// AppOS reference app: independent APK, never linked into Fire Console.
+include ':signalstudio'
+project(':signalstudio').projectDir = file('Applications/SignalStudio')

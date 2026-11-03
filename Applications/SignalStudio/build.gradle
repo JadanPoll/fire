@@ -1,0 +1,31 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'dev.jadan.fire.signalstudio'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'dev.jadan.fire.signalstudio'
+        minSdk 28
+        targetSdk 28
+        versionCode = Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName = '0.1.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+    }
+    lint { disable 'ExpiredTargetSdkVersion' }
+    signingConfigs {
+        lab {
+            storeFile file('../../signing/lab.keystore')
+            storePassword 'firetvlab'
+            keyAlias 'lab'
+            keyPassword 'firetvlab'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.lab }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies { testImplementation 'junit:junit:4.13.2' }

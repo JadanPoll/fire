@@ -2,6 +2,24 @@
 
 Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 9 / API 28)**. This project is independently versioned from Manifold Console.
 
+## Independent Fire AppOS applications (Manifold-derived)
+
+Fire Console now includes an **independently packaged Signal Studio** reference
+under `Applications/SignalStudio/`. It uses the Manifold Console
+`appos.json` principle, an explicit capabilities registry and a validated
+offline Playroom recipe. No new in-process SDK, agent daemon or arbitrary
+shell is required. The Android package is signed and published separately,
+then discovered by the existing Apps / Catalog UI.
+
+- [Fire AppOS architecture and stopping criteria](docs/FIRE_APPOS.md)
+- [Agent authoring rules](Applications/AGENTS.md)
+- [Signal Studio native reference](Applications/SignalStudio/README.md)
+- [Discover capabilities without executing apps](tools/check_appos_contract.py)
+
+These are **development contracts**, not verified sandboxing or production
+signing. The current public lab signing key must not be treated as a trust
+anchor for privileged autonomous agents.
+
 ## Fire Console — current launcher
 
 The existing `firetv-dev-bridge.apk` package now opens a **native channel home**

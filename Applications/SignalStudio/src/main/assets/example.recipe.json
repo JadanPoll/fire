@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "waveform": "triangle",
+  "frequency": 0.7,
+  "gain": 1,
+  "smoothing": 0.35
+}
