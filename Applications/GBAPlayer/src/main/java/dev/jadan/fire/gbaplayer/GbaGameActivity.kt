@@ -66,7 +66,7 @@ class GbaGameActivity : ComponentActivity() {
         }
         val dir=File(filesDir,"roms")
         val game=File(dir,name)
-        if(!game.isFile || game.length() !in 192..MAX_ROM ||
+        if(!game.isFile || game.length() !in 192L..MAX_ROM ||
             game.canonicalFile.parentFile!=dir.canonicalFile){
             showFailure("Selected game file is missing or outside the private ROM library.");return
         }
