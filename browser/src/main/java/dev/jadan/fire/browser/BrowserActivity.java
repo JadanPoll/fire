@@ -1251,6 +1251,16 @@ public final class BrowserActivity extends Activity {
      * using its own browser cookies, CSRF/nonce and POST route.
      * Only a response redirect containing posted=1 confirms persistence.
      */
+    /**
+     * Prefer the Site's ordinary same-origin HTTP endpoint for brief messages.
+     *
+     * fetch() runs inside the *existing signed-in WebView*; it reuses the
+     * browser's site cookies, requiring no second authentication setup.
+     * Receipt MUST match the idempotency ID before the draft is cleared.
+     * A 404/405/414 is a definite unsupported route, so the original
+     * working HTML form can safely handle that request instead.
+     * Any other ambiguous result is NOT retried: server may have saved it.
+     */
     private void postInboxDraft(){
         if(web==null)return;
         String value=draft.getText().toString();
@@ -1261,7 +1271,7 @@ public final class BrowserActivity extends Activity {
             status.setText("Fire Inbox accepts at most 12,000 characters per note.");return;
         }
         long now=SystemClock.uptimeMillis();
-        if(lastSend!=0 && now-lastSend<1200){
+        if(lastSend!=0&&now-lastSend<1200){
             status.setText("Post already requested. Check the inbox before retrying.");return;
         }
         lastSend=now;
@@ -1269,7 +1279,50 @@ public final class BrowserActivity extends Activity {
         final WebView target=web;
         InputMethodManager imm=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
         if(imm!=null)imm.hideSoftInputFromWindow(draft.getWindowToken(),0);
-        status.setText("Submitting note to Fire Inbox…");
+
+        // GET query parameters can be logged by proxies and URL size is
+        // bounded. Longer/sensitive messages use the existing POST form.
+        if(value.length()>1200){
+            submitInboxForm(target,value);return;
+        }
+        final String requestId=java.util.UUID.randomUUID().toString();
+        status.setText("Submitting via Inbox HTTP endpoint…");
+        final String js="(function(){"+
+            "var id="+JSONObject.quote(requestId)+";"+
+            "if(location.origin!=='https://fire-inbox-jadan.brinyduck2.chatgpt.site')return 'UNAVAILABLE';"+
+            "var url='/api/send?q='+encodeURIComponent("+JSONObject.quote(value)+")+'&id='+encodeURIComponent(id);"+
+            "return fetch(url,{method:'GET',credentials:'same-origin',cache:'no-store'}).then(function(r){"+
+            "if(r.status===404||r.status===405||r.status===414)return 'UNAVAILABLE';"+
+            "if(!r.ok)return 'UNKNOWN_HTTP_'+r.status;"+
+            "return r.text().then(function(body){"+
+            "try{var o=JSON.parse(body);var m=o.message||o;"+
+            "var confirmed=o.ok===true||o.saved===true||o.success===true||o.posted===true||o.status==='ok';"+
+            "if(confirmed && (m.id===id||o.id===id))return 'CONFIRMED';"+
+            "}catch(e){}return 'UNKNOWN_RECEIPT';});"+
+            "}).catch(function(){return 'UNKNOWN_NETWORK';});"+
+            "})()";
+        target.evaluateJavascript(js,result->{
+            if(web!=target)return;
+            if("\"UNAVAILABLE\"".equals(result)){
+                status.setText("Inbox HTTP route unavailable. Using existing signed-in form.");
+                submitInboxForm(target,value);
+            }else if("\"CONFIRMED\"".equals(result)){
+                if(value.equals(draft.getText().toString()))draft.setText("");
+                pendingInboxText=null;
+                status.setText("Inbox confirmed message "+requestId+" was saved.");
+            }else{
+                pendingInboxText=null;
+                status.setText("Inbox result uncertain ("+String.valueOf(result)+
+                    "). Check Inbox before trying again; request ID "+requestId+". Draft retained.");
+            }
+        });
+    }
+
+    /** Old HTML POST remains a compatibility fallback, never an automatic
+     * retry after an uncertain write. Existing posted=1 receipt is preserved. */
+    private void submitInboxForm(WebView target,String value){
+        if(web!=target)return;
+        status.setText("Submitting with signed-in Inbox form…");
         String js="(function(){"+
             "var f=document.querySelector('form[action=\"/api/messages\"]');"+
             "var input=f&&f.querySelector('textarea[name=\"message\"]');"+
@@ -1283,9 +1336,9 @@ public final class BrowserActivity extends Activity {
             if(web!=target)return;
             if(result!=null && result.contains("NOT_SIGNED_IN_OR_FORM_MISSING")){
                 pendingInboxText=null;
-                status.setText("Inbox form not available. Sign in to the Site or reload, then retry.");
+                status.setText("Inbox form unavailable. Sign in or reload, then retry.");
             }
-            // A started POST is NOT proof it was stored. Wait for posted=1.
+            // POST_STARTED is not a receipt: wait for redirected posted=1.
         });
     }
     private void sendDraft(){
