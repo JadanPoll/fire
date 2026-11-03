@@ -6,7 +6,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.os.Bundle;
-import android.os.SystemClock;
+import dev.jadan.fire.remote.TvRemoteAdapter;
+import dev.jadan.fire.remote.RemotePolicy;
 import android.view.KeyEvent;
 import android.view.View;
 import org.json.JSONObject;
@@ -24,9 +25,26 @@ public final class SignalActivity extends Activity {
     private String wave="triangle", message="Ready · offline synthetic capability";
     private double hz=.7, gain=1.0, smoothing=.35;
     private int selected=0;
-    private long lastDirection;
     private double[] trace;
     private SignalView surface;
+    // Reusable platform adapter: this independent APK declares semantic
+    // controls rather than debugging Fire remote behavior itself.
+    private final TvRemoteAdapter remote=new TvRemoteAdapter((action,phase)->{
+        if(phase!=RemotePolicy.Phase.DOWN &&
+           phase!=RemotePolicy.Phase.REPEAT &&
+           phase!=RemotePolicy.Phase.ACTIVATE)return;
+        switch(action){
+            case UP:selected=(selected+3)%4;break;
+            case DOWN:selected=(selected+1)%4;break;
+            case LEFT:change(false);break;
+            case RIGHT:change(true);break;
+            case PRIMARY:resetSelected();break;
+            case SECONDARY:
+                if(phase==RemotePolicy.Phase.ACTIVATE)resetSelected();
+                break;
+        }
+        if(surface!=null)surface.invalidate();
+    });
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -107,25 +125,13 @@ public final class SignalActivity extends Activity {
         }
         rebuild();message="Selected parameter reset";surface.invalidate();
     }
-    @Override public boolean onKeyDown(int key,KeyEvent ev){
-        if(key==KeyEvent.KEYCODE_BACK)return super.onKeyDown(key,ev);
-        if(key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER||
-           key==KeyEvent.KEYCODE_BUTTON_A){
-            if(ev.getRepeatCount()==0)resetSelected();
-            return true;
-        }
-        if(key!=KeyEvent.KEYCODE_DPAD_UP&&key!=KeyEvent.KEYCODE_DPAD_DOWN&&
-           key!=KeyEvent.KEYCODE_DPAD_LEFT&&key!=KeyEvent.KEYCODE_DPAD_RIGHT)
-            return super.onKeyDown(key,ev);
-        long now=SystemClock.uptimeMillis();
-        if(ev.getRepeatCount()>0&&now-lastDirection<95)return true;
-        lastDirection=now;
-        if(key==KeyEvent.KEYCODE_DPAD_UP)selected=(selected+3)%4;
-        if(key==KeyEvent.KEYCODE_DPAD_DOWN)selected=(selected+1)%4;
-        if(key==KeyEvent.KEYCODE_DPAD_LEFT)change(false);
-        if(key==KeyEvent.KEYCODE_DPAD_RIGHT)change(true);
-        surface.invalidate();
-        return true;
+    @Override public boolean dispatchKeyEvent(KeyEvent event){
+        if(remote.dispatch(event))return true;
+        return super.dispatchKeyEvent(event);
+    }
+    @Override protected void onPause(){
+        remote.reset();
+        super.onPause();
     }
     @Override protected void onSaveInstanceState(Bundle state){
         state.putString("wave",wave);state.putDouble("hz",hz);
