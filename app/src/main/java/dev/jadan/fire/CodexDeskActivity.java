@@ -56,6 +56,12 @@ public final class CodexDeskActivity extends Activity {
     private static final String CODEX_URL = "https://chatgpt.com/codex";
     private static final String CHAT_URL = "https://chatgpt.com/";
     private static final String SILK_PACKAGE = "com.amazon.cloud9";
+    // Process-local only: return from Browser/Playroom without retyping the
+    // trusted host's token. Never write it to SharedPreferences or Bundle.
+    // Process death clears this session; FORGET PAIRING clears it earlier.
+    private static final class LivePairing {
+        private static String token="";
+    }
     private LinearLayout pairingPanel;
     private Button connectButton;
     private android.content.SharedPreferences computePrefs;
@@ -111,7 +117,7 @@ public final class CodexDeskActivity extends Activity {
 
         LinearLayout actions=TvUi.actionRow(this,root);
         TvUi.actionInRow(this,actions,"RUN ON PAIRED HOST",()->remoteAction("submit"));
-        TvUi.actionInRow(this,actions,"OPEN CODEX CLOUD",this::openCodexCloud);
+        TvUi.actionInRow(this,actions,"COPY DRAFT + CODEX",this::openCodexCloud);
 
         remoteStatus=label("No remote job active. Connect a trusted host or use Codex Cloud.",16,TvUi.SUB);
         remoteStatus.setTextIsSelectable(true);
@@ -142,9 +148,13 @@ public final class CodexDeskActivity extends Activity {
             jobId=computePrefs.getString("job_id",null);
         }
         executorUrl.setText(computePrefs.getString("host_origin",""));
-        // The pairing credential remains session-only: this lab APK's
+        pairingToken.setText(LivePairing.token);
+        // The pairing credential remains process-memory only: the lab APK
         // signing key is public and must not persist a bearer token.
-        if(jobId!=null)remoteStatus.setText("Previous job "+jobId+" · Connect host to refresh, or use Recover.");
+        if(jobId!=null)remoteStatus.setText("Previous job "+jobId+
+            " · "+(pairingToken.length()>0?"Select REFRESH / RECOVER.":"Connect host to refresh."));
+        else if(pairingToken.length()>0)remoteStatus.setText(
+            "Previous pairing restored in this running Console process.");
         connectButton.requestFocus();
     }
 
@@ -200,6 +210,7 @@ public final class CodexDeskActivity extends Activity {
     }
     private void forgetPairing(){
         pairingToken.setText("");
+        LivePairing.token="";
         executorUrl.setText("");
         jobId=null;
         computePrefs.edit().remove("host_origin").remove("job_id").apply();
@@ -301,11 +312,13 @@ public final class CodexDeskActivity extends Activity {
                     remoteStatus.setText("Host connected · Protocol "+result.optInt("protocol",-1)+
                         " · "+result.optString("executor","unknown"));
                     rememberHost();
+                    LivePairing.token=pairingToken.getText().toString();
                     return;
                 }
                 if("submit".equals(action)||"recover".equals(action)){
                     jobId=result.optString("id",null);
                     rememberHost();
+                    LivePairing.token=pairingToken.getText().toString();
                     computePrefs.edit().putString("job_id",jobId).apply();
                 }
                 String state=result.optString("state","unknown");
@@ -332,6 +345,8 @@ public final class CodexDeskActivity extends Activity {
         remoteClock.removeCallbacks(remoteTick);
         if(computePrefs!=null && prompt!=null)
             computePrefs.edit().putString("draft",prompt.getText().toString()).apply();
+        if(pairingToken!=null)LivePairing.token=pairingToken.getText().toString();
+        if(prompt!=null)prompt.setShowSoftInputOnFocus(false);
         super.onPause();
     }
     @Override protected void onResume(){
