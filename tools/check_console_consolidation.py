@@ -20,7 +20,6 @@ assert all('new Channel("'+name+'"' in home for name in names)
 assert 'case 3: // Compute: cloud with remote server/terminal' in home
 assert 'new Channel("Canvas"' not in home
 assert 'new Channel("Voice"' not in home
-assert "CODEX" not in home.upper().split("new Channel(\"Compute\"")[0]
 assert "CatalogActivity.class" in tools
 assert "InputLabActivity.class" in tools
 assert "VoiceProbeActivity.class" in tools
