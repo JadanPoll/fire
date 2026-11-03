@@ -16,6 +16,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.graphics.Canvas;
+import android.view.Choreographer;
+import android.view.Gravity;
+import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputConnectionWrapper;
 
 import android.graphics.Paint;
 import android.os.Build;
@@ -57,6 +61,10 @@ public final class BrowserActivity extends Activity {
     private long lastSend;
     private int heldKey = -1;
     private long heldSince, lastMove;
+    private long lastFrameNs;
+    private boolean frameScheduled;
+    private long lastWebImeSubmitAt;
+    private String lastWebImeAction="none";
     private int rendererRecoveries;
     private int lastProgress=-1;
     private long lastProgressAt, pageStartedAt, lastLoadMillis;
@@ -64,15 +72,19 @@ public final class BrowserActivity extends Activity {
     private boolean devtoolsEnabled;
     private boolean remoteMediaShortcuts;
     private String lastRecordedUrl="";
-    private final Runnable pointerTick = new Runnable() {
-        @Override public void run() {
-            if(!pointerMode || heldKey < 0 || cursor == null) return;
-            long now=SystemClock.uptimeMillis();
-            long dt=Math.min(45,Math.max(0,now-lastMove));
-            lastMove=now;
-            if(now-heldSince >= 190) moveCursor(heldKey, dp(350)*dt/1000f);
-            cursor.postOnAnimation(this);
+    // Comet/TV Bro principle: a tiny precise initial nudge, followed by
+    // frame-timed acceleration rather than an OS key-repeat-sized jump.
+    private final Choreographer.FrameCallback pointerFrame = frameNs -> {
+        frameScheduled=false;
+        if(!pointerMode || heldKey<0 || cursor==null)return;
+        if(lastFrameNs>0){
+            float dt=Math.max(0f,Math.min(.05f,(frameNs-lastFrameNs)/1000000000f));
+            float age=Math.max(0f,(SystemClock.uptimeMillis()-heldSince)/1000f);
+            float speed=Math.min(560f,75f+600f*age);
+            moveCursor(heldKey,dpFloat(speed)*dt);
         }
+        lastFrameNs=frameNs;
+        schedulePointerFrame();
     };
     private static final String PROBE = "https://fire-input-test.invalid/";
     private WebView web;
@@ -120,36 +132,24 @@ public final class BrowserActivity extends Activity {
             return false;
         });
         line.addView(address,new LinearLayout.LayoutParams(0,dp(42),1));
-        button(line,"GO / SEARCH",this::goAddress);
+        button(line,"GO",this::goAddress);
+        button(line,"MENU",this::toggleTools);
+        button(line,"CURSOR",this::togglePointer);
+        // Float over the page instead of resizing WebView every time the menu opens.
         toolsPanel=new LinearLayout(this);
-        toolsPanel.setOrientation(LinearLayout.VERTICAL);
-        root.addView(toolsPanel,new LinearLayout.LayoutParams(-1,-2));
+        toolsPanel.setOrientation(LinearLayout.HORIZONTAL);
+        toolsPanel.setBackgroundColor(0xFF163047);
         toolsPanel.setVisibility(View.GONE);
-        button(line,"TOOLS",this::toggleTools);
-
-        LinearLayout bar=new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        toolsPanel.addView(bar,new LinearLayout.LayoutParams(-1,-2));
-        button(bar,"INPUT LAB",this::loadProbe);
-        button(bar,"CHATGPT",()->loadUrl(HOME));
-        button(bar,"BACK",this::browseBack);
-        button(bar,"RELOAD",()->web.reload());
-        button(bar,"POINTER",this::togglePointer);
-        button(bar,"FORWARD",this::browseForward);
-        LinearLayout reading=new LinearLayout(this);
-        reading.setOrientation(LinearLayout.HORIZONTAL);
-        toolsPanel.addView(reading,new LinearLayout.LayoutParams(-1,-2));
-        button(reading,"RECENT",this::showRecent);
-        button(reading,"A −",()->changeTextZoom(-15));
-        button(reading,"A +",()->changeTextZoom(15));
-        button(reading,"PAGE −",()->zoomPage(false));
-        button(reading,"PAGE +",()->zoomPage(true));
-        button(reading,"FIT",this::resetZoom);
-        button(reading,"HOME",()->loadUrl(HOME));
-        button(reading,"STATS",this::showDiagnostics);
-        button(reading,"INSPECT",this::toggleInspection);
-        button(reading,"REMOTE",this::toggleRemoteShortcuts);
-        button(reading,"MOTION",this::toggleReducedMotion);
+        FrameLayout.LayoutParams menuLayout=new FrameLayout.LayoutParams(-1,dp(44),Gravity.TOP);
+        menuLayout.topMargin=dp(44);
+        screen.addView(toolsPanel,menuLayout);
+        toolsPanel.setElevation(dp(8));
+        button(toolsPanel,"BACK",this::browseBack);
+        button(toolsPanel,"FWD",this::browseForward);
+        button(toolsPanel,"RELOAD",()->{if(web!=null)web.reload();});
+        button(toolsPanel,"RECENT",this::showRecent);
+        button(toolsPanel,"CHATGPT",()->loadUrl(HOME));
+        button(toolsPanel,"MORE",this::showMore);
 
         LinearLayout composing=new LinearLayout(this);
         composing.setOrientation(LinearLayout.HORIZONTAL);
@@ -159,19 +159,22 @@ public final class BrowserActivity extends Activity {
         draft.setTextColor(0xFF132436);
         draft.setBackgroundColor(0xFFDFEAF3);
         draft.setSingleLine(true);
-        draft.setHint("Speak/type a draft here; then paste into selected web editor");
+        draft.setHint("Speak or type a message");
         draft.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_SEND);
         draft.setOnEditorActionListener((v,action,event)->{
             if(action==EditorInfo.IME_ACTION_SEND ||
-                    (event!=null && event.getKeyCode()==KeyEvent.KEYCODE_ENTER &&
-                     event.getAction()==KeyEvent.ACTION_UP)){
+               action==EditorInfo.IME_ACTION_NEXT ||
+               action==EditorInfo.IME_ACTION_DONE ||
+               action==EditorInfo.IME_ACTION_GO ||
+               (event!=null && (event.getKeyCode()==KeyEvent.KEYCODE_ENTER ||
+                                event.getKeyCode()==KeyEvent.KEYCODE_NUMPAD_ENTER) &&
+                event.getAction()==KeyEvent.ACTION_UP)){
                 sendDraft();return true;
             }
             return false;
         });
         composing.addView(draft,new LinearLayout.LayoutParams(0,dp(44),1));
-        button(composing,"SPEAK",()->showKeyboard(draft));
-        button(composing,"PASTE",this::pasteDraft);
+        button(composing,"VOICE",()->showKeyboard(draft));
         button(composing,"SEND",this::sendDraft);
 
         viewport=new FrameLayout(this);
@@ -180,18 +183,23 @@ public final class BrowserActivity extends Activity {
         cursor=new View(this){
             final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override protected void onDraw(Canvas c) {
-                if(!pointerMode)return;
-                float cx=x*getWidth(), cy=y*getHeight();
-                p.setColor(0xFFFFC951);p.setStrokeWidth(dp(3));p.setStyle(Paint.Style.STROKE);
-                c.drawCircle(cx,cy,dp(15),p);
-                c.drawLine(cx-dp(26),cy,cx+dp(26),cy,p);
-                c.drawLine(cx,cy-dp(26),cx,cy+dp(26),p);
+                float cx=getWidth()*.5f,cy=getHeight()*.5f;
+                p.setColor(0xFFFFC951);
+                p.setStrokeWidth(dp(2));
+                p.setStyle(Paint.Style.STROKE);
+                c.drawCircle(cx,cy,dp(8),p);
+                c.drawLine(cx-dp(13),cy,cx+dp(13),cy,p);
+                c.drawLine(cx,cy-dp(13),cx,cy+dp(13),p);
                 p.setStyle(Paint.Style.FILL);
             }
         };
         cursor.setFocusable(false);
         cursor.setClickable(false);
-        screen.addView(cursor,new FrameLayout.LayoutParams(-1,-1));
+        cursor.setVisibility(View.GONE);
+        // A small composited layer moves without invalidating an entire TV-sized
+        // transparent view on every frame over a heavy Chromium page.
+        screen.addView(cursor,new FrameLayout.LayoutParams(dp(32),dp(32)));
+        screen.post(this::updateCursorVisual);
 
         status=new TextView(this);
         status.setTextSize(11);status.setTextColor(0xFFDBE7EE);
@@ -213,7 +221,7 @@ public final class BrowserActivity extends Activity {
 
 
     private void createWebView(){
-        web=new WebView(this);
+        web=new BrowserWebView();
         web.setBackgroundColor(0xFFFFFFFF);
         web.setFocusable(true);
         web.setFocusableInTouchMode(true);
@@ -314,6 +322,30 @@ public final class BrowserActivity extends Activity {
         b.setOnClickListener(v->run.run());
         bar.addView(b,new LinearLayout.LayoutParams(-2,dp(40)));
     }
+    private void showMore(){
+        // Keep uncommon operations reachable without putting 20 buttons on screen.
+        final String[] actions={"Paste draft without sending","Text smaller","Text larger",
+            "Page smaller","Page larger","Reset zoom to 100%","Input test page",
+            "Browser diagnostics","Inspect with Chrome","Reduced motion",
+            "Remote media shortcuts"};
+        new AlertDialog.Builder(this).setTitle("Browser options")
+            .setItems(actions,(dlg,index)->{
+                switch(index){
+                    case 0:pasteDraft();break;
+                    case 1:changeTextZoom(-10);break;
+                    case 2:changeTextZoom(10);break;
+                    case 3:zoomPage(false);break;
+                    case 4:zoomPage(true);break;
+                    case 5:resetZoom();break;
+                    case 6:loadProbe();break;
+                    case 7:showDiagnostics();break;
+                    case 8:toggleInspection();break;
+                    case 9:toggleReducedMotion();break;
+                    case 10:toggleRemoteShortcuts();break;
+                }
+            }).setNegativeButton("Close",null).show();
+    }
+
     private void toggleTools(){
         if(toolsPanel==null)return;
         boolean show=toolsPanel.getVisibility()!=View.VISIBLE;
@@ -337,7 +369,7 @@ public final class BrowserActivity extends Activity {
         }catch(Exception e){return false;}
     }
     private void showKeyboard(View view){
-        stopMotion();pointerMode=false;cursor.invalidate();
+        stopMotion();pointerMode=false;updateCursorVisual();
         view.requestFocus();
         InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
         if(input!=null)input.showSoftInput(view,InputMethodManager.SHOW_IMPLICIT);
@@ -345,7 +377,7 @@ public final class BrowserActivity extends Activity {
     }
     private void loadUrl(String url){
         webEditorFocused=false;
-        stopMotion();pointerMode=false;cursor.invalidate();
+        stopMotion();pointerMode=false;updateCursorVisual();
         if(!url.startsWith("https://")){
             status.setText("Only HTTPS websites are supported in this lab.");
             return;
@@ -367,7 +399,7 @@ public final class BrowserActivity extends Activity {
     }
     private void loadProbe(){
         webEditorFocused=false;
-        stopMotion();pointerMode=false;cursor.invalidate();
+        stopMotion();pointerMode=false;updateCursorVisual();
         String html="<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"+
             "<style>body{font-family:sans-serif;padding:18px;background:#e7f4fc;color:#123}"+
             "textarea,input,[contenteditable]{box-sizing:border-box;width:100%;font-size:24px;padding:14px;"+
@@ -384,7 +416,7 @@ public final class BrowserActivity extends Activity {
     }
     private void togglePointer(){
         stopMotion();pointerMode=!pointerMode;
-        cursor.invalidate();
+        updateCursorVisual();
         if(pointerMode){
             if(web!=null)web.requestFocus();
             status.setText("Pointer works across webpage and toolbar. MENU toggles tools.");
@@ -425,7 +457,7 @@ public final class BrowserActivity extends Activity {
         if(pointerMode){
             int k=ev.getKeyCode();
             if(k==KeyEvent.KEYCODE_BACK && ev.getAction()==KeyEvent.ACTION_UP){
-                stopMotion();pointerMode=false;okArmed=false;cursor.invalidate();
+                stopMotion();pointerMode=false;okArmed=false;updateCursorVisual();
                 status.setText("Pointer off. D-pad focus navigation restored.");
                 return true;
             }
@@ -436,8 +468,8 @@ public final class BrowserActivity extends Activity {
                     if(heldKey==k)stopMotion();
                 } else if(ev.getAction()==KeyEvent.ACTION_DOWN && heldKey!=k){
                     heldKey=k;heldSince=lastMove=SystemClock.uptimeMillis();
-                    moveCursor(k,dp(25));
-                    cursor.postOnAnimation(pointerTick);
+                    moveCursor(k,dpFloat(2.5f));
+                    schedulePointerFrame();
                 }
                 // Ignore OS-generated key repeats; movement is based on elapsed time.
                 return true;
@@ -477,7 +509,7 @@ public final class BrowserActivity extends Activity {
             // Let Android handle the toolbar button's actual click/focus chain.
             View focused=screen.findFocus();
             if(focused instanceof EditText){
-                stopMotion();pointerMode=false;cursor.invalidate();
+                stopMotion();pointerMode=false;updateCursorVisual();
                 InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                 if(input!=null)input.showSoftInput(focused,InputMethodManager.SHOW_IMPLICIT);
             }
@@ -493,7 +525,7 @@ public final class BrowserActivity extends Activity {
                 if(web!=clicked)return;
                 webEditorFocused="\"editable\"".equals(result);
                 if(webEditorFocused){
-                    stopMotion();pointerMode=false;cursor.invalidate();
+                    stopMotion();pointerMode=false;updateCursorVisual();
                     InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                     if(input!=null)input.showSoftInput(clicked,InputMethodManager.SHOW_IMPLICIT);
                     status.setText("Web editor focused; native SPEAK and SEND also work.");
@@ -585,7 +617,27 @@ public final class BrowserActivity extends Activity {
         });
     }
 
-    private void stopMotion(){heldKey=-1;if(cursor!=null)cursor.removeCallbacks(pointerTick);}
+    private float dpFloat(float n){return n*getResources().getDisplayMetrics().density;}
+    private void schedulePointerFrame(){
+        if(frameScheduled || !pointerMode || heldKey<0)return;
+        frameScheduled=true;
+        Choreographer.getInstance().postFrameCallback(pointerFrame);
+    }
+    private void stopMotion(){
+        heldKey=-1;
+        lastFrameNs=0L;
+        if(frameScheduled){
+            Choreographer.getInstance().removeFrameCallback(pointerFrame);
+            frameScheduled=false;
+        }
+    }
+    private void updateCursorVisual(){
+        if(cursor==null || screen==null)return;
+        cursor.setVisibility(pointerMode?View.VISIBLE:View.GONE);
+        if(screen.getWidth()==0 || screen.getHeight()==0)return;
+        cursor.setTranslationX(x*screen.getWidth()-cursor.getWidth()*.5f);
+        cursor.setTranslationY(y*screen.getHeight()-cursor.getHeight()*.5f);
+    }
     private void moveCursor(int key,float delta){
         if(!pointerMode || viewport==null)return;
         float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
@@ -593,7 +645,7 @@ public final class BrowserActivity extends Activity {
         if(key==KeyEvent.KEYCODE_DPAD_RIGHT)x=Math.min(.98f,x+delta/w);
         if(key==KeyEvent.KEYCODE_DPAD_UP)y=Math.max(.02f,y-delta/h);
         if(key==KeyEvent.KEYCODE_DPAD_DOWN)y=Math.min(.98f,y+delta/h);
-        cursor.invalidate();
+        updateCursorVisual();
     }
     private void applyPageZoom(){
         if(web==null)return;
@@ -848,7 +900,7 @@ public final class BrowserActivity extends Activity {
         web.evaluateJavascript(script,null);
     }
     @Override public void onBackPressed(){
-        if(pointerMode){stopMotion();pointerMode=false;cursor.invalidate();return;}
+        if(pointerMode){stopMotion();pointerMode=false;updateCursorVisual();return;}
         if(web!=null&&web.canGoBack()){web.goBack();return;}
         super.onBackPressed();
     }
