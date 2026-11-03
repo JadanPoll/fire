@@ -244,12 +244,16 @@ public final class BrowserActivity extends Activity {
             }
             return new InputConnectionWrapper(base,false){
                 @Override public boolean performEditorAction(int action){
+                    lastWebImeAction="received editor action "+action+
+                        " (composer="+webEditorFocused+")";
                     if((action==EditorInfo.IME_ACTION_NEXT || action==EditorInfo.IME_ACTION_SEND
                        || action==EditorInfo.IME_ACTION_GO || action==EditorInfo.IME_ACTION_DONE)
                         && handleWebImeSubmit("editor action "+action))return true;
                     return super.performEditorAction(action);
                 }
                 @Override public boolean commitText(CharSequence value,int cursorPosition){
+                    if(value!=null && "\n".contentEquals(value))
+                        lastWebImeAction="received IME newline (composer="+webEditorFocused+")";
                     if(value!=null && "\n".contentEquals(value)
                        && handleWebImeSubmit("IME committed newline"))return true;
                     return super.commitText(value,cursorPosition);
