@@ -16,6 +16,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.graphics.Canvas;
+
 import android.graphics.Paint;
 import android.os.Build;
 import android.os.Bundle;
@@ -72,6 +73,11 @@ public final class BrowserActivity extends Activity {
     };
     private static final String PROBE = "https://fire-input-test.invalid/";
     private WebView web;
+    private FrameLayout screen;
+    private LinearLayout root;
+    private LinearLayout toolsPanel;
+    private boolean webEditorFocused;
+    private String lastRawEnter="none";
     private FrameLayout viewport;
     private View cursor;
     private TextView status;
@@ -87,11 +93,13 @@ public final class BrowserActivity extends Activity {
         textZoom=Math.max(55,Math.min(200,prefs.getInt("text_zoom",85)));
         pageZoom=Math.max(50,Math.min(160,prefs.getInt("page_zoom",85)));
         reducedMotion=prefs.getBoolean("reduced_motion",false);
-        LinearLayout root=new LinearLayout(this);
+        screen=new FrameLayout(this);
+        root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFF0F1C29);
         root.setPadding(dp(5),dp(3),dp(5),dp(3));
-        setContentView(root);
+        screen.addView(root,new FrameLayout.LayoutParams(-1,-1));
+        setContentView(screen);
 
         LinearLayout line=new LinearLayout(this);
         line.setOrientation(LinearLayout.HORIZONTAL);
@@ -109,24 +117,21 @@ public final class BrowserActivity extends Activity {
         });
         line.addView(address,new LinearLayout.LayoutParams(0,dp(42),1));
         button(line,"GO / SEARCH",this::goAddress);
-        LinearLayout toolsPanel=new LinearLayout(this);
+        toolsPanel=new LinearLayout(this);
         toolsPanel.setOrientation(LinearLayout.VERTICAL);
         root.addView(toolsPanel,new LinearLayout.LayoutParams(-1,-2));
         toolsPanel.setVisibility(View.GONE);
-        button(line,"TOOLS",()->{
-            boolean expanding=toolsPanel.getVisibility()!=View.VISIBLE;
-            toolsPanel.setVisibility(expanding?View.VISIBLE:View.GONE);
-            status.setText(expanding?"Browser tools shown. Change zoom, navigate, or open Recent.":"Browser tools hidden. More room for the page.");
-        });
+        button(line,"TOOLS",this::toggleTools);
 
         LinearLayout bar=new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         toolsPanel.addView(bar,new LinearLayout.LayoutParams(-1,-2));
         button(bar,"INPUT LAB",this::loadProbe);
         button(bar,"CHATGPT",()->loadUrl(HOME));
-        button(bar,"BACK",()->{if(web.canGoBack())web.goBack();else finish();});
+        button(bar,"BACK",this::browseBack);
         button(bar,"RELOAD",()->web.reload());
         button(bar,"POINTER",this::togglePointer);
+        button(bar,"FORWARD",this::browseForward);
         LinearLayout reading=new LinearLayout(this);
         reading.setOrientation(LinearLayout.HORIZONTAL);
         toolsPanel.addView(reading,new LinearLayout.LayoutParams(-1,-2));
@@ -180,7 +185,7 @@ public final class BrowserActivity extends Activity {
         };
         cursor.setFocusable(false);
         cursor.setClickable(false);
-        viewport.addView(cursor,new FrameLayout.LayoutParams(-1,-1));
+        screen.addView(cursor,new FrameLayout.LayoutParams(-1,-1));
 
         status=new TextView(this);
         status.setTextSize(11);status.setTextColor(0xFFDBE7EE);
@@ -227,6 +232,7 @@ public final class BrowserActivity extends Activity {
         web.setWebViewClient(new WebViewClient(){
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
                 if(web!=view)return;
+                webEditorFocused=false;
                 pageStartedAt=SystemClock.uptimeMillis();
                 lastProgress=-1;
             }
@@ -302,6 +308,28 @@ public final class BrowserActivity extends Activity {
         b.setOnClickListener(v->run.run());
         bar.addView(b,new LinearLayout.LayoutParams(-2,dp(40)));
     }
+    private void toggleTools(){
+        if(toolsPanel==null)return;
+        boolean show=toolsPanel.getVisibility()!=View.VISIBLE;
+        toolsPanel.setVisibility(show?View.VISIBLE:View.GONE);
+        status.setText(show?"Tools open. Pointer can click toolbar controls.":"MENU reopens tools.");
+    }
+    private void browseBack(){
+        if(web!=null&&web.canGoBack())web.goBack();
+        else status.setText("No earlier page.");
+    }
+    private void browseForward(){
+        if(web!=null&&web.canGoForward())web.goForward();
+        else status.setText("No later page.");
+    }
+    private boolean nonMediaSite(){
+        if(web==null)return false;
+        try{
+            Uri url=Uri.parse(web.getUrl());
+            String host=url.getHost();
+            return "chatgpt.com".equals(host)||"www.google.com".equals(host)||"google.com".equals(host);
+        }catch(Exception e){return false;}
+    }
     private void showKeyboard(View view){
         stopMotion();pointerMode=false;cursor.invalidate();
         view.requestFocus();
@@ -310,6 +338,7 @@ public final class BrowserActivity extends Activity {
         status.setText("Requested Fire TV keyboard for native text field. Dictation should work here.");
     }
     private void loadUrl(String url){
+        webEditorFocused=false;
         stopMotion();pointerMode=false;cursor.invalidate();
         if(!url.startsWith("https://")){
             status.setText("Only HTTPS websites are supported in this lab.");
@@ -331,6 +360,7 @@ public final class BrowserActivity extends Activity {
         loadUrl("https://"+u);
     }
     private void loadProbe(){
+        webEditorFocused=false;
         stopMotion();pointerMode=false;cursor.invalidate();
         String html="<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"+
             "<style>body{font-family:sans-serif;padding:18px;background:#e7f4fc;color:#123}"+
@@ -350,11 +380,42 @@ public final class BrowserActivity extends Activity {
         stopMotion();pointerMode=!pointerMode;
         cursor.invalidate();
         if(pointerMode){
-            web.requestFocus();
-            status.setText("Pointer ON. D-pad moves, OK clicks, BACK exits pointer mode. PASTE uses native draft.");
+            if(web!=null)web.requestFocus();
+            status.setText("Pointer works across webpage and toolbar. MENU toggles tools.");
         }else status.setText("Pointer OFF. D-pad navigates normal controls.");
     }
     @Override public boolean dispatchKeyEvent(KeyEvent ev){
+        int key=ev.getKeyCode();
+        if(key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER)
+            lastRawEnter=KeyEvent.keyCodeToString(key)+", shift="+ev.isShiftPressed()+
+                ", "+(ev.getAction()==KeyEvent.ACTION_UP?"UP":"DOWN");
+        // System-reserved Home, Alexa and volume keys are never remapped.
+        if(key==KeyEvent.KEYCODE_MENU){
+            if(ev.getAction()==KeyEvent.ACTION_UP)toggleTools();
+            return true;
+        }
+        // Do not hijack playback keys on arbitrary video/media websites.
+        if(nonMediaSite() && (key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+            key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || key==KeyEvent.KEYCODE_MEDIA_REWIND)){
+            if(ev.getAction()==KeyEvent.ACTION_UP){
+                if(key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)togglePointer();
+                else if(key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)browseForward();
+                else browseBack();
+            }
+            return true;
+        }
+        // Raw Enter from a hardware keyboard may produce a newline in a rich
+        // composer. Shift+Enter still passes through. A Fire OS IME may commit
+        // text without key events; native SEND remains the reliable fallback.
+        if(!pointerMode && webEditorFocused && web!=null && web.hasFocus() && isChatGPT() &&
+            (key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER)
+            && !ev.isShiftPressed()){
+            if(ev.getAction()==KeyEvent.ACTION_UP){
+                clickSendButton();
+                webEditorFocused=false;
+            }
+            return true;
+        }
         if(pointerMode){
             int k=ev.getKeyCode();
             if(k==KeyEvent.KEYCODE_BACK && ev.getAction()==KeyEvent.ACTION_UP){
@@ -386,28 +447,53 @@ public final class BrowserActivity extends Activity {
         }
         return super.dispatchKeyEvent(ev);
     }
+
     private void clickPointer(){
-        long t=SystemClock.uptimeMillis();lastOk=t;
-        float px=x*web.getWidth(),py=y*web.getHeight();
-        MotionEvent start=MotionEvent.obtain(t,t,MotionEvent.ACTION_DOWN,px,py,0);
-        MotionEvent end=MotionEvent.obtain(t,t+60,MotionEvent.ACTION_UP,px,py,0);
+        if(screen==null||web==null)return;
+        long time=SystemClock.uptimeMillis();lastOk=time;
+        float px=x*screen.getWidth(),py=y*screen.getHeight();
+        int[] screenLocation=new int[2],webLocation=new int[2];
+        screen.getLocationOnScreen(screenLocation);
+        web.getLocationOnScreen(webLocation);
+        float webX=px+screenLocation[0]-webLocation[0];
+        float webY=py+screenLocation[1]-webLocation[1];
+        boolean inWeb=webX>=0&&webY>=0&&webX<web.getWidth()&&webY<web.getHeight()
+            &&web.getVisibility()==View.VISIBLE;
+        View receiver=inWeb?web:screen;
+        float rx=inWeb?webX:px,ry=inWeb?webY:py;
+        MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,rx,ry,0);
+        MotionEvent up=MotionEvent.obtain(time,time+60,MotionEvent.ACTION_UP,rx,ry,0);
         try{
-            web.dispatchTouchEvent(start);
-            web.dispatchTouchEvent(end);
-        }finally{start.recycle();end.recycle();}
+            receiver.dispatchTouchEvent(down);
+            receiver.dispatchTouchEvent(up);
+        }finally{down.recycle();up.recycle();}
+        if(!inWeb){
+            // Let Android handle the toolbar button's actual click/focus chain.
+            View focused=screen.findFocus();
+            if(focused instanceof EditText){
+                stopMotion();pointerMode=false;cursor.invalidate();
+                InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                if(input!=null)input.showSoftInput(focused,InputMethodManager.SHOW_IMPLICIT);
+            }
+            return;
+        }
         web.requestFocus();
-        // Let the WebView's touch handling establish an input connection before requesting IME.
-        web.postDelayed(()->{
-            InputMethodManager imm=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-            if(imm!=null)imm.showSoftInput(web,InputMethodManager.SHOW_IMPLICIT);
-            web.evaluateJavascript("(function(){var e=document.activeElement;return e&&((e.isContentEditable)||(e.tagName==='TEXTAREA')||(e.tagName==='INPUT'))?'editable':'not editable';})()",
-                    v->{
-                        if("\"editable\"".equals(v)){
-                            stopMotion();pointerMode=false;cursor.invalidate();
-                        }
-                        status.setText("Pointer click: "+v+"; native SPEAK + PASTE available.");
-                    });
-        },200);
+        final WebView clicked=web;
+        clicked.postDelayed(()->{
+            if(web!=clicked)return;
+            clicked.evaluateJavascript("(function(){var e=document.activeElement;"+
+                "return e&&((e.isContentEditable)||(e.tagName==='TEXTAREA')||(e.tagName==='INPUT'))"+
+                "?'editable':'not editable';})()",result->{
+                if(web!=clicked)return;
+                webEditorFocused="\"editable\"".equals(result);
+                if(webEditorFocused){
+                    stopMotion();pointerMode=false;cursor.invalidate();
+                    InputMethodManager input=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if(input!=null)input.showSoftInput(clicked,InputMethodManager.SHOW_IMPLICIT);
+                    status.setText("Web editor focused; native SPEAK and SEND also work.");
+                }else status.setText("Page clicked; pointer remains active.");
+            });
+        },180);
     }
     private static String insertTextScript(String value){
         // Keep the old working execCommand path for rich editors. The input path
@@ -496,7 +582,7 @@ public final class BrowserActivity extends Activity {
     private void stopMotion(){heldKey=-1;if(cursor!=null)cursor.removeCallbacks(pointerTick);}
     private void moveCursor(int key,float delta){
         if(!pointerMode || viewport==null)return;
-        float w=Math.max(1,viewport.getWidth()),h=Math.max(1,viewport.getHeight());
+        float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
         if(key==KeyEvent.KEYCODE_DPAD_LEFT)x=Math.max(.02f,x-delta/w);
         if(key==KeyEvent.KEYCODE_DPAD_RIGHT)x=Math.min(.98f,x+delta/w);
         if(key==KeyEvent.KEYCODE_DPAD_UP)y=Math.max(.02f,y-delta/h);
@@ -688,6 +774,7 @@ public final class BrowserActivity extends Activity {
         sb.append("Current page progress: ").append(lastProgress).append("%\n");
         sb.append("Page host: ").append(displayHost(web==null?null:web.getUrl())).append('\n');
         sb.append("Reduce motion: ").append(reducedMotion).append('\n');
+        sb.append("Last raw Enter: ").append(lastRawEnter).append('\n');
         sb.append("Note: long JavaScript tasks can freeze without a renderer crash. ")
           .append("These numbers do not measure JavaScript heap or establish root cause.");
         String report=sb.toString();
