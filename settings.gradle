@@ -13,3 +13,7 @@ include ':browser'
 // AppOS reference app: independent APK, never linked into Fire Console.
 include ':signalstudio'
 project(':signalstudio').projectDir = file('Applications/SignalStudio')
+
+// Optional in-process adapter. Native apps without it still launch unchanged.
+include ':remoteinput'
+project(':remoteinput').projectDir = file('AppOS/Remote')
