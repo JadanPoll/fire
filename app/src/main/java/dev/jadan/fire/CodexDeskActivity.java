@@ -135,6 +135,7 @@ public final class CodexDeskActivity extends Activity {
         pairingToken.setHint("Executor pairing token (not OpenAI credentials)");
         pairingToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
         root.addView(pairingToken,new LinearLayout.LayoutParams(-1,-2));
+        button(root,"TEST EXECUTOR PAIRING",()->remoteAction("probe"));
         button(root,"RUN DRAFT WITH CODEX ON PAIRED WORKSPACE",()->remoteAction("submit"));
         button(root,"REFRESH EXECUTOR RESULT",()->remoteAction("poll"));
         button(root,"RECOVER LATEST JOB (AFTER NETWORK FAILURE)",()->remoteAction("recover"));
@@ -149,7 +150,7 @@ public final class CodexDeskActivity extends Activity {
     }
     private void remoteAction(String action){
         if(remoteBusy || remoteStatus==null)return;
-        if(jobId==null && "poll".equals(action) || jobId==null && "cancel".equals(action)){
+        if(jobId==null && ("poll".equals(action)||"cancel".equals(action))){
             remoteStatus.setText("No executor job yet. Submit a prompt first.");return;
         }
         final String origin=executorUrl.getText().toString().trim();
@@ -162,7 +163,9 @@ public final class CodexDeskActivity extends Activity {
         remoteWorker.execute(()->{
             JSONObject reply=null; Exception failure=null;
             try{
-                if("submit".equals(action))
+                if("probe".equals(action))
+                    reply=CodexExecutorClient.probe(origin,secret);
+                else if("submit".equals(action))
                     reply=CodexExecutorClient.submit(origin,secret,draft);
                 else if("recover".equals(action))
                     reply=CodexExecutorClient.recover(origin,secret);
@@ -180,6 +183,11 @@ public final class CodexDeskActivity extends Activity {
                     remoteStatus.setText("Executor "+action+" failed: "+error.getMessage()+
                         ". Check HTTPS, pairing and host; you may retry without discarding the draft.");
                     if(jobId!=null)scheduleRemotePoll();
+                    return;
+                }
+                if("probe".equals(action)){
+                    remoteStatus.setText("Executor paired · Protocol "+result.optInt("protocol",-1)+
+                        " · "+result.optString("executor","unknown"));
                     return;
                 }
                 if("submit".equals(action)||"recover".equals(action))
