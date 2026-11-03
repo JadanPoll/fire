@@ -852,6 +852,7 @@ public final class BrowserActivity extends Activity {
                 bindingSafety.okPressed(ev.getRepeatCount(),now)){
                 bindingClock.removeCallbacks(rescueAction);
                 bindingClock.postDelayed(rescueAction,BindingSafety.RESET_HOLD_MS);
+                status.setText("Emergency restore armed. Hold OK for 5 seconds to disable mappings; release to cancel.");
             }else if(action==KeyEvent.ACTION_UP){
                 bindingClock.removeCallbacks(rescueAction);
                 // Completed emergency hold swallows its final OK release;
@@ -894,7 +895,11 @@ public final class BrowserActivity extends Activity {
         }
         // System-reserved Home, Alexa and volume keys are never remapped.
         if(key==KeyEvent.KEYCODE_MENU){
-            if(ev.getAction()==KeyEvent.ACTION_UP)toggleTools();
+            if(ev.getAction()==KeyEvent.ACTION_UP){
+                if(bindings!=null && (bindings.activeMode() || bindings.captureMode()))
+                    bindings.showWheel(); // immediate swap/escape; no D-pad hostage
+                else toggleTools();
+            }
             return true;
         }
         // A profile only captures its own mapped keys and never intercepts
