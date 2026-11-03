@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "fire.playroom.signal",
+  "name": "Signal Studio",
+  "version": "0.1.0",
+  "entry": {
+    "type": "android-tv",
+    "package": "dev.jadan.fire.signalstudio",
+    "category": "android.intent.category.LEANBACK_LAUNCHER"
+  },
+  "capabilities": ["signal.synthetic", "input.dpad", "display.canvas"],
+  "storage": { "scope": "app" },
+  "ui": { "integration": "managed-navigation", "category": "Audio & Signals" },
+  "build": { "project": ":signalstudio", "asset": "firetv-signal-studio.apk" }
+}
