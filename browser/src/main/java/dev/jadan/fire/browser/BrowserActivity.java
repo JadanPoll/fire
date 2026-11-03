@@ -235,8 +235,11 @@ public final class BrowserActivity extends Activity {
             InputConnection base=super.onCreateInputConnection(editor);
             if(base==null)return null;
             if(isChatGPT()){
-                editor.imeOptions=(editor.imeOptions&~EditorInfo.IME_MASK_ACTION) |
-                    EditorInfo.IME_ACTION_SEND;
+                if(webEditorFocused){
+                    editor.imeOptions=(editor.imeOptions &
+                        ~(EditorInfo.IME_MASK_ACTION | EditorInfo.IME_FLAG_NO_ENTER_ACTION)) |
+                        EditorInfo.IME_ACTION_SEND;
+                }
                 post(BrowserActivity.this::refreshComposerFocus);
             }
             return new InputConnectionWrapper(base,false){
@@ -540,12 +543,13 @@ public final class BrowserActivity extends Activity {
         // Raw Enter from a hardware keyboard may produce a newline in a rich
         // composer. Shift+Enter still passes through. A Fire OS IME may commit
         // text without key events; native SEND remains the reliable fallback.
+        boolean softEnter=(ev.getFlags()&KeyEvent.FLAG_SOFT_KEYBOARD)!=0 ||
+            ev.getDeviceId()==KeyCharacterMap.VIRTUAL_KEYBOARD;
         if(!pointerMode && webEditorFocused && web!=null && web.hasFocus() && isChatGPT() &&
-            (key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER)
-            && !ev.isShiftPressed()){
+            (key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER) &&
+            (!ev.isShiftPressed() || softEnter)){
             if(ev.getAction()==KeyEvent.ACTION_UP){
-                clickSendButton();
-                webEditorFocused=false;
+                handleWebImeSubmit("raw Enter"+(ev.isShiftPressed()?" with soft Shift":""));
             }
             return true;
         }
