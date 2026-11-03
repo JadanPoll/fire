@@ -422,20 +422,20 @@ public final class BrowserActivity extends Activity {
                     " after pointer action: "+lastPointerEvent;
                 prefs.edit().putString("last_renderer_exit",lastRendererExit).apply();
                 Log.e("FireBrowser","WebView renderer "+lastRendererExit);
-                viewport.post(() -> {
-                    if(web != view) return;
-                    stopMotion();
-                    viewport.removeView(view);
-                    web=null;
-                    view.destroy();
-                    createWebView();
-                    rendererRecoveries++;
-                    status.setText((crashed?"Page renderer crashed.":"Renderer reclaimed by Fire OS.")+
-                        " Browser restored ("+rendererRecoveries+"). "+
-                        (crashed?"Select RECENT rather than automatically retrying the crashing page.":"Restoring last page…"));
-                    if(!crashed && prior.startsWith("https://")) loadUrl(prior);
-                    else loadProbe();
-                });
+                // The callback is already on the WebView/UI thread. Detach
+                // and destroy this unusable renderer synchronously before
+                // returning, rather than leaving it attached for another turn.
+                stopMotion();
+                viewport.removeView(view);
+                web=null;
+                view.destroy();
+                createWebView();
+                rendererRecoveries++;
+                if(!crashed && prior.startsWith("https://"))loadUrl(prior);
+                else loadProbe();
+                status.setText((crashed?"Web page renderer crashed.":"Fire OS reclaimed the renderer.")+
+                    " Browser recovered ("+rendererRecoveries+"). "+
+                    (crashed?"Last page preserved in RECENT; no automatic crash loop.":"Restoring last page."));
                 return true;
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req) {
