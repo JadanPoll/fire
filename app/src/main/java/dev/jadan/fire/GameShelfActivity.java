@@ -45,7 +45,12 @@ public final class GameShelfActivity extends Activity {
 
         TextView heading=TvUi.header(this,"PLAYROOM  /  GAME CHANNELS");
         root.addView(heading);
-        root.addView(label("Save the web games you create. Open them in Fire Browser. No game files are copied.",16,0xFF58728A));
+        root.addView(label("Web games, independent native experiments, and a real GBA emulator. Your existing pinned games are unchanged.",16,0xFF58728A));
+        LinearLayout gba=TvUi.panel(this);
+        gba.addView(TvUi.section(this,"GBA  /  REAL CONSOLE GAMES"));
+        gba.addView(TvUi.text(this,"Import a user-supplied Game Boy Advance ROM and play it in an existing emulator. No Nintendo software is bundled.",15,TvUi.SUB));
+        TvUi.action(this,gba,"OPEN GBA GAME ROOM",()->startActivity(new Intent(this,RetroRoomActivity.class)));
+        TvUi.addPanel(this,root,gba);
         status=label("Ready. Select a game or pin a new HTTPS address.",14,0xFF46677E);
         root.addView(status);
         list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);
