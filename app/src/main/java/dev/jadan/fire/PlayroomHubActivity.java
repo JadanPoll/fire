@@ -27,6 +27,8 @@ public final class PlayroomHubActivity extends Activity {
     private static final int BG=0xFFEDF5FA;
     private static final int INK=0xFF0F2441;
     private final ArrayList<Destination> destinations = new ArrayList<>();
+    private String pinnedSnapshot="[]";
+    private TextView footer;
 
     private int dp(int value) {
         return (int)(value * getResources().getDisplayMetrics().density + .5f);
@@ -99,7 +101,7 @@ public final class PlayroomHubActivity extends Activity {
                 if(first==null)first=tile;
             }
         }
-        TextView footer=new TextView(this);
+        footer=new TextView(this);
         footer.setText("More experiments are in EXPLORE. They are not required to play.");
         footer.setTextColor(0xFF647F92);
         footer.setTextSize(14);
@@ -115,8 +117,9 @@ public final class PlayroomHubActivity extends Activity {
             () -> startActivity(new Intent(this,RetroRoomActivity.class))));
 
         SharedPreferences prefs=getSharedPreferences("fire_console",MODE_PRIVATE);
+        pinnedSnapshot=prefs.getString("pinned_games_v1","[]");
         try {
-            JSONArray games=new JSONArray(prefs.getString("pinned_games_v1","[]"));
+            JSONArray games=new JSONArray(pinnedSnapshot);
             int shown=0;
             for (int i=0;i<games.length() && shown<2;i++) {
                 JSONObject entry=games.optJSONObject(i);
@@ -127,7 +130,7 @@ public final class PlayroomHubActivity extends Activity {
                 if(name.trim().isEmpty())name="Web game";
                 final String title=name;
                 destinations.add(new Destination(title,"Pinned web game",1,0xFF4B9DC9,
-                    () -> ConsoleLaunch.openBrowser(this,url,null)));
+                    () -> ConsoleLaunch.openBrowser(this,url,footer)));
                 shown++;
             }
         } catch (Exception ignored) {
@@ -138,6 +141,14 @@ public final class PlayroomHubActivity extends Activity {
             () -> startActivity(new Intent(this,GameShelfActivity.class))));
         destinations.add(new Destination("EXPLORE","Experiments & research",7,0xFF8175B5,
             this::explore));
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        String current=getSharedPreferences("fire_console",MODE_PRIVATE)
+            .getString("pinned_games_v1","[]");
+        if (pinnedSnapshot!=null && !pinnedSnapshot.equals(current))
+            recreate();  // Pinning changed. Rebuild only then; preserve ordinary game-return focus.
     }
 
     private FrameLayout tile(Destination item) {
