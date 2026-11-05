@@ -57,6 +57,7 @@ public final class CodexDeskActivity extends Activity {
     private LinearLayout jobPanel;
     private Button jobDetailsButton;
     private Button firstJobAction;
+    private Button moreButton;
     private android.content.SharedPreferences computePrefs;
 
     @Override public void onCreate(Bundle b) {
@@ -130,7 +131,7 @@ public final class CodexDeskActivity extends Activity {
         root.addView(jobPanel);
         jobPanel.setVisibility(View.GONE);
 
-        TvUi.action(this,root,"MORE  /  DEVICES & SETTINGS",this::more);
+        moreButton=TvUi.action(this,root,"MORE  /  DEVICES & SETTINGS",this::more);
         buildExecutorUi(root);
         pairingPanel.setVisibility(View.GONE);
         feedback=label("A host requires a private HTTPS endpoint and pairing token. Neither is sent to Codex Cloud.",
@@ -349,6 +350,22 @@ public final class CodexDeskActivity extends Activity {
         if(jobId!=null&&!isFinishing()&&pairingToken!=null&&
             pairingToken.length()>0)remoteClock.postDelayed(remoteTick,3500);
     }
+    @Override public void onBackPressed() {
+        // A hidden settings panel should not trap the user or force an
+        // unexpected return all the way to the Console.
+        if (pairingPanel!=null && pairingPanel.getVisibility()==View.VISIBLE) {
+            pairingPanel.setVisibility(View.GONE);
+            moreButton.requestFocus();
+            return;
+        }
+        if (jobPanel!=null && jobPanel.getVisibility()==View.VISIBLE) {
+            jobPanel.setVisibility(View.GONE);
+            moreButton.requestFocus();
+            return;
+        }
+        super.onBackPressed();
+    }
+
     @Override protected void onPause(){
         remoteClock.removeCallbacks(remoteTick);
         if(computePrefs!=null && prompt!=null)
