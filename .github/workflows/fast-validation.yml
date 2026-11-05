@@ -1,0 +1,101 @@
+name: Fast change-scoped validation
+
+# Fastest useful evidence comes first. Neither the full release build nor
+# the Android TV emulator is a prerequisite for ordinary PR iteration.
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'browser/**'
+      - 'canvas/**'
+      - 'Applications/**'
+      - 'AppOS/**'
+      - 'tools/**'
+      - 'catalog.json'
+      - 'signing/**'
+      - 'settings.gradle'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/fast-validation.yml'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/android-tv-emulator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide cheapest credible evidence
+        id: select
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = pull_request ]; then
+            python3 tools/validation_plan.py --base "$PR_BASE" --github-output "$GITHUB_OUTPUT"
+          else
+            python3 tools/validation_plan.py --all --github-output "$GITHUB_OUTPUT"
+          fi
+
+      - name: Static contracts and tiny Python tests
+        run: |
+          python3 -m compileall -q tools
+          python3 tools/check_console_manifest.py
+          python3 tools/check_tv_ui_contract.py
+          python3 tools/check_console_consolidation.py
+          python3 tools/check_gba_contract.py
+          python3 tools/check_appos_contract.py
+          python3 -m unittest discover -s tools -p 'test_*.py' -q
+
+      - name: Setup Java only for native changes
+        if: steps.select.outputs.android == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Prepare SDK only for native changes
+        if: steps.select.outputs.android == 'true'
+        run: |
+          SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMGR"
+          "$SDKMGR" 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Setup Gradle only for native changes
+        if: steps.select.outputs.android == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Compile and test only changed native modules
+        if: steps.select.outputs.android == 'true'
+        env:
+          SELECTED_TASKS: ${{ steps.select.outputs.tasks }}
+        run: |
+          base64 -d signing/lab.keystore.base64 > signing/lab.keystore
+          read -ra tasks <<< "$SELECTED_TASKS"
+          if [ "${#tasks[@]}" -eq 0 ]; then echo 'No native tasks selected'; exit 1; fi
+          gradle --no-daemon "${tasks[@]}"
+
+      - name: Cost and coverage summary
+        if: always()
+        env:
+          SCOPE: ${{ steps.select.outputs.scope }}
+          TASKS: ${{ steps.select.outputs.tasks }}
+        run: |
+          echo "### REM change-scoped validation" >> "$GITHUB_STEP_SUMMARY"
+          echo "Scope: ${SCOPE:-unknown}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Native tasks: ${TASKS:-none}" >> "$GITHUB_STEP_SUMMARY"
+          echo "No emulator was launched. Full release verification remains on main; on-demand TV emulator checks remain available." >> "$GITHUB_STEP_SUMMARY"
