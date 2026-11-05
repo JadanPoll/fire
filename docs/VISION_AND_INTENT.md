@@ -26,6 +26,37 @@ Success is judged first by the *experienced loop* (idea -> credible
 interpretation -> observable candidate -> play/explore -> persistent revision),
 not by how impressive any one internal tool is.
 
+## Three explanations for this vision
+
+**General intent (human README introduction):** The first section above is
+the stable top-level purpose: a playful, open-ended TV-centered environment
+for ambitious games, persistent creative projects, Android exploration,
+and offshore Compute. A person can read that and know why the project exists
+without examining Android code or build mechanisms.
+
+**Functional intent (revisable sets and supersets):** Sections 1–3 describe
+the critical families of capabilities, their promises, their intersections,
+and meaningful alternatives. They answer what the experience should do
+and invite questions such as *"why a separate Compute channel?"* or
+*"why should projects persist rather than produce one-off demos?"*
+A human may change one of these choices without resetting the whole vision.
+These are intentions, not proof of implemented behavior.
+
+**Implementation and evidence (agent-facing, paper-like provenance):** Section
+5 links to existing authoritative implementation documents, Android code,
+research precedents, and CI evidence. When asked *"why implement A rather
+than B?"*, a high-level agent first answers in terms of the selected
+functional promise, then retrieves the actual source-backed choice,
+alternatives, constraints and tests. Citation proves where an idea came from,
+not that it works here. A newly onboarded agent should follow these links,
+not replace existing decisions based on its training preferences.
+
+These are three **navigable levels of explanation**, not three bureaucratic
+copies of the same implementation. A new implementation may change only
+the third level; a new user preference may revise the second; a revised
+holistic purpose can change the first. Each change propagates only where
+its actual implications require it. See Logical Cloud LC-16.11–16.14.
+
 ## 1. Critical sub-big-pictures
 
 ### 1A. Ambitious play — games are possible, not restricted to tiny demos
