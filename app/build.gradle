@@ -17,7 +17,7 @@ android {
     // One authoritative Dojo and capability data source for host tools and TV UI.
     sourceSets {
         main {
-            assets.srcDirs += ['../research/android_dojo', '../research/compute']
+            assets.srcDirs += ['../research/android_dojo', '../research/compute', '../research/portability']
         }
     }
 
