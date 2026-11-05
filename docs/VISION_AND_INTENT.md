@@ -57,6 +57,45 @@ the third level; a new user preference may revise the second; a revised
 holistic purpose can change the first. Each change propagates only where
 its actual implications require it. See Logical Cloud LC-16.11–16.14.
 
+## Selected Layer 2 direction — human choices, not agent assumptions
+
+The person has selected these interpretations for the current Fire TV
+direction. They **replace the earlier generic either/or questions** without
+changing the broader holistic ambition:
+
+| Critical superset | Chosen human-level emphasis | What this commits us to understanding |
+| --- | --- | --- |
+| **Ambitious Play** | **Existing games** | Make increasingly ambitious games *playable* on the console; agents choose credible compatibility/execution paths for particular titles rather than presuming the human wants to create every game |
+| **Creative Playroom** | **Instant prototype, then expand** | Turn an idea into an early playable candidate, preserve its project identity and variants, and make later refinements easy |
+| **Android Exploration** | **Low-level experiments** | First-hand, instrumented experiments on actual Android/Fire behavior, with raw signals and understandable interpretation—not a passive guided tour |
+| **Compute** | **Unified idea-to-play experience** | One visible flow from idea and meaningful interpretation through delegated engineering to useful preview, play, revision and continuation; the TV/iPad aren't required to host all work |
+
+All four are compatible: existing games *and* creating original experiments
+are separate capabilities; "instant prototype" doesn't mean permanently
+tiny games. The current human selection says nothing about preferred game
+titles, engines or internal tooling. It is a **functional choice**, not
+evidence that the features are already implemented.
+
+### Next consequential sub-choices — options, not yet accepted
+
+| Superset | The next useful question about the experience | Plausible interpretations |
+| --- | --- | --- |
+| Ambitious Play | **Which kind of existing game would be most exciting to get playable first?** | Console/retro titles; compatible modern Android games; demanding PC/3D games via an appropriate host or streaming path; or a mixed library |
+| Creative Playroom | **What should the first generated playground feel like?** | Immediate small 2D game; visually rich 3D world with an early playable slice; or agent chooses the fastest faithful preview based on each idea |
+| Android Exploration | **Which low-level phenomenon should we explore first?** | Remote input/focus/timing; process and app lifecycle; graphics/audio and performance paths; or follow a particular question |
+| Compute | **Where should the unified creation-and-play experience feel native first?** | Fire TV remote-first; iPad-first with TV playback; or seamless movement between both |
+
+**Recommended reversible defaults:** allow the first game request to
+determine the engine/placement, start creative ideas with the earliest
+playable *and persistent* preview, begin the Android lab with input/event
+instrumentation already present in the repo, and keep Compute accessible
+from TV and iPad without promising that full cross-device synchronization
+exists. The person can accept, reject or mix these in a sentence.
+
+The next human question should be **only the most consequential open
+choice for the currently requested experiment**, not a four-question form.
+Agents own all routine build/emulator/SDK/compatibility decisions.
+
 ## 1. Critical sub-big-pictures
 
 ### 1A. Ambitious play — games are possible, not restricted to tiny demos
@@ -72,11 +111,11 @@ a browser game, emulation where lawful/appropriate, or remote/cloud execution
 when it genuinely improves the result. These are implementation options,
 **not user-selected product limitations**.
 
-**Material interpretation choices (unresolved):** Is a request primarily
-(a) "help me play sophisticated existing games," (b) "help me create ambitious
-original games," or (c) both? Does an individual game favor native rendering,
-web deployment, or streaming? Offer concise outcome-level choices when they
-matter, then own the technical selection.
+**Selected interpretation:** Focus on **playing existing games**.
+Creating original prototypes remains the separate Playroom objective below.
+A particular game's compatibility and local/remote route are implementation
+questions for the agents; ask which existing game *experience* matters first
+when it would materially change the plan.
 
 **Boundary:** Performance, device capabilities, content rights, online
 services, and controls may constrain a specific title. Keep those local to
@@ -97,11 +136,11 @@ source/artifact identity, variants, user choices, and runnable versions;
 preserve prior work and an easy way to return to it. No special similarity to
 Roblox's proprietary implementation is required or promised.
 
-**Material interpretation choices (unresolved):** Should the first preview
-run in a browser, as an installed game, or in a remote streamed environment?
-Should the person choose from 2–3 contrasting creative concepts or supply
-their own idea? The default should be the **fastest playable and persistent
-experience** that meets the idea—not an architecture survey.
+**Selected interpretation:** An **immediately playable prototype
+that can expand**. The choice of browser/native/streamed preview is usually
+for agents to resolve according to the actual idea. Ask about the desired
+game experience, not compiler or engine preferences, when a genuine
+creative ambiguity remains.
 
 **Boundary:** Child-friendly discoverability and uncomplicated controls are
 essential; privileged access, account setup, or data collection are not
@@ -121,11 +160,10 @@ evidence and interpretation side by side, with copyable traces and small
 experiments ("press OK and show what the system actually delivered").
 Support learning by comparing expected with observed behavior.
 
-**Material interpretation choices (unresolved):** A visual system tour,
-low-level event/timing laboratory, or deeper component-level experiments
-can all be valuable. Offer a relevant subset when the educational question
-is genuinely ambiguous; do not force the human to define implementation
-tools first.
+**Selected interpretation:** Prefer **hands-on low-level experiments**
+over passive tours. Input/timing, process lifecycle and graphics/audio
+experiments remain reasonable branches; the person can pick a phenomenon
+or ask the agent to propose the most illuminating small experiment.
 
 **Boundary:** Android/Fire OS permissions and supported APIs are real.
 Read-only diagnostics and app-local probes come before privileged access.
@@ -141,11 +179,15 @@ channel is a particularly important realization of the Logical Cloud idea:
 ask here, have suitable workers do heavy work elsewhere, and inspect or play
 the result here or on another device.
 
-**Promise sought:** The person can express intent on TV/iPad, follow useful
-progress and alternatives, receive an early playable/inspectable result,
-and continue making changes. The substrate can choose suitable available
-execution, build, cache, preview, storage and transport arrangements without
-exposing routine infrastructure management to the person.
+**Selected interpretation:** A **unified idea-to-play experience**,
+rather than a mere remote-command console or exposed developer workstation.
+
+**Promise sought:** The person can express intent on TV/iPad, choose between
+meaningful interpretations where needed, follow useful progress and
+alternatives, receive an early playable/inspectable result, and return to
+the same project to make changes. The substrate can choose suitable
+available execution, build, cache, preview, storage and transport
+arrangements without exposing routine infrastructure management to the person.
 
 **Boundary:** This is a *direction*, not a statement that general autonomous
 cloud execution or remote compilation already works end-to-end. Current
