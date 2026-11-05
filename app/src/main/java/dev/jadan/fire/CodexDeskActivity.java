@@ -153,7 +153,8 @@ public final class CodexDeskActivity extends Activity {
         else if(pairingToken.length()>0)remoteStatus.setText(
             "Previous pairing restored in this running Console process.");
         jobDetailsButton.setVisibility(jobId==null?View.GONE:View.VISIBLE);
-        if(pairingToken.length()>0)runButton.requestFocus();
+        if(jobId!=null)jobDetailsButton.requestFocus();
+        else if(pairingToken.length()>0)runButton.requestFocus();
         else cloudButton.requestFocus();
     }
 
