@@ -78,6 +78,20 @@ These supersede the earlier broad choices. **Compute has a bounded device-and-ca
 
 **Distinct purposes and stopping criteria:** A = present-day fun and creative iteration; B = REA-style asymptotic feasibility frontier; C = human understanding and idea-generation; D = real work through an agentic computing substrate. Cross-project reuse is valuable but **none of these is primarily an engineering toolkit for the others**. Keep each experience enjoyable or useful on its own.
 
+**Layer 2 communication decision (2026-11-05):** The existing [Fire Inbox](
+https://fire-inbox-jadan.brinyduck2.chatgpt.site/) is the preferred shared
+human/agent message front door. **HTTPS** provides durable questions,
+proposals, opinions, acknowledgments, decisions and result retrieval;
+**WSS** is the intended live bidirectional extension, with HTTPS catch-up
+when disconnected. Agents and devices can address one another by logical
+recipient and project ID. **GitHub** remains authoritative for produced
+source, game assets, tests, builds and releases—not the Inbox. The human
+owns meaningful intent decisions; the Inbox shows agents' proposals and
+verified results separately. No auth/MCP requirement is added to this
+public, non-sensitive prototype. The exact message broker and WSS route
+are not yet verified on the live Site. See the [canonical Logical Cloud
+coordination contract](https://github.com/JadanPoll/Logical_Cloud/blob/main/docs/coordination-transport.md).
+
 Two cross-cutting promises: (1) useful experiences survive unrelated agent
 work, disconnections and failed optional experiments; (2) discoveries in Dojo,
 Playroom and portability research can be referenced without duplicating work.
