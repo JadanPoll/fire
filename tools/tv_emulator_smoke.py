@@ -261,7 +261,8 @@ def main():
             raise AssertionError("FATAL EXCEPTION in tested APK process")
         note("No target-app fatal crash", "PASS")
     except Exception:
-        error_lines = [line for line in traceback.format_exc().splitlines() if line.strip()]\n        note("Smoke suite", "FAIL", error_lines[-1])
+        error_lines = [line for line in traceback.format_exc().splitlines() if line.strip()]
+        note("Smoke suite", "FAIL", error_lines[-1])
         (OUT / "failure.txt").write_text(traceback.format_exc(), encoding="utf-8")
         return 1
     finally:
