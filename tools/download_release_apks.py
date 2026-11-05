@@ -41,7 +41,7 @@ def main():
              for asset in release.get("assets", [])}
     for asset, destination in ASSETS.items():
         match = re.search(
-            r"(?m)^SHA256 " + re.escape(asset) + r": ([0-9a-f]{64})\\s*$", body)
+            r"(?m)^SHA256 " + re.escape(asset) + r": ([0-9a-f]{64})\s*$", body)
         if not match:
             raise RuntimeError("Missing release checksum for " + asset)
         expected = match.group(1)
