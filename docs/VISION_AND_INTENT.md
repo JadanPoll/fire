@@ -57,44 +57,31 @@ the third level; a new user preference may revise the second; a revised
 holistic purpose can change the first. Each change propagates only where
 its actual implications require it. See Logical Cloud LC-16.11–16.14.
 
-## Selected Layer 2 direction — human choices, not agent assumptions
+## Layer 2 — accepted refinements (2026-11-04)
 
-The person has selected these interpretations for the current Fire TV
-direction. They **replace the earlier generic either/or questions** without
-changing the broader holistic ambition:
+These supersede the earlier broad choices. **Compute has no settled independent
+purpose yet**; keep its existing channel, but defer the broader product question.
+Neither a heavyweight universal executor nor a required service is implied.
 
-| Critical superset | Chosen human-level emphasis | What this commits us to understanding |
+| Functional set | Current human intent | Implementation uncertainty left to agents |
 | --- | --- | --- |
-| **Ambitious Play** | **Existing games** | Make increasingly ambitious games *playable* on the console; agents choose credible compatibility/execution paths for particular titles rather than presuming the human wants to create every game |
-| **Creative Playroom** | **Instant prototype, then expand** | Turn an idea into an early playable candidate, preserve its project identity and variants, and make later refinements easy |
-| **Android Exploration** | **Low-level experiments** | First-hand, instrumented experiments on actual Android/Fire behavior, with raw signals and understandable interpretation—not a passive guided tour |
-| **Compute** | **Unified idea-to-play experience** | One visible flow from idea and meaningful interpretation through delegated engineering to useful preview, play, revision and continuation; the TV/iPad aren't required to host all work |
+| **Portability intelligence** | A gradually refined database answering "get me this game/app on TV": feasible routes, blockers, device/control suitability, actual evidence, and research tasks | How to query/fill records automatically, verify individual titles, choose between native/emulated/browser/remote execution and UI adaptation |
+| **Creative Playroom** | Start with a deliberately tiny catalog of 2D games to expose rendering, input and representation bugs | Which simple game rules and minimal engine surfaces provide informative evidence |
+| **Android Dojo** | Ungraded, topic-linked problem statements with glossary and tacit checks; progress and experiments are revisitable | Which first experiments can be run/read directly on TV; how to carry progress between devices |
+| **Modular projects and assets** | Independent GitHub projects may evolve artwork/animations outside game code; eventual dynamic loading with smart caching and rollback | Exact manifest, trust, content delivery and cache boundaries; no universal loader is assumed implemented |
+| **TV-first interaction** | TV is primary; eventual iPad companion offers bidirectional low-latency control/inspection, useful especially for desktop-like apps | Raw versus semantic controls, authorization, stream protocol and integration |
+| **Compute (deferred)** | May become a reusable capability hooked into games, or remain an exploratory curiosity | Its actual holistic compelling purpose is not selected; do not broaden the Compute stack prematurely |
 
-All four are compatible: existing games *and* creating original experiments
-are separate capabilities; "instant prototype" doesn't mean permanently
-tiny games. The current human selection says nothing about preferred game
-titles, engines or internal tooling. It is a **functional choice**, not
-evidence that the features are already implemented.
+Two cross-cutting promises: (1) useful experiences survive unrelated agent
+work, disconnections and failed optional experiments; (2) discoveries in Dojo,
+Playroom and portability research can be referenced without duplicating work.
+These are intent constraints, not evidence that all the relevant infrastructure exists.
 
-### Next consequential sub-choices — options, not yet accepted
-
-| Superset | The next useful question about the experience | Plausible interpretations |
-| --- | --- | --- |
-| Ambitious Play | **Which kind of existing game would be most exciting to get playable first?** | Console/retro titles; compatible modern Android games; demanding PC/3D games via an appropriate host or streaming path; or a mixed library |
-| Creative Playroom | **What should the first generated playground feel like?** | Immediate small 2D game; visually rich 3D world with an early playable slice; or agent chooses the fastest faithful preview based on each idea |
-| Android Exploration | **Which low-level phenomenon should we explore first?** | Remote input/focus/timing; process and app lifecycle; graphics/audio and performance paths; or follow a particular question |
-| Compute | **Where should the unified creation-and-play experience feel native first?** | Fire TV remote-first; iPad-first with TV playback; or seamless movement between both |
-
-**Recommended reversible defaults:** allow the first game request to
-determine the engine/placement, start creative ideas with the earliest
-playable *and persistent* preview, begin the Android lab with input/event
-instrumentation already present in the repo, and keep Compute accessible
-from TV and iPad without promising that full cross-device synchronization
-exists. The person can accept, reject or mix these in a sentence.
-
-The next human question should be **only the most consequential open
-choice for the currently requested experiment**, not a four-question form.
-Agents own all routine build/emulator/SDK/compatibility decisions.
+**Move to implementation rather than more Layer 2 decomposition:**
+[First bounded executable slice](FIRST_SLICE.md) — tiny native 2D probes,
+offline portability lookup and an ungraded host-side Android Dojo ledger.
+Unknown software is *unassessed*, never automatically declared impossible.
+Do not equate building or listing a route with actual physical-TV usability.
 
 ## 1. Critical sub-big-pictures
 
@@ -111,8 +98,11 @@ a browser game, emulation where lawful/appropriate, or remote/cloud execution
 when it genuinely improves the result. These are implementation options,
 **not user-selected product limitations**.
 
-**Selected interpretation:** Focus on **playing existing games**.
-Creating original prototypes remains the separate Playroom objective below.
+**Selected interpretation:** Build an agent-queryable portability and adaptation
+knowledge base for existing games **and applications**. It tracks execution,
+interaction and evidence independently. Unknown entries invite research,
+not automatic rejection; successful adaptations become reusable recipes.
+Original 2D probes remain the separate Playroom objective.
 A particular game's compatibility and local/remote route are implementation
 questions for the agents; ask which existing game *experience* matters first
 when it would materially change the plan.
@@ -136,8 +126,10 @@ source/artifact identity, variants, user choices, and runnable versions;
 preserve prior work and an easy way to return to it. No special similarity to
 Roblox's proprietary implementation is required or promised.
 
-**Selected interpretation:** An **immediately playable prototype
-that can expand**. The choice of browser/native/streamed preview is usually
+**Current first slice:** An intentionally **tiny 2D game catalog** for
+revealing engine/input/rendering limitations before attempting large projects.
+Future ambition remains instantly playable prototypes that can expand.
+The choice of browser/native/streamed preview is usually
 for agents to resolve according to the actual idea. Ask about the desired
 game experience, not compiler or engine preferences, when a genuine
 creative ambiguity remains.
@@ -160,10 +152,11 @@ evidence and interpretation side by side, with copyable traces and small
 experiments ("press OK and show what the system actually delivered").
 Support learning by comparing expected with observed behavior.
 
-**Selected interpretation:** Prefer **hands-on low-level experiments**
-over passive tours. Input/timing, process lifecycle and graphics/audio
-experiments remain reasonable branches; the person can pick a phenomenon
-or ask the agent to propose the most illuminating small experiment.
+**Selected interpretation:** A **problem-first, ungraded Android Dojo**:
+interesting problems, navigable topic/glossary entries, concrete tacit skill
+checks, and partial progress that can be resumed. Real Fire OS experiments
+come before claiming intuition or physical behavior. Input/timing, process
+lifecycle and graphics/audio remain useful challenge families.
 
 **Boundary:** Android/Fire OS permissions and supported APIs are real.
 Read-only diagnostics and app-local probes come before privileged access.
@@ -179,8 +172,11 @@ channel is a particularly important realization of the Logical Cloud idea:
 ask here, have suitable workers do heavy work elsewhere, and inspect or play
 the result here or on another device.
 
-**Selected interpretation:** A **unified idea-to-play experience**,
-rather than a mere remote-command console or exposed developer workstation.
+**Current status: holistic purpose deferred.** The existing Compute channel
+is retained. It might become a library capability for dynamically enhanced
+games or remain an exploratory channel; neither has yet been selected as the
+compelling independent destination. The broader promise below is a possible
+future direction, not a current build requirement.
 
 **Promise sought:** The person can express intent on TV/iPad, choose between
 meaningful interpretations where needed, follow useful progress and
@@ -249,10 +245,12 @@ pre-existing references and evidence. The human need not manage those workers.
 
 ## 4. Sensible high-level path (proposed, not imposed)
 
-**First useful loop:** from a freely phrased original game idea to one
-playable candidate; save it as a named project; change one aspect by a
-follow-up utterance; reopen the modified project and compare it with its
-baseline. This proves fun, persistence and reviseability—not just build CI.
+**First useful loop:** launch a tiny native Playroom game, make a measured
+D-pad input change or small rule change, and compare the actual experience.
+Alongside it, query one portability record and resume one Android Dojo
+challenge note. A later asset experiment should update one sprite independently
+of core game code. This proves small real links rather than a hypothetical
+one-prompt-to-AAA-game service.
 
 **In parallel:** preserve and improve the existing low-level input/Android
 instrumentation with meaningful experiments; preserve the current native
