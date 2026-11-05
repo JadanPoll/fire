@@ -2,6 +2,15 @@
 
 Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 9 / API 28)**. This project is independently versioned from Manifold Console.
 
+**Human vision / functional direction:** [Fire Console vision and
+intent map](docs/VISION_AND_INTENT.md). The user has selected **existing
+games**, **instant expandable creative prototypes**, **hands-on Android
+instrumentation**, and **one unified idea-to-play Compute experience**.
+These are selected experiences, not claims of completed implementation.
+Agents should start here to recover the holistic purpose and the few
+consequential remaining choices before selecting engines, APIs or test
+machinery.
+
 ## Console v2: Compute and independent apps
 
 Fire Console Home now has **six Wii-style channels**: Inbox, Browser,
