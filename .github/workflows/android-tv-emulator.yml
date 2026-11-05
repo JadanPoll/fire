@@ -3,11 +3,6 @@ name: Android TV emulator smoke
 # On-demand evidence, not a compulsory gate. A release run skips the entire build.
 # Public GitHub Actions runner + Android TV system image. No cloud test account.
 on:
-  # TEMPORARY: validate the release-reuse implementation in this PR.
-  # Removed after the first evidence-backed test passes.
-  pull_request:
-    paths:
-      - '.github/workflows/android-tv-emulator.yml'
   workflow_dispatch:
     inputs:
       source:
