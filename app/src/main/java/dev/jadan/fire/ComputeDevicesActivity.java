@@ -104,7 +104,7 @@ public final class ComputeDevicesActivity extends Activity {
             "Offline list only. Enter a HTTPS registry URL to inspect its announcements.",14,TvUi.SUB);
         discovery.addView(remoteStatus);
         TvUi.action(this,discovery,"REFRESH DISCOVERY",this::fetchDevices);
-        TvUi.addPanel(this,root,discovery);
+        discovery.setVisibility(View.GONE);
         LinearLayout row = null;
         View first = null;
         for (int i = 0; i < devices.length(); i++) {
@@ -148,6 +148,11 @@ public final class ComputeDevicesActivity extends Activity {
             row.addView(card, cp);
             if (first == null) first = card;
         }
+        TvUi.action(this,root,"ADD OR REFRESH DEVICE REGISTRY",()->{
+            discovery.setVisibility(View.VISIBLE);
+            endpoint.requestFocus();
+        });
+        TvUi.addPanel(this,root,discovery);
         if (first != null) first.requestFocus();
         scroll.scrollTo(0, 0);
     }
