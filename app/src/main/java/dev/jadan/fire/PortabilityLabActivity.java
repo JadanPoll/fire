@@ -12,6 +12,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
@@ -142,10 +143,18 @@ public final class PortabilityLabActivity extends Activity {
             17, TvUi.INK));
         TvUi.action(this, panel, "SAVE TO LOCAL RESEARCH QUEUE", () -> {
             JSONArray current = savedTargets();
-            for (int i = 0; i < current.length(); i++) if (name.equalsIgnoreCase(current.optString(i))) return;
-            if (current.length() >= 32) return;
+            for (int i = 0; i < current.length(); i++)
+                if (name.equalsIgnoreCase(current.optString(i))) {
+                    Toast.makeText(this,"Already in research queue",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            if (current.length() >= 32) {
+                Toast.makeText(this,"Queue full; existing requests retained",Toast.LENGTH_SHORT).show();
+                return;
+            }
             current.put(name);
             notes.edit().putString("unknown", current.toString()).apply();
+            Toast.makeText(this,"Saved research request",Toast.LENGTH_SHORT).show();
         });
         TvUi.action(this, panel, "COPY AGENT RESEARCH QUESTION",
             () -> copy(name, "No known route in the local index; investigate without guessing feasibility.", "unassessed"));
@@ -211,6 +220,7 @@ public final class PortabilityLabActivity extends Activity {
             "Explain which limitations are proven and which remain hypotheses. " +
             "Do not install anything automatically.";
         cb.setPrimaryClip(ClipData.newPlainText("Fire portability research", prompt));
+        Toast.makeText(this,"Copied for an agent; nothing installed",Toast.LENGTH_SHORT).show();
     }
 
     @Override public void onBackPressed() {
