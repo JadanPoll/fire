@@ -74,6 +74,8 @@ These supersede the earlier broad choices. **Compute has a bounded device-and-ca
 
 **C-0 — Human capability amplification:** The success of Android Dojo is not the number of challenges completed, apps built, or terms memorized. It is whether the human can now predict more, imagine more, ask better agent questions, and choose more informative experiments about this TV. Challenges and agents are subordinate means. The [Possibility Garden](../app/src/main/java/dev/jadan/fire/IdeaGardenActivity.java) is an early instrument for discovering and returning to the human's questions, not a substitute for genuine learning.
 
+**B uses Logical Cloud's original factor-variable method:** portability is a constrained choice of experience, implementation, execution, controls, presentation, artifacts and placement rather than a yes/no property of a particular binary. The [algebraic portability model](PORTABILITY_FACTOR_SPACE.md) and initial `execution × control` queries preserve evidence and honest uncertainties.
+
 **Distinct purposes and stopping criteria:** A = present-day fun and creative iteration; B = REA-style asymptotic feasibility frontier; C = human understanding and idea-generation; D = real work through an agentic computing substrate. Cross-project reuse is valuable but **none of these is primarily an engineering toolkit for the others**. Keep each experience enjoyable or useful on its own.
 
 Two cross-cutting promises: (1) useful experiences survive unrelated agent
