@@ -3,10 +3,15 @@
 Standalone Android/Fire OS developer workstation for **Fire OS 7.7.1.7 (Android 9 / API 28)**. This project is independently versioned from Manifold Console.
 
 **Human vision / functional direction:** [Fire Console vision and
-intent map](docs/VISION_AND_INTENT.md). The user has selected **existing
-games**, **instant expandable creative prototypes**, **hands-on Android
-instrumentation**, and **one unified idea-to-play Compute experience**.
-These are selected experiences, not claims of completed implementation.
+intent map](docs/VISION_AND_INTENT.md). The current Layer 2 emphasizes an **agent-readable portability knowledge base**,
+**tiny 2D Playroom probes**, **problem-first ungraded Android Dojo**, and
+**external project/asset modularity**. Compute's separate holistic purpose is
+**deferred**; its existing channel remains available. These are functional
+choices, not proof that the complete experiences are implemented.
+
+[First executable Fire ↔ Logical Cloud slice](docs/FIRST_SLICE.md): two native
+2D probes, a queryable portability seed, and an Android challenge/progress
+ledger with explicit evidence limits.
 Agents should start here to recover the holistic purpose and the few
 consequential remaining choices before selecting engines, APIs or test
 machinery.
