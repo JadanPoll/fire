@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -40,13 +41,14 @@ public final class MiniGameLabActivity extends Activity {
         panel.addView(TvUi.text(this,
             "Tap D-pad in four directions to reach the yellow dot. Tests discrete movement and boundary handling.",
             15, TvUi.SUB));
-        TvUi.action(this, panel, "PLAY COLLECT", () -> startGame(ProbeGameModel.Mode.COLLECT));
+        Button first = TvUi.action(this, panel, "PLAY COLLECT", () -> startGame(ProbeGameModel.Mode.COLLECT));
         panel.addView(TvUi.section(this, "02  /  DODGE THE BLOCK"));
         panel.addView(TvUi.text(this,
             "Tap Left/Right to avoid the falling orange square. Tests frame scheduling and collision state.",
             15, TvUi.SUB));
         TvUi.action(this, panel, "PLAY DODGE", () -> startGame(ProbeGameModel.Mode.DODGE));
         TvUi.addPanel(this, root, panel);
+        first.requestFocus();
     }
 
     private void startGame(ProbeGameModel.Mode mode) {
