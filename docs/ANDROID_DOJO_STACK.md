@@ -85,6 +85,8 @@ informative next step, not require a language/tool migration for its own sake.
   scripts and app interaction; never expose an unrestricted JavaScript
   bridge to untrusted web content.
 
+**Source/build evidence:** [PR #17](https://github.com/JadanPoll/fire/pull/17) was merged after [change-scoped CI](https://github.com/JadanPoll/fire/actions/runs/41984866284) passed. [Main APK build and rolling release publication](https://github.com/JadanPoll/fire/actions/runs/41985021435) also passed. This verifies the software was built and published, **not** that the expanded Dojo has been operated on a physical Fire TV.
+
 ## Evidence and stopping rule
 
 This change implements **catalog metadata and a TV stack browser**, not new
