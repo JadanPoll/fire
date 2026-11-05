@@ -13,6 +13,26 @@ class DojoTest(unittest.TestCase):
         self.assertIn("debouncing", item["glossary"])
         self.assertIn("tv-companion-control", item["related"])
 
+    def test_stack_covers_script_to_kernel_without_gating_challenges(self):
+        catalog = read_catalog()
+        levels = {item["id"]: item for item in catalog["stack_levels"]}
+        self.assertEqual(set(levels), {"script", "app", "native", "system", "privileged"})
+        self.assertEqual(levels["privileged"]["access"], "research_only")
+        script = get_challenge(catalog, "script-render-jitter")
+        self.assertIn("script", script["stack"])
+        self.assertIn("native", script["stack"])
+        self.assertIn("JNI", get_challenge(catalog, "jni-crossing")["glossary"])
+
+    def test_invalid_stack_reference_rejected(self):
+        import json
+        data = read_catalog()
+        data["challenges"][0]["stack"].append("imaginary-root")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "catalog.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                read_catalog(path)
+
     def test_partial_progress_survives_restart_without_grade(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "progress.json"

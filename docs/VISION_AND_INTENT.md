@@ -59,18 +59,18 @@ its actual implications require it. See Logical Cloud LC-16.11–16.14.
 
 ## Layer 2 — accepted refinements (2026-11-04)
 
-These supersede the earlier broad choices. **Compute has no settled independent
-purpose yet**; keep its existing channel, but defer the broader product question.
-Neither a heavyweight universal executor nor a required service is implied.
+These supersede the earlier broad choices. **Compute has a bounded device-and-capability discovery direction** (including GitHub, hardware and virtual agents), while its larger independent purpose remains unresolved. Neither a heavyweight universal executor nor a required cloud service is implied.
 
 | Functional set | Current human intent | Implementation uncertainty left to agents |
 | --- | --- | --- |
 | **Portability intelligence** | A gradually refined database answering "get me this game/app on TV": feasible routes, blockers, device/control suitability, actual evidence, and research tasks | How to query/fill records automatically, verify individual titles, choose between native/emulated/browser/remote execution and UI adaptation |
 | **Creative Playroom** | Start with a deliberately tiny catalog of 2D games to expose rendering, input and representation bugs | Which simple game rules and minimal engine surfaces provide informative evidence |
-| **Android Dojo** | Ungraded, topic-linked problem statements with glossary and tacit checks; progress and experiments are revisitable | Which first experiments can be run/read directly on TV; how to carry progress between devices |
+| **Android Dojo** | Ungraded problem statements with glossaries and tacit checks, spanning scripts, Android apps, native C/JNI, ADB diagnostics and research-only kernel boundaries; progress is revisitable | Which device observations establish transferable intuition; cross-device continuity still future work |
 | **Modular projects and assets** | Independent GitHub projects may evolve artwork/animations outside game code; eventual dynamic loading with smart caching and rollback | Exact manifest, trust, content delivery and cache boundaries; no universal loader is assumed implemented |
 | **TV-first interaction** | TV is primary; eventual iPad companion offers bidirectional low-latency control/inspection, useful especially for desktop-like apps | Raw versus semantic controls, authorization, stream protocol and integration |
-| **Compute (deferred)** | May become a reusable capability hooked into games, or remain an exploratory curiosity | Its actual holistic compelling purpose is not selected; do not broaden the Compute stack prematurely |
+| **Compute (scoped)** | TV-first device gallery showing enumerated hardware and virtual capability providers. GitHub represents versioned projects/assets, Actions static compilation and workflows; Python and agentic workspaces can advertise capabilities | The high-level destination, verified live presence, and general orchestration remain open; anonymous GET is metadata-only and not authorization |
+
+**Android Dojo stack range:** a tiny scripted experiment may be as intellectually deep as a native or OS-level experiment. [Stack map and problem catalog](ANDROID_DOJO_STACK.md) document the actual Fire OS 7 privilege boundaries, without prescribing progression from easy to hard.
 
 Two cross-cutting promises: (1) useful experiences survive unrelated agent
 work, disconnections and failed optional experiments; (2) discoveries in Dojo,

@@ -24,10 +24,12 @@ import java.nio.charset.StandardCharsets;
  */
 public final class AndroidDojoActivity extends Activity {
     private SharedPreferences progress;
-    private JSONArray topics = new JSONArray(), challenges = new JSONArray();
+    private JSONArray topics = new JSONArray(), challenges = new JSONArray(), stackLevels = new JSONArray();
     private LinearLayout root;
     private ScrollView scroll;
     private String currentId;
+    private boolean showingStack;
+    private boolean challengeFromStack;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -47,6 +49,8 @@ public final class AndroidDojoActivity extends Activity {
             JSONObject catalog = new JSONObject(bytes.toString(StandardCharsets.UTF_8.name()));
             topics = catalog.getJSONArray("topics");
             challenges = catalog.getJSONArray("challenges");
+            stackLevels = catalog.optJSONArray("stack_levels");
+            if (stackLevels == null) stackLevels = new JSONArray();
             if (challenges.length() == 0) throw new IllegalStateException("No challenges");
         } catch (Exception failure) {
             root.addView(DojoTheme.headline(this, "ANDROID DOJO / CATALOG UNAVAILABLE"));
@@ -56,7 +60,9 @@ public final class AndroidDojoActivity extends Activity {
             return;
         }
         currentId = state == null ? null : state.getString("challenge");
+        challengeFromStack = state != null && state.getBoolean("challenge_from_stack");
         if (find(currentId) != null) showChallenge(currentId);
+        else if (state != null && state.getBoolean("stack_map")) showStackMap();
         else showCatalog();
     }
 
@@ -78,7 +84,10 @@ public final class AndroidDojoActivity extends Activity {
 
     private void showCatalog() {
         currentId = null;
+        showingStack = false;
+        challengeFromStack = false;
         header("Unranked engineering quests  •  questions first, topics as a map, experiments at your own pace.");
+        Button stackButton = DojoTheme.action(this, root, "EXPLORE THE STACK  /  SCRIPT → KERNEL", this::showStackMap);
         Button first = null;
         for (int t = 0; t < topics.length(); t++) {
             JSONObject topic = topics.optJSONObject(t);
@@ -102,7 +111,34 @@ public final class AndroidDojoActivity extends Activity {
             }
             if (included) DojoTheme.addCard(this, root, card);
         }
-        if (first != null) first.requestFocus();
+        stackButton.requestFocus();
+        scroll.scrollTo(0, 0);
+    }
+
+    /** A second navigational axis, not a difficulty ladder or prerequisite gate. */
+    private void showStackMap() {
+        currentId = null;
+        showingStack = true;
+        header("Explore from a five-line script to the Android kernel boundary. Lower-level does not mean deeper understanding.");
+        Button back = DojoTheme.action(this, root, "←  CHALLENGE TOPICS", this::showCatalog);
+        for (int i = 0; i < stackLevels.length(); i++) {
+            JSONObject level = stackLevels.optJSONObject(i);
+            if (level == null) continue;
+            LinearLayout card = DojoTheme.card(this);
+            card.addView(DojoTheme.label(this, level.optString("label"), 19, DojoTheme.GOLD));
+            card.addView(DojoTheme.label(this, "ACCESS: " + level.optString("access"), 14, DojoTheme.RED));
+            card.addView(DojoTheme.label(this, level.optString("description"), 16, DojoTheme.INK));
+            card.addView(DojoTheme.label(this, "BOUNDARY: " + level.optString("boundary"), 14, DojoTheme.MUTED));
+            String levelId = level.optString("id");
+            for (int j = 0; j < challenges.length(); j++) {
+                JSONObject c = challenges.optJSONObject(j);
+                if (c == null || !contains(c.optJSONArray("stack"), levelId)) continue;
+                String cid = c.optString("id");
+                DojoTheme.action(this, card, c.optString("title") + "  /  OPEN QUESTION", () -> showChallenge(cid));
+            }
+            DojoTheme.addCard(this, root, card);
+        }
+        back.requestFocus();
         scroll.scrollTo(0, 0);
     }
 
@@ -131,12 +167,15 @@ public final class AndroidDojoActivity extends Activity {
     private void showChallenge(String id) {
         JSONObject c = find(id);
         if (c == null) { showCatalog(); return; }
+        challengeFromStack = showingStack || (currentId != null && challengeFromStack);
         currentId = id;
+        showingStack = false;
         header("探究 / QUESTION   •   Progress is never graded.");
         Button back = DojoTheme.action(this, root, "←  ALL CHALLENGES", this::showCatalog);
         LinearLayout challenge = DojoTheme.card(this);
         challenge.addView(DojoTheme.headline(this, c.optString("title")));
         challenge.addView(DojoTheme.label(this, c.optString("problem"), 16, DojoTheme.INK));
+        arraySection(challenge, "STACK LENSES / PLACES TO INVESTIGATE", c.optJSONArray("stack"));
         arraySection(challenge, "GLOSSARY / IDEAS TO EXPLORE", c.optJSONArray("glossary"));
         arraySection(challenge, "TACIT SKILLS / THINGS TO TRY", c.optJSONArray("tacit_checks"));
         arraySection(challenge, "PARTIAL PROGRESS COUNTS", c.optJSONArray("partial_progress_examples"));
@@ -236,12 +275,17 @@ public final class AndroidDojoActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (currentId != null) showCatalog();
+        if (currentId != null) {
+            if (challengeFromStack) showStackMap();
+            else showCatalog();
+        } else if (showingStack) showCatalog();
         else super.onBackPressed();
     }
 
     @Override protected void onSaveInstanceState(Bundle out) {
         out.putString("challenge", currentId);
+        out.putBoolean("stack_map", showingStack);
+        out.putBoolean("challenge_from_stack", challengeFromStack);
         super.onSaveInstanceState(out);
     }
 }

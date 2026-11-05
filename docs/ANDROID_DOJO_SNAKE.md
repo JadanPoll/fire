@@ -24,6 +24,8 @@ testing are not proof that every Fire remote emits the expected events.
 
 ## Playroom → Android Dojo (道場)
 
+**New navigational axis:** [script → Android framework → native code → ADB diagnostics → kernel boundary](ANDROID_DOJO_STACK.md), with no compulsory sequence or grading. New problem statements intentionally cross abstraction levels; a short script can teach deep system behavior when observations test concrete hypotheses.
+
 The TV now presents the same problem-first catalog used by
 `tools/android_dojo.py`. Android Gradle mounts
 `research/android_dojo/catalog.json` directly as an asset; there is
