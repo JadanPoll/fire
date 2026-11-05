@@ -87,6 +87,8 @@ public final class AndroidDojoActivity extends Activity {
         showingStack = false;
         challengeFromStack = false;
         header("Unranked engineering quests  •  questions first, topics as a map, experiments at your own pace.");
+        DojoTheme.action(this, root, "POSSIBILITY GARDEN  /  WHAT ELSE COULD WE DO?", () ->
+            startActivity(new Intent(this, IdeaGardenActivity.class)));
         Button stackButton = DojoTheme.action(this, root, "EXPLORE THE STACK  /  SCRIPT → KERNEL", this::showStackMap);
         Button first = null;
         for (int t = 0; t < topics.length(); t++) {
