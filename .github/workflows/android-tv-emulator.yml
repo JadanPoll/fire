@@ -18,6 +18,14 @@ on:
         options:
           - release
           - branch
+      scope:
+        description: "Quick = Console/Browser; full = all apps and input flows"
+        type: choice
+        required: true
+        default: quick
+        options:
+          - quick
+          - full
 
 permissions:
   contents: read
@@ -77,7 +85,7 @@ jobs:
           emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: python3 tools/tv_emulator_smoke.py
+          script: python3 tools/tv_emulator_smoke.py --scope ${{ inputs.scope || 'quick' }}
       - name: Show results directly in the GitHub Actions run summary
         if: always()
         run: |
