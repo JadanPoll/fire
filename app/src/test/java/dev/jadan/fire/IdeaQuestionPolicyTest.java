@@ -10,7 +10,7 @@ public class IdeaQuestionPolicyTest {
         assertTrue(q.contains("What can't we do with this TV?"));
         assertTrue(q.contains("normalize control intent"));
         assertTrue(q.contains("counterexample"));
-        assertTrue(q.contains("not a command to install"));
+        assertTrue(q.contains("not treat my question as a command to install"));
     }
 
     @Test(expected=IllegalArgumentException.class)
