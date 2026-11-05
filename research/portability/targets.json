@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "purpose": "Agent-facing investigation index, not an automatic installer or a claim of full device compatibility.",
+  "states": [
+    "unexamined",
+    "researching",
+    "candidate",
+    "upstream_supported",
+    "repo_implemented",
+    "device_verified",
+    "blocked"
+  ],
+  "entries": [
+    {
+      "id": "vscode",
+      "names": [
+        "VS Code",
+        "Visual Studio Code",
+        "vscode"
+      ],
+      "intent": "Edit and run code through a television-friendly experience.",
+      "routes": [
+        {
+          "id": "vscode-dev",
+          "execution": "browser",
+          "state": "upstream_supported",
+          "interaction": {
+            "remote": "poor",
+            "ipad_companion": "candidate",
+            "keyboard_mouse": "plausible"
+          },
+          "adaptation": [
+            "Focus and pointer navigation",
+            "Text entry and editor shortcuts",
+            "Optional companion device for richer controls"
+          ],
+          "blockers": [
+            "Browser limitations for terminal, debugging and extensions",
+            "Real Fire OS behavior untested"
+          ],
+          "next_check": "Open vscode.dev in Fire Browser; record focus, editing and keyboard limits before proposing a TV-specific wrapper.",
+          "evidence": [
+            {
+              "kind": "upstream",
+              "url": "https://code.visualstudio.com/docs/editor/vscode-web",
+              "claim": "VS Code for the Web exists; not a Fire TV validation."
+            }
+          ]
+        },
+        {
+          "id": "code-server",
+          "execution": "remote_host_browser_ui",
+          "state": "candidate",
+          "interaction": {
+            "remote": "poor",
+            "ipad_companion": "candidate",
+            "keyboard_mouse": "plausible"
+          },
+          "adaptation": [
+            "Authorize and secure remote host",
+            "Map editor controls to TV+iPad"
+          ],
+          "blockers": [
+            "No locally tested deployment or authentication path for Fire Console"
+          ],
+          "next_check": "Run a properly secured code-server host and measure a real browser and iPad control flow.",
+          "evidence": [
+            {
+              "kind": "upstream",
+              "url": "https://github.com/coder/code-server",
+              "claim": "Browser-accessible development environment; no Fire TV test."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lemuroid",
+      "names": [
+        "Lemuroid",
+        "GBA emulator",
+        "Game Boy Advance emulator"
+      ],
+      "intent": "Play legitimately supplied Game Boy Advance software.",
+      "routes": [
+        {
+          "id": "official-android-apk",
+          "execution": "android_apk",
+          "state": "repo_implemented",
+          "interaction": {
+            "remote": "unknown",
+            "ipad_companion": "unexamined",
+            "keyboard_mouse": "unknown"
+          },
+          "adaptation": [
+            "User supplies lawful ROM",
+            "Confirm D-pad and A/B/Start/Select mapping on actual device"
+          ],
+          "blockers": [
+            "Emulation core downloaded separately on first use",
+            "Physical Fire TV controls and rendering not yet verified"
+          ],
+          "next_check": "Run Playroom GBA test sequence on the Fire device and attach a trace.",
+          "evidence": [
+            {
+              "kind": "local_source",
+              "url": "https://github.com/JadanPoll/fire/blob/main/docs/PLAYROOM_GBA.md",
+              "claim": "Installer and ROM-delivery path specified and implemented; not physical playability proof."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "browser-games",
+      "names": [
+        "Browser game",
+        "HTML5 game",
+        "Web game"
+      ],
+      "intent": "Play existing HTTPS 2D games through Fire Browser.",
+      "routes": [
+        {
+          "id": "pin-and-open",
+          "execution": "browser",
+          "state": "repo_implemented",
+          "interaction": {
+            "remote": "unknown",
+            "ipad_companion": "unexamined",
+            "keyboard_mouse": "candidate"
+          },
+          "adaptation": [
+            "Game-specific remote control mapping",
+            "Screen and audio testing"
+          ],
+          "blockers": [
+            "Individual games may assume touch or keyboard",
+            "Network/browser compatibility is title-specific"
+          ],
+          "next_check": "Pick an individual game and observe control, sound and frame timing; do not generalize from the launcher.",
+          "evidence": [
+            {
+              "kind": "local_source",
+              "url": "https://github.com/JadanPoll/fire/blob/main/app/src/main/java/dev/jadan/fire/GameShelfActivity.java",
+              "claim": "HTTPS game pinning and launch path implemented."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "windows-exe",
+      "names": [
+        "Windows EXE",
+        "Windows GUI application",
+        ".exe"
+      ],
+      "intent": "Use a particular Windows application on television.",
+      "routes": [
+        {
+          "id": "remote-desktop",
+          "execution": "remote_host_stream",
+          "state": "researching",
+          "interaction": {
+            "remote": "poor",
+            "ipad_companion": "candidate",
+            "keyboard_mouse": "candidate"
+          },
+          "adaptation": [
+            "Remote graphics and input",
+            "iPad semantic or raw controls",
+            "Application security and licensing"
+          ],
+          "blockers": [
+            "Windows host and streaming path not established in Fire Console",
+            "Per-app interaction redesign may be required"
+          ],
+          "next_check": "Select a specific Windows program and compare remote GUI against recreation of just its user-visible behavior.",
+          "evidence": []
+        },
+        {
+          "id": "native-or-compatibility",
+          "execution": "port_or_compatibility_layer",
+          "state": "unexamined",
+          "interaction": {
+            "remote": "unknown",
+            "ipad_companion": "unknown",
+            "keyboard_mouse": "unknown"
+          },
+          "adaptation": [
+            "Assess CPU/ABI, runtime APIs and dependencies",
+            "Validate each candidate interface"
+          ],
+          "blockers": [
+            "No universal .exe-to-Fire conversion exists in this repository"
+          ],
+          "next_check": "Inspect a specific executable and its licensing, dependencies and required interactions.",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

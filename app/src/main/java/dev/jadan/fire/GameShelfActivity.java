@@ -46,6 +46,11 @@ public final class GameShelfActivity extends Activity {
         TextView heading=TvUi.header(this,"PLAYROOM  /  GAME CHANNELS");
         root.addView(heading);
         root.addView(label("Web games, independent native experiments, and a real GBA emulator. Your existing pinned games are unchanged.",16,0xFF58728A));
+        LinearLayout probes=TvUi.panel(this);
+        probes.addView(TvUi.section(this,"2D  /  MINIGAME PROBES"));
+        probes.addView(TvUi.text(this,"Two offline, native, asset-free games for learning what Fire TV rendering and D-pad controls actually do.",15,TvUi.SUB));
+        TvUi.action(this,probes,"OPEN 2D MINIGAME LAB",()->startActivity(new Intent(this,MiniGameLabActivity.class)));
+        TvUi.addPanel(this,root,probes);
         LinearLayout gba=TvUi.panel(this);
         gba.addView(TvUi.section(this,"GBA  /  REAL CONSOLE GAMES"));
         gba.addView(TvUi.text(this,"Import a user-supplied Game Boy Advance ROM and play it in an existing emulator. No Nintendo software is bundled.",15,TvUi.SUB));

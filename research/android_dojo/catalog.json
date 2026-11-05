@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "purpose": "Ungraded, problem-first Android/Fire OS challenges. A topic is a navigational aid, not a mandatory prerequisite.",
+  "topics": [
+    {
+      "id": "input",
+      "label": "Input and intent"
+    },
+    {
+      "id": "lifecycle",
+      "label": "Process and lifecycle"
+    },
+    {
+      "id": "graphics",
+      "label": "Graphics and assets"
+    },
+    {
+      "id": "network",
+      "label": "Remote interaction and networking"
+    }
+  ],
+  "challenges": [
+    {
+      "id": "remote-double-action",
+      "title": "Why does a remote press sometimes trigger two actions?",
+      "topics": [
+        "input"
+      ],
+      "problem": "Observe actual KeyEvents and UI actions on Fire OS. Find when one physical gesture becomes multiple application actions, and design a minimally invasive interpretation that remains predictable.",
+      "glossary": [
+        "KeyEvent",
+        "ACTION_DOWN/ACTION_UP",
+        "repeatCount",
+        "focus",
+        "debouncing",
+        "event timestamp"
+      ],
+      "tacit_checks": [
+        "Capture a reproducible raw-versus-accepted input trace",
+        "Explain one duplicate-action failure using observed events",
+        "Change one normalization rule and compare the real result"
+      ],
+      "partial_progress_examples": [
+        "Captured timing trace",
+        "Hypothesis about repeated DOWN",
+        "Reproduced a single bug"
+      ],
+      "related": [
+        "tv-companion-control"
+      ],
+      "local_start": "Tools > Input Lab; docs/INPUT_SYSTEM_AUDIT.md"
+    },
+    {
+      "id": "app-survival",
+      "title": "What happens when Android interrupts an unfinished task?",
+      "topics": [
+        "lifecycle"
+      ],
+      "problem": "Build a tiny stateful interaction; switch to Home, force recreation and, when practical, process loss. Determine which state survives, which does not, and why.",
+      "glossary": [
+        "Activity",
+        "onPause/onStop",
+        "savedInstanceState",
+        "process death",
+        "durable storage"
+      ],
+      "tacit_checks": [
+        "Distinguish view recreation from process death",
+        "Restore a visible in-progress state after recreation",
+        "Document one intentionally unrecoverable case"
+      ],
+      "partial_progress_examples": [
+        "Lifecycle trace",
+        "State restoration experiment"
+      ],
+      "related": [],
+      "local_start": "Create a small independent app; never clear existing Console/browser data."
+    },
+    {
+      "id": "external-sprite",
+      "title": "Can a game change its animation without rebuilding its engine?",
+      "topics": [
+        "graphics",
+        "network"
+      ],
+      "problem": "Load a tiny versioned external sprite bundle, then alter it independently of the game. Compare updates, cache reuse, version rollback and offline behavior.",
+      "glossary": [
+        "manifest",
+        "content hash",
+        "asset bundle",
+        "cache invalidation",
+        "render loop",
+        "atomic promotion"
+      ],
+      "tacit_checks": [
+        "Update an asset independently of engine code",
+        "Show an unchanged cached asset is reused",
+        "Reopen with the previous verified asset when offline"
+      ],
+      "partial_progress_examples": [
+        "Static sprite render",
+        "Versioned manifest sketch",
+        "Cache trace"
+      ],
+      "related": [],
+      "local_start": "Start with the native Playroom microgames as a rendering/control baseline; external loading remains unimplemented."
+    },
+    {
+      "id": "tv-companion-control",
+      "title": "Can an iPad make a complex TV interface genuinely usable?",
+      "topics": [
+        "input",
+        "network"
+      ],
+      "problem": "Compare remote-only interaction with an optional iPad companion for a pointer/keyboard-intensive application. Observe latency, focus, reconnect and permission boundaries.",
+      "glossary": [
+        "WebSocket",
+        "input routing",
+        "message ordering",
+        "semantic action",
+        "Android window ownership",
+        "latency"
+      ],
+      "tacit_checks": [
+        "Measure an end-to-end input round trip",
+        "Recover gracefully after losing connection",
+        "Distinguish app-local input from system-wide injection"
+      ],
+      "partial_progress_examples": [
+        "Input sequence design",
+        "Latency trace",
+        "TV versus iPad usability comparison"
+      ],
+      "related": [
+        "remote-double-action"
+      ],
+      "local_start": "Treat TV-first control as the baseline; no background companion service exists yet."
+    }
+  ]
+}
