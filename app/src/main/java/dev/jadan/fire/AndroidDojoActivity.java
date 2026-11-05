@@ -177,6 +177,12 @@ public final class AndroidDojoActivity extends Activity {
         LinearLayout challenge = DojoTheme.card(this);
         challenge.addView(DojoTheme.headline(this, c.optString("title")));
         challenge.addView(DojoTheme.label(this, c.optString("problem"), 16, DojoTheme.INK));
+        DojoTheme.action(this, challenge, "GROW IDEAS FROM THIS CHALLENGE", () -> {
+            Intent i = new Intent(this, IdeaGardenActivity.class);
+            i.putExtra("challenge_id", id);
+            startActivity(i);
+        });
+        arraySection(challenge, "POSSIBILITIES / QUESTIONS TO ASK", c.optJSONArray("possibility_seeds"));
         arraySection(challenge, "STACK LENSES / PLACES TO INVESTIGATE", c.optJSONArray("stack"));
         arraySection(challenge, "GLOSSARY / IDEAS TO EXPLORE", c.optJSONArray("glossary"));
         arraySection(challenge, "TACIT SKILLS / THINGS TO TRY", c.optJSONArray("tacit_checks"));
