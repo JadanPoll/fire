@@ -23,11 +23,15 @@ def read_matrix(path=DEFAULT):
     for entry in data["entries"]:
         if not entry.get("id") or not entry.get("routes"):
             raise ValueError("Entry requires id and routes")
+        within_entry = set()
         for name in [entry["id"], *entry["names"]]:
             key = name.strip().casefold()
             if not key or key in names:
                 raise ValueError("Duplicate or empty portability alias: " + name)
-            names.add(key)
+            if key in within_entry:
+                continue  # canonical ID may also be a same-record alias
+            within_entry.add(key)
+        names.update(within_entry)
         route_ids = set()
         for route in entry["routes"]:
             if route["id"] in route_ids or route["state"] not in STATES:
