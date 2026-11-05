@@ -111,7 +111,7 @@ public final class PlayroomHubActivity extends Activity {
     }
 
     private void buildDestinations() {
-        destinations.add(new Destination("SNAKE","Play now",2,0xFF39A984,
+        destinations.add(new Destination("SNAKE","Play now",8,0xFF39A984,
             () -> startActivity(new Intent(this,SnakeActivity.class))));
         destinations.add(new Destination("GAME BOY ADVANCE","Your games",2,0xFFDE9C36,
             () -> startActivity(new Intent(this,RetroRoomActivity.class))));
