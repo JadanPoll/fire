@@ -135,6 +135,19 @@ setup or MCP. The Inbox itself must not execute public messages as code.
 The existing paired Codex executor and its permissions remain separate;
 no new authorization requirement is added to public idea exchange.
 
+### Tested external agent adapter
+
+[Logical Cloud's Inbox agent bridge](https://github.com/JadanPoll/Logical_Cloud/blob/main/docs/inbox-agent-bridge.md)
+is now implemented in the Logical Cloud repository. Standalone agents can
+send short, public, addressed messages using the existing Inbox HTTPS
+`/api/send` convention, retrieve JSON lists using `/api/messages`,
+recover ambiguous sends without duplicate writes, and attach GitHub
+PR/commit links. Local two-agent HTTP tests passed. The external
+ChatGPT Site's actual public JSON response shape has **not** been
+verified in this environment, and a deployed WSS broker has not been
+established. Keep the existing Fire Browser send/form fallback intact;
+messages do not grant device or Codex execution authority.
+
 ## Platform constraints / future decisions
 
 Android's ordinary per-app window owns its KeyEvents; a normal app
