@@ -11,7 +11,8 @@ choices, not proof that the complete experiences are implemented.
 
 [First executable Fire ↔ Logical Cloud slice](docs/FIRST_SLICE.md): tiny native
 2D probes and an evidence-qualified portability index. **Next slice:**
-[Snake and the on-TV dark Android Dojo](docs/ANDROID_DOJO_SNAKE.md), plus
+[Snake and the on-TV dark Android Dojo](docs/ANDROID_DOJO_SNAKE.md), including the
+[script-to-kernel challenge range](docs/ANDROID_DOJO_STACK.md), plus
 [Compute devices as physical or virtual capability providers](docs/COMPUTE_CAPABILITY_REGISTRY.md).
 The Dojo TV journal is local-only; the Compute gallery shows static, qualified
 capability records, and the prototype GET registry has not been connected to a
