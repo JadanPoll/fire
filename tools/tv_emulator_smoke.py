@@ -188,7 +188,7 @@ def check_crashes(packages):
                        for pkg, _ in packages)]
     if failures:
         (OUT / "target-crashes.txt").write_text(
-            "\\n---\\n".join(failures), encoding="utf-8")
+            "\n---\n".join(failures), encoding="utf-8")
         raise AssertionError("FATAL EXCEPTION in tested APK process")
     note("No target-app fatal crash", "PASS")
 
