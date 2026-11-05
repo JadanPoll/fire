@@ -20,6 +20,8 @@
         <activity android:name=".InputLabActivity" android:exported="false" />
         <activity android:name=".AppLibraryActivity" android:exported="false" />
         <activity android:name=".RetroRoomActivity" android:exported="false" />
+        <activity android:name=".PlayroomHubActivity" android:exported="false"
+            android:screenOrientation="landscape" />
         <activity android:name=".SnakeActivity" android:exported="false"
             android:screenOrientation="landscape" />
         <activity android:name=".IdeaGardenActivity" android:exported="false"
