@@ -48,7 +48,7 @@ public final class GameShelfActivity extends Activity {
         root.addView(label("Web games, independent native experiments, and a real GBA emulator. Your existing pinned games are unchanged.",16,0xFF58728A));
         LinearLayout probes=TvUi.panel(this);
         probes.addView(TvUi.section(this,"2D  /  MINIGAME PROBES"));
-        probes.addView(TvUi.text(this,"Three offline, native, asset-free games for learning what Fire TV rendering and D-pad controls actually do.",15,TvUi.SUB));
+        probes.addView(TvUi.text(this,"Three tiny native games for observing input and rendering. Snake can optionally load a versioned visual style without rebuilding the game.",15,TvUi.SUB));
         TvUi.action(this,probes,"OPEN 2D MINIGAME LAB",()->startActivity(new Intent(this,MiniGameLabActivity.class)));
         TvUi.addPanel(this,root,probes);
         LinearLayout dojo=TvUi.panel(this);
