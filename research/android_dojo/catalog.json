@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Ungraded, problem-first Android/Fire OS challenges. A topic is a navigational aid, not a mandatory prerequisite.",
+  "purpose": "Ungraded, problem-first Android/Fire OS challenges. A topic is a navigational aid, not a mandatory prerequisite. Challenges may be approached at any abstraction level: scripting through native code and OS diagnostics; lower does not imply deeper.",
   "topics": [
     {
       "id": "input",
@@ -17,6 +17,22 @@
     {
       "id": "network",
       "label": "Remote interaction and networking"
+    },
+    {
+      "id": "scripting",
+      "label": "Scripts, declarative tools and automation"
+    },
+    {
+      "id": "native",
+      "label": "Native code, ABI and JNI"
+    },
+    {
+      "id": "system",
+      "label": "OS observability and boundaries"
+    },
+    {
+      "id": "performance",
+      "label": "Scheduling, memory and performance"
     }
   ],
   "challenges": [
@@ -48,7 +64,12 @@
       "related": [
         "tv-companion-control"
       ],
-      "local_start": "Tools > Input Lab; docs/INPUT_SYSTEM_AUDIT.md"
+      "local_start": "Tools > Input Lab; docs/INPUT_SYSTEM_AUDIT.md",
+      "stack": [
+        "script",
+        "app",
+        "system"
+      ]
     },
     {
       "id": "app-survival",
@@ -74,7 +95,11 @@
         "State restoration experiment"
       ],
       "related": [],
-      "local_start": "Create a small independent app; never clear existing Console/browser data."
+      "local_start": "Create a small independent app; never clear existing Console/browser data.",
+      "stack": [
+        "app",
+        "system"
+      ]
     },
     {
       "id": "external-sprite",
@@ -103,7 +128,12 @@
         "Cache trace"
       ],
       "related": [],
-      "local_start": "Start with the native Playroom microgames as a rendering/control baseline; external loading remains unimplemented."
+      "local_start": "Start with the native Playroom microgames as a rendering/control baseline; external loading remains unimplemented.",
+      "stack": [
+        "script",
+        "app",
+        "native"
+      ]
     },
     {
       "id": "tv-companion-control",
@@ -134,7 +164,239 @@
       "related": [
         "remote-double-action"
       ],
-      "local_start": "Treat TV-first control as the baseline; no background companion service exists yet."
+      "local_start": "Treat TV-first control as the baseline; no background companion service exists yet.",
+      "stack": [
+        "script",
+        "app",
+        "system"
+      ]
+    },
+    {
+      "id": "script-render-jitter",
+      "title": "Why can ten lines of animation code stutter?",
+      "topics": [
+        "scripting",
+        "graphics",
+        "performance"
+      ],
+      "stack": [
+        "script",
+        "app",
+        "native"
+      ],
+      "problem": "Draw a simple moving sprite using JavaScript/Canvas or a tiny native Android View. Change one factor at a time; explain whether visible jitter comes from the animation clock, input delivery, the renderer, or the device's display pipeline.",
+      "glossary": [
+        "requestAnimationFrame",
+        "frame pacing",
+        "vsync",
+        "WebView",
+        "View.invalidate",
+        "render thread",
+        "jank"
+      ],
+      "tacit_checks": [
+        "Measure frame intervals rather than guessing by eye",
+        "Compare a scripted and Android-view implementation with the same motion",
+        "Identify a device-dependent bottleneck without blaming the language prematurely"
+      ],
+      "partial_progress_examples": [
+        "Drawn a working moving square",
+        "Captured frame interval histogram",
+        "Found one measurable source of jank"
+      ],
+      "related": [
+        "external-sprite"
+      ],
+      "local_start": "Fire Browser HTML input lab and Playroom's native 2D games are starting references; scripted frame diagnostics are a new exercise, not yet a built-in instrument."
+    },
+    {
+      "id": "jni-crossing",
+      "title": "Can a tiny C function be slower than Java?",
+      "topics": [
+        "native",
+        "performance"
+      ],
+      "stack": [
+        "app",
+        "native",
+        "system"
+      ],
+      "problem": "Implement the same bounded transformation in Java and Android NDK C/C++. Compare not only raw arithmetic but also the cost and correctness of crossing JNI, native allocations, and transferring arrays.",
+      "glossary": [
+        "NDK",
+        "JNI",
+        "ABI",
+        "shared library",
+        "marshalling",
+        "JNIEnv",
+        "memory ownership"
+      ],
+      "tacit_checks": [
+        "Package an NDK library for the actual device ABI",
+        "Measure repeated calls and batched calls fairly",
+        "Explain why fewer JNI crossings can outperform a seemingly faster native function"
+      ],
+      "partial_progress_examples": [
+        "JNI method returns an integer",
+        "C shared library loads successfully",
+        "Repeated-call trace with limitations"
+      ],
+      "related": [
+        "script-render-jitter"
+      ],
+      "local_start": "Use a standalone Android NDK sample or independent test module; Fire Console does not currently bundle an NDK demo."
+    },
+    {
+      "id": "adb-visibility",
+      "title": "What can an app and ADB actually know about Android?",
+      "topics": [
+        "system",
+        "lifecycle",
+        "input"
+      ],
+      "stack": [
+        "app",
+        "system",
+        "privileged"
+      ],
+      "problem": "Compare information visible inside a normal app with information returned by a separately authorized ADB session. Identify where app sandboxing, shell privileges and protected system services impose real boundaries.",
+      "glossary": [
+        "ADB",
+        "dumpsys",
+        "logcat",
+        "UID",
+        "process isolation",
+        "SELinux",
+        "app sandbox"
+      ],
+      "tacit_checks": [
+        "Collect a narrow, non-sensitive app-local diagnostic report",
+        "Use supported ADB diagnostics to observe a system service",
+        "Identify an unavailable operation and explain its permission boundary without trying to bypass it"
+      ],
+      "partial_progress_examples": [
+        "Inspected process-specific state",
+        "Read a scoped dumpsys section",
+        "Mapped a permission boundary"
+      ],
+      "related": [
+        "app-survival",
+        "remote-double-action"
+      ],
+      "local_start": "The existing Fire test helper and Input Lab are relevant. Authorized ADB is optional and not a prerequisite to other Dojo projects."
+    },
+    {
+      "id": "script-to-tv",
+      "title": "Can a tiny Python script produce a meaningful TV experiment?",
+      "topics": [
+        "scripting",
+        "network",
+        "input"
+      ],
+      "stack": [
+        "script",
+        "app"
+      ],
+      "problem": "Have an external Python program produce a simple visual or state update for a TV-owned app through a narrow, inspectable content protocol. Identify which parts actually execute remotely versus on Fire OS, and how disconnections affect the intended behavior.",
+      "glossary": [
+        "Python",
+        "manifest",
+        "client/server",
+        "transport",
+        "state machine",
+        "reconnect",
+        "capability boundary"
+      ],
+      "tacit_checks": [
+        "Make a scripted change visible on the TV without modifying the core engine",
+        "Observe a remote failure without losing the last working state",
+        "Explain why script length does not predict engineering depth"
+      ],
+      "partial_progress_examples": [
+        "Generated a static JSON state",
+        "Mapped a proposed protocol",
+        "Measured update path end-to-end"
+      ],
+      "related": [
+        "external-sprite",
+        "tv-companion-control"
+      ],
+      "local_start": "Start with versioned assets and the existing Playroom; dynamic asset streaming or script invocation is not yet implemented."
+    },
+    {
+      "id": "kernel-edge",
+      "title": "Where does a native Android program stop having authority?",
+      "topics": [
+        "native",
+        "system"
+      ],
+      "stack": [
+        "native",
+        "system",
+        "privileged"
+      ],
+      "problem": "Trace one ordinary app's input, filesystem or graphics operation toward its OS/kernel boundary using public code, permitted device observations and optionally an emulator. Separate the effects of native machine code from privileged kernel operations.",
+      "glossary": [
+        "Linux syscall",
+        "Bionic libc",
+        "SELinux",
+        "binder",
+        "driver",
+        "device node",
+        "user/kernel boundary"
+      ],
+      "tacit_checks": [
+        "Identify the relevant ordinary Android/NDK API",
+        "Find an observable boundary and explain the expected failure/success",
+        "Distinguish behavior on a test emulator from the actual Fire TV"
+      ],
+      "partial_progress_examples": [
+        "Mapped the conceptual syscall path",
+        "Observed a permitted app-local native call",
+        "Identified a driver-level question requiring another environment"
+      ],
+      "related": [
+        "jni-crossing",
+        "adb-visibility"
+      ],
+      "local_start": "Research-and-observation challenge only on ordinary Fire TV. Kernel changes belong to a separate authorized simulator or development device."
+    }
+  ],
+  "stack_levels": [
+    {
+      "id": "script",
+      "label": "SCRIPT / WEB / DECLARATIVE",
+      "access": "available",
+      "description": "JavaScript, HTML Canvas, locally authored web tools, manifests and externally executed Python. Small programs still support rigorous Android experiments if traced to device behavior.",
+      "boundary": "A remote Python worker is not native Android execution; WebView JavaScript has its own security and lifecycle behavior."
+    },
+    {
+      "id": "app",
+      "label": "ANDROID APPLICATION / FRAMEWORK",
+      "access": "available",
+      "description": "Java/Kotlin application components, Activities, lifecycle, events, UI widgets, assets, storage, rendering and permissions.",
+      "boundary": "Ordinary apps receive only their own allowed inputs and resources; a TV app is not a global remapper."
+    },
+    {
+      "id": "native",
+      "label": "NATIVE / ABI / HARDWARE-FACING",
+      "access": "available_with_build_tooling",
+      "description": "Android NDK C/C++, JNI, .so libraries, CPU/ABI, memory, native performance, OpenGL ES and supported platform APIs.",
+      "boundary": "Native code is still inside the Android application sandbox; it does not imply root or kernel privileges."
+    },
+    {
+      "id": "system",
+      "label": "SYSTEM OBSERVATION / ADB",
+      "access": "conditional_adb",
+      "description": "With authorized ADB, inspect supported system diagnostics using logcat, dumpsys and process/device instrumentation. Compare application observations with system reports.",
+      "boundary": "Availability varies by Fire OS build and shell permissions; diagnostic read access is not arbitrary modification authority."
+    },
+    {
+      "id": "privileged",
+      "label": "KERNEL / FIRMWARE / DRIVERS",
+      "access": "research_only",
+      "description": "Understand the kernel boundary, SELinux, driver interfaces, boot architecture and hardware design via sources, emulators or other authorized test devices.",
+      "boundary": "Do not presume root, bootloader unlock, kernel module loading, firmware replacement, or modification of protected services on ordinary Fire TV."
     }
   ]
 }
