@@ -196,10 +196,20 @@ def main():
         key("RIGHT")
         snapshot("05-signal-studio-dpad")
 
-        launch("dev.jadan.fire/.AppLibraryActivity")
+        # Internal activities are deliberately not exported. Navigate as
+        # the user would, through Console D-pad/OK, never through adb am start.
+        launch("dev.jadan.fire/.ConsoleActivity")
+        key("DOWN")  # Compute
+        key("RIGHT")  # Apps
+        key("OK")
         check_foreground("AppLibraryActivity")
         snapshot("06-installed-app-library", "APPLICATIONS")
-        launch("dev.jadan.fire/.MainActivity")
+
+        launch("dev.jadan.fire/.ConsoleActivity")
+        key("DOWN")   # Compute
+        key("RIGHT")  # Apps
+        key("RIGHT")  # Tools
+        key("OK")
         check_foreground("MainActivity")
         snapshot("07-tools", "TOOLS  /  MAINTENANCE")
 
