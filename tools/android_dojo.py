@@ -22,12 +22,19 @@ def read_catalog(path=CATALOG):
     if data.get("schema_version") != 1:
         raise ValueError("Unsupported dojo schema")
     topics = {t["id"] for t in data["topics"]}
+    levels = data.get("stack_levels", [])
+    level_ids = [level["id"] for level in levels]
+    if len(level_ids) != len(set(level_ids)):
+        raise ValueError("Duplicate stack level")
+    known_levels = set(level_ids)
     ids = set()
     for c in data["challenges"]:
         if c["id"] in ids or not c.get("problem") or not c.get("glossary"):
             raise ValueError("Duplicate or incomplete dojo challenge: " + c["id"])
         if not set(c["topics"]).issubset(topics):
             raise ValueError("Unknown dojo topic: " + c["id"])
+        if not set(c.get("stack", [])).issubset(known_levels):
+            raise ValueError("Unknown dojo stack level: " + c["id"])
         ids.add(c["id"])
     if any(x not in ids for c in data["challenges"] for x in c["related"]):
         raise ValueError("Missing related dojo challenge")
