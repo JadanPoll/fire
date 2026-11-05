@@ -87,6 +87,8 @@ public final class AndroidDojoActivity extends Activity {
         showingStack = false;
         challengeFromStack = false;
         header("Unranked engineering quests  •  questions first, topics as a map, experiments at your own pace.");
+        DojoTheme.action(this, root, "POSSIBILITY GARDEN  /  WHAT ELSE COULD WE DO?", () ->
+            startActivity(new Intent(this, IdeaGardenActivity.class)));
         Button stackButton = DojoTheme.action(this, root, "EXPLORE THE STACK  /  SCRIPT → KERNEL", this::showStackMap);
         Button first = null;
         for (int t = 0; t < topics.length(); t++) {
@@ -175,6 +177,12 @@ public final class AndroidDojoActivity extends Activity {
         LinearLayout challenge = DojoTheme.card(this);
         challenge.addView(DojoTheme.headline(this, c.optString("title")));
         challenge.addView(DojoTheme.label(this, c.optString("problem"), 16, DojoTheme.INK));
+        DojoTheme.action(this, challenge, "GROW IDEAS FROM THIS CHALLENGE", () -> {
+            Intent i = new Intent(this, IdeaGardenActivity.class);
+            i.putExtra("challenge_id", id);
+            startActivity(i);
+        });
+        arraySection(challenge, "POSSIBILITIES / QUESTIONS TO ASK", c.optJSONArray("possibility_seeds"));
         arraySection(challenge, "STACK LENSES / PLACES TO INVESTIGATE", c.optJSONArray("stack"));
         arraySection(challenge, "GLOSSARY / IDEAS TO EXPLORE", c.optJSONArray("glossary"));
         arraySection(challenge, "TACIT SKILLS / THINGS TO TRY", c.optJSONArray("tacit_checks"));

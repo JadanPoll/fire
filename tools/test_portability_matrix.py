@@ -2,7 +2,7 @@
 import copy
 import unittest
 
-from portability_matrix import read_matrix, lookup, unassessed
+from portability_matrix import read_matrix, lookup, unassessed, factor_variants
 
 
 class PortabilityMatrixTest(unittest.TestCase):
@@ -12,6 +12,22 @@ class PortabilityMatrixTest(unittest.TestCase):
         self.assertEqual(e["id"], "vscode")
         self.assertEqual(e["routes"][0]["interaction"]["remote"], "poor")
         self.assertNotEqual(e["routes"][0]["state"], "device_verified")
+
+    def test_factorized_execution_and_controls_are_independent(self):
+        matrix = read_matrix()
+        vscode = lookup(matrix, "VS Code")
+        variants = factor_variants(vscode)
+        self.assertEqual(len(variants), len(vscode["routes"]) * 3)
+        browser_remote = next(v for v in variants if
+                              v["execution_route"] == "vscode-dev" and
+                              v["control"] == "remote")
+        browser_ipad = next(v for v in variants if
+                            v["execution_route"] == "vscode-dev" and
+                            v["control"] == "ipad_companion")
+        self.assertEqual(browser_remote["execution"], browser_ipad["execution"])
+        self.assertEqual(browser_remote["control_assessment"], "poor")
+        self.assertEqual(browser_ipad["control_assessment"], "candidate")
+        self.assertFalse(browser_ipad["device_verified"])
 
     def test_unknown_is_not_incompatible(self):
         answer = unassessed("Unseen Game")

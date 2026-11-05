@@ -57,6 +57,35 @@ def lookup(data, name):
     return None
 
 
+def factor_variants(entry, controls=None):
+    """Explore independent execution and control variables.
+
+    These are reported candidate combinations, NOT validated cross-products:
+    upstream execution evidence does not prove device-local interaction.
+    """
+    if controls is None:
+        controls = ("remote", "ipad_companion", "keyboard_mouse")
+    variants = []
+    for route in entry["routes"]:
+        for control in controls:
+            assessment = route["interaction"].get(control, "unknown")
+            variants.append({
+                "application": entry["id"],
+                "execution_route": route["id"],
+                "execution": route["execution"],
+                "execution_state": route["state"],
+                "control": control,
+                "control_assessment": assessment,
+                "needs_adaptation": list(route["adaptation"]),
+                "blockers": list(route["blockers"]),
+                "next_check": route["next_check"],
+                "evidence_references": len(route["evidence"]),
+                "device_verified": route["state"] == "device_verified"
+                    and assessment == "tested",
+            })
+    return variants
+
+
 def unassessed(name):
     return {
         "query": name, "state": "unassessed",
@@ -77,6 +106,11 @@ def main(argv=None):
     cmd = sub.add_parser("lookup")
     cmd.add_argument("name", help="Exact id or alias (no fabricated fuzzy match)")
     cmd.add_argument("--json", action="store_true")
+    variant_cmd = sub.add_parser("variants",
+        help="Enumerate independent execution × control possibilities; not compatibility proof")
+    variant_cmd.add_argument("name", help="Exact app id or alias")
+    variant_cmd.add_argument("--control", choices=("remote", "ipad_companion", "keyboard_mouse"),
+                             help="Constrain the control variable")
     args = p.parse_args(argv)
     try:
         data = read_matrix(args.database)
@@ -92,7 +126,15 @@ def main(argv=None):
         if not e:
             print(json.dumps(unassessed(args.name), indent=2))
             return 2
-        if args.json:
+        if args.command == "variants":
+            dimensions = (args.control,) if args.control else None
+            print(json.dumps({
+                "application": e["id"],
+                "variables": ["execution_route", "control"],
+                "meaning": "Factor proposals, not proof of combined on-device usability.",
+                "variants": factor_variants(e, dimensions)
+            }, indent=2))
+        elif args.json:
             print(json.dumps(e, indent=2))
         else:
             print(e["id"] + ": " + e["intent"])

@@ -48,7 +48,7 @@ public final class GameShelfActivity extends Activity {
         root.addView(label("Web games, independent native experiments, and a real GBA emulator. Your existing pinned games are unchanged.",16,0xFF58728A));
         LinearLayout probes=TvUi.panel(this);
         probes.addView(TvUi.section(this,"2D  /  MINIGAME PROBES"));
-        probes.addView(TvUi.text(this,"Three offline, native, asset-free games for learning what Fire TV rendering and D-pad controls actually do.",15,TvUi.SUB));
+        probes.addView(TvUi.text(this,"Three tiny native games for observing input and rendering. Snake can optionally load a versioned visual style without rebuilding the game.",15,TvUi.SUB));
         TvUi.action(this,probes,"OPEN 2D MINIGAME LAB",()->startActivity(new Intent(this,MiniGameLabActivity.class)));
         TvUi.addPanel(this,root,probes);
         LinearLayout dojo=TvUi.panel(this);
@@ -56,6 +56,11 @@ public final class GameShelfActivity extends Activity {
         dojo.addView(TvUi.text(this,"Ungraded Android engineering quests, glossary cards and a private experiment journal.",15,TvUi.SUB));
         TvUi.action(this,dojo,"ENTER ANDROID DOJO",()->startActivity(new Intent(this,AndroidDojoActivity.class)));
         TvUi.addPanel(this,root,dojo);
+        LinearLayout portability=TvUi.panel(this);
+        portability.addView(TvUi.section(this,"PORTABILITY  /  RESEARCH FRONTIER"));
+        portability.addView(TvUi.text(this,"Ask for a game or application. Compare execution paths, controls and evidence, or save an unassessed title for research.",15,TvUi.SUB));
+        TvUi.action(this,portability,"GET ME AN APP / GAME",()->startActivity(new Intent(this,PortabilityLabActivity.class)));
+        TvUi.addPanel(this,root,portability);
         LinearLayout gba=TvUi.panel(this);
         gba.addView(TvUi.section(this,"GBA  /  REAL CONSOLE GAMES"));
         gba.addView(TvUi.text(this,"Import a user-supplied Game Boy Advance ROM and play it in an existing emulator. No Nintendo software is bundled.",15,TvUi.SUB));

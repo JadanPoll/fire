@@ -69,6 +69,10 @@
         "script",
         "app",
         "system"
+      ],
+      "possibility_seeds": [
+        "Could a normalized intent-event stream make different remote and game-controller hardware interchangeable?",
+        "What would change if the interface showed a visible virtual pointer rather than relying on focus alone?"
       ]
     },
     {
@@ -99,6 +103,10 @@
       "stack": [
         "app",
         "system"
+      ],
+      "possibility_seeds": [
+        "Could every game and experiment resume after a crash without saving full process memory?",
+        "What is the smallest state an agent would need to reconstruct a lost interactive session?"
       ]
     },
     {
@@ -133,6 +141,10 @@
         "script",
         "app",
         "native"
+      ],
+      "possibility_seeds": [
+        "Could an animation artist change the TV experience by updating only a versioned asset project?",
+        "What if one animation pack could be shared across several games without sharing game logic?"
       ]
     },
     {
@@ -169,6 +181,10 @@
         "script",
         "app",
         "system"
+      ],
+      "possibility_seeds": [
+        "Which interactions become practical when the iPad handles text and precise input while TV owns the display?",
+        "Could one semantic command work equally through touch, remote, voice and agent?"
       ]
     },
     {
@@ -207,7 +223,11 @@
       "related": [
         "external-sprite"
       ],
-      "local_start": "Fire Browser HTML input lab and Playroom's native 2D games are starting references; scripted frame diagnostics are a new exercise, not yet a built-in instrument."
+      "local_start": "Fire Browser HTML input lab and Playroom's native 2D games are starting references; scripted frame diagnostics are a new exercise, not yet a built-in instrument.",
+      "possibility_seeds": [
+        "What if a game transmitted intended motion as data rather than streaming every rendered frame?",
+        "Could a deliberately jittery animation teach us the limits of remote control latency?"
+      ]
     },
     {
       "id": "jni-crossing",
@@ -244,7 +264,11 @@
       "related": [
         "script-render-jitter"
       ],
-      "local_start": "Use a standalone Android NDK sample or independent test module; Fire Console does not currently bundle an NDK demo."
+      "local_start": "Use a standalone Android NDK sample or independent test module; Fire Console does not currently bundle an NDK demo.",
+      "possibility_seeds": [
+        "Could keeping a small state machine native avoid expensive cross-language calls?",
+        "When might a native module become portable between games and other kinds of Android experiments?"
+      ]
     },
     {
       "id": "adb-visibility",
@@ -283,7 +307,11 @@
         "app-survival",
         "remote-double-action"
       ],
-      "local_start": "The existing Fire test helper and Input Lab are relevant. Authorized ADB is optional and not a prerequisite to other Dojo projects."
+      "local_start": "The existing Fire test helper and Input Lab are relevant. Authorized ADB is optional and not a prerequisite to other Dojo projects.",
+      "possibility_seeds": [
+        "Which low-level observations could become a safe user-facing capability browser?",
+        "Could exposing a carefully selected system signal help the human invent new game mechanics?"
+      ]
     },
     {
       "id": "script-to-tv",
@@ -321,7 +349,11 @@
         "external-sprite",
         "tv-companion-control"
       ],
-      "local_start": "Start with versioned assets and the existing Playroom; dynamic asset streaming or script invocation is not yet implemented."
+      "local_start": "Start with versioned assets and the existing Playroom; dynamic asset streaming or script invocation is not yet implemented.",
+      "possibility_seeds": [
+        "What could an external Python agent generate that the TV can display without compiling a new APK?",
+        "Could a TV be the interactive face of many independently updated computational experiments?"
+      ]
     },
     {
       "id": "kernel-edge",
@@ -359,7 +391,11 @@
         "jni-crossing",
         "adb-visibility"
       ],
-      "local_start": "Research-and-observation challenge only on ordinary Fire TV. Kernel changes belong to a separate authorized simulator or development device."
+      "local_start": "Research-and-observation challenge only on ordinary Fire TV. Kernel changes belong to a separate authorized simulator or development device.",
+      "possibility_seeds": [
+        "Can we infer a system boundary without crossing it, through behavior and source analysis?",
+        "What physical phenomena would an emulator reveal or hide compared with this Fire TV?"
+      ]
     }
   ],
   "stack_levels": [
@@ -398,5 +434,6 @@
       "description": "Understand the kernel boundary, SELinux, driver interfaces, boot architecture and hardware design via sources, emulators or other authorized test devices.",
       "boundary": "Do not presume root, bootloader unlock, kernel module loading, firmware replacement, or modification of protected services on ordinary Fire TV."
     }
-  ]
+  ],
+  "holistic_purpose": "Increase the human's intuition, creativity, and judgment about what the TV might make possible. Experiments, topics and agents serve that capability; finishing exercises is never the goal."
 }
