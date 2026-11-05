@@ -20,6 +20,8 @@
         <activity android:name=".InputLabActivity" android:exported="false" />
         <activity android:name=".AppLibraryActivity" android:exported="false" />
         <activity android:name=".RetroRoomActivity" android:exported="false" />
+        <activity android:name=".MiniGameLabActivity" android:exported="false"
+            android:screenOrientation="landscape" />
         <activity android:name=".GameShelfActivity" android:exported="true"
             android:label="Pin to Fire Playroom">
             <intent-filter>
