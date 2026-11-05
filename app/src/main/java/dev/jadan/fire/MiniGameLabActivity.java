@@ -34,7 +34,7 @@ public final class MiniGameLabActivity extends Activity {
         root.removeAllViews();
         root.addView(TvUi.header(this, "PLAYROOM  /  MINIGAME PROBES"));
         root.addView(TvUi.text(this,
-            "Two intentionally tiny, native 2D games. Observe input, focus, rendering, and time-based updates. No network or extra assets.",
+            "Three intentionally tiny, native 2D games. Observe input, focus, rendering, and time-based updates. No network or extra assets.",
             16, TvUi.SUB));
         LinearLayout panel = TvUi.panel(this);
         panel.addView(TvUi.section(this, "01  /  COLLECT THE DOT"));
