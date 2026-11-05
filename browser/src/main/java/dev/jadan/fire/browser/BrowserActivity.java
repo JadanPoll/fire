@@ -247,6 +247,7 @@ public final class BrowserActivity extends Activity {
         draft=new EditText(this);
         draft.setTextSize(13);
         draft.setTextColor(0xFF132436);
+        draft.setHintTextColor(0xFF647B90); // contrast on pale TV composer
         draft.setBackgroundColor(0xFFDFEAF3);
         draft.setSingleLine(true);
         draft.setHint("Speak or type a message");
