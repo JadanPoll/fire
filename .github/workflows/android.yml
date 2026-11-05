@@ -8,21 +8,9 @@ on:
       - 'canvas/**'
       - 'browser/**'
       - 'Applications/**'
-      - 'tools/**'
-      - 'catalog.json'
       - 'signing/**'
       - '*.gradle'
       - 'gradle.properties'
-      - '.github/workflows/android.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'browser/**'
-      - 'Applications/**'
-      - 'tools/**'
-      - 'catalog.json'
-      - 'settings.gradle'
-      - 'app/**'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
