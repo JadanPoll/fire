@@ -76,7 +76,7 @@ public final class ConsoleActivity extends Activity {
             new Channel("Inbox","Messages and notes",0xFF23A8BF,0,()->openBrowser(INBOX)),
             new Channel("Browser","Browse and work",0xFF268ED0,1,()->openBrowser(null)),
             new Channel("Playroom","Games and experiments",0xFFE5A84C,2,
-                ()->startActivity(new Intent(this,GameShelfActivity.class))),
+                ()->startActivity(new Intent(this,PlayroomHubActivity.class))),
             new Channel("Compute","Offshore work and Codex",0xFF8573D0,3,
                 ()->startActivity(new Intent(this,CodexDeskActivity.class))),
             new Channel("Apps","Independent applications",0xFF5D9CB6,6,
