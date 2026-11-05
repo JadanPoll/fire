@@ -31,6 +31,7 @@ public final class GameShelfActivity extends Activity {
     private LinearLayout list;
     private TextView status;
     private EditText urlInput,titleInput;
+    private LinearLayout pinForm;
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
@@ -43,49 +44,38 @@ public final class GameShelfActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(root);setContentView(scroll);
 
-        TextView heading=TvUi.header(this,"PLAYROOM  /  GAME CHANNELS");
+        TextView heading=TvUi.header(this,"MY WEB GAMES");
         root.addView(heading);
-        root.addView(label("Web games, independent native experiments, and a real GBA emulator. Your existing pinned games are unchanged.",16,0xFF58728A));
-        LinearLayout probes=TvUi.panel(this);
-        probes.addView(TvUi.section(this,"2D  /  MINIGAME PROBES"));
-        probes.addView(TvUi.text(this,"Three tiny native games for observing input and rendering. Snake can optionally load a versioned visual style without rebuilding the game.",15,TvUi.SUB));
-        TvUi.action(this,probes,"OPEN 2D MINIGAME LAB",()->startActivity(new Intent(this,MiniGameLabActivity.class)));
-        TvUi.addPanel(this,root,probes);
-        LinearLayout dojo=TvUi.panel(this);
-        dojo.addView(TvUi.section(this,"ANDROID DOJO  /  道場"));
-        dojo.addView(TvUi.text(this,"Ungraded Android engineering quests, glossary cards and a private experiment journal.",15,TvUi.SUB));
-        TvUi.action(this,dojo,"ENTER ANDROID DOJO",()->startActivity(new Intent(this,AndroidDojoActivity.class)));
-        TvUi.addPanel(this,root,dojo);
-        LinearLayout portability=TvUi.panel(this);
-        portability.addView(TvUi.section(this,"PORTABILITY  /  RESEARCH FRONTIER"));
-        portability.addView(TvUi.text(this,"Ask for a game or application. Compare execution paths, controls and evidence, or save an unassessed title for research.",15,TvUi.SUB));
-        TvUi.action(this,portability,"GET ME AN APP / GAME",()->startActivity(new Intent(this,PortabilityLabActivity.class)));
-        TvUi.addPanel(this,root,portability);
-        LinearLayout gba=TvUi.panel(this);
-        gba.addView(TvUi.section(this,"GBA  /  REAL CONSOLE GAMES"));
-        gba.addView(TvUi.text(this,"Import a user-supplied Game Boy Advance ROM and play it in an existing emulator. No Nintendo software is bundled.",15,TvUi.SUB));
-        TvUi.action(this,gba,"OPEN GBA GAME ROOM",()->startActivity(new Intent(this,RetroRoomActivity.class)));
-        TvUi.addPanel(this,root,gba);
+        root.addView(label("Your saved game shortcuts. OK plays; add or remove shortcuts only when you want to.",16,0xFF58728A));
         status=label("Ready. Select a game or pin a new HTTPS address.",14,0xFF46677E);
         root.addView(status);
         list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);
         root.addView(list,new LinearLayout.LayoutParams(-1,-2));
-        root.addView(label("PIN A GAME",18,navy));
+        button(root,"+ PIN A WEB GAME",()->{
+            boolean reveal=pinForm.getVisibility()!=View.VISIBLE;
+            pinForm.setVisibility(reveal?View.VISIBLE:View.GONE);
+            if(reveal)urlInput.requestFocus();
+        });
+        pinForm=new LinearLayout(this);
+        pinForm.setOrientation(LinearLayout.VERTICAL);
+        pinForm.setVisibility(View.GONE);
+        root.addView(pinForm);
+        pinForm.addView(label("PIN A GAME",18,navy));
         urlInput=new EditText(this);
         urlInput.setSingleLine(true);urlInput.setTextSize(17);
         urlInput.setHint("https://... game URL");urlInput.setImeOptions(EditorInfo.IME_ACTION_DONE);
         urlInput.setTextColor(navy);urlInput.setBackgroundColor(0xFFFFFFFF);
         TvUi.field(this,urlInput);
-        root.addView(urlInput,new LinearLayout.LayoutParams(-1,dp(56)));
+        pinForm.addView(urlInput,new LinearLayout.LayoutParams(-1,dp(56)));
         titleInput=new EditText(this);
         titleInput.setSingleLine(true);titleInput.setTextSize(16);
         titleInput.setHint("Name (optional, e.g. Subway Surfers)");
         titleInput.setTextColor(navy);titleInput.setBackgroundColor(0xFFFFFFFF);
         LinearLayout.LayoutParams titleLP=new LinearLayout.LayoutParams(-1,dp(50));
         TvUi.field(this,titleInput);
-        titleLP.topMargin=dp(6);root.addView(titleInput,titleLP);
-        button(root,"PIN THIS GAME",this::pin);
-        root.addView(label("Queries and fragments are intentionally not saved, to avoid storing sign-in tokens.",13,0xFF6C8295));
+        titleLP.topMargin=dp(6);pinForm.addView(titleInput,titleLP);
+        button(pinForm,"PIN THIS GAME",this::pin);
+        pinForm.addView(label("Queries and fragments are not saved, to avoid storing sign-in tokens.",13,0xFF6C8295));
         String shared=getIntent().getStringExtra(Intent.EXTRA_TEXT);
         String name=getIntent().getStringExtra(Intent.EXTRA_SUBJECT);
         if(shared!=null){
@@ -93,6 +83,7 @@ public final class GameShelfActivity extends Activity {
             if(clean!=null){
                 urlInput.setText(clean);
                 if(name!=null)titleInput.setText(name.length()>60?name.substring(0,60):name);
+                pinForm.setVisibility(View.VISIBLE);
                 status.setText("Page received from Fire Browser. Select PIN to save it.");
             }else status.setText("Shared text was not a plain HTTPS game URL. Nothing was stored.");
         }
@@ -143,6 +134,7 @@ public final class GameShelfActivity extends Activity {
         }catch(Exception ex){status.setText("Could not prepare the game shortcut.");return;}
         prefs.edit().putString(KEY,next.toString()).apply();
         urlInput.setText("");titleInput.setText("");
+        pinForm.setVisibility(View.GONE);
         status.setText("Pinned "+title+". Select its PLAY button to open.");
         refresh();
     }
@@ -168,15 +160,25 @@ public final class GameShelfActivity extends Activity {
             TextView title=label(name,20,navy);title.setSingleLine(true);
             row.addView(title,new LinearLayout.LayoutParams(0,-2,1));
             Button play=TvUi.button(this,"PLAY",()->ConsoleLaunch.openBrowser(this,url,status));
+            play.setContentDescription("Play "+name+". Hold OK for more options.");
+            play.setOnLongClickListener(v->{
+                new AlertDialog.Builder(this).setTitle(name)
+                    .setItems(new String[]{"PLAY","UNPIN SHORTCUT"},(dialog,choice)->{
+                        if(choice==0)ConsoleLaunch.openBrowser(this,url,status);
+                        else confirmRemove(url,name);
+                    }).setNegativeButton("BACK",null).show();
+                return true;
+            });
             row.addView(play);
-            Button remove=TvUi.button(this,"UNPIN",()->new AlertDialog.Builder(this)
-                .setTitle("Unpin "+name+"?")
-                .setMessage("Remove only this launcher shortcut; the website and browser data remain untouched.")
-                .setPositiveButton("UNPIN",(d,w)->remove(url))
-                .setNegativeButton("Cancel",null).show());
-            row.addView(remove);
         }
     }
+    private void confirmRemove(String url,String name){
+        new AlertDialog.Builder(this).setTitle("Unpin "+name+"?")
+            .setMessage("Only the launcher shortcut is removed. Browser history and website data are untouched.")
+            .setPositiveButton("UNPIN",(d,w)->remove(url))
+            .setNegativeButton("CANCEL",null).show();
+    }
+
     private void remove(String url){
         JSONArray old=entries(),next=new JSONArray();
         for(int i=0;i<old.length();i++){
