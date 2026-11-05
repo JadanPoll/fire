@@ -145,19 +145,37 @@ def main():
         profile = adb("shell", "getprop", "ro.build.version.sdk").strip()
         abi = adb("shell", "getprop", "ro.product.cpu.abi").strip()
         note("Emulator ready", "PASS", "API %s / %s" % (profile, abi))
-        for package, apk in APKS:
+        # Stock Android TV images may invoke the Play Store's PackageWarningDialog
+        # for ADB installs, leaving the installer waiting forever for a button.
+        # The first run proved this (activity-state.txt). Android's own CTS
+        # tests use verifier_verify_adb_installs=0 for exactly this reason.
+        # Only modify this disposable CI emulator, NEVER a physical Fire TV.
+        adb("shell", "settings", "put", "global", "verifier_verify_adb_installs", "0")
+        verifier = adb("shell", "settings", "get", "global",
+                       "verifier_verify_adb_installs").strip()
+        if verifier != "0":
+            raise AssertionError("ADB install verifier could not be disabled on test emulator")
+        note("CI emulator ADB installer unblocked", "PASS", "verifier_verify_adb_installs=0")
+        adb("shell", "svc", "power", "stayon", "usb", allow_failure=True)
+        time.sleep(3)
+
+        for index, (package, apk) in enumerate(APKS):
             if not Path(apk).is_file():
                 raise FileNotFoundError(apk)
-            adb("install", "-r", apk, timeout=90)
+            adb("install", "-r", apk, timeout=65)
             if "package:" not in adb("shell", "pm", "path", package):
                 raise AssertionError("APK not installed: " + package)
             note("Install " + package, "PASS")
+            # Ensure a useful Console screenshot even if a later APK cannot
+            # install: failure evidence is more important than all-or-nothing.
+            if index == 0:
+                launch("dev.jadan.fire/.ConsoleActivity")
+                check_foreground("ConsoleActivity")
+                snapshot("01-console-home", "FIRE  /  CONSOLE")
+
         # Clear pre-test log noise; later crash checks only inspect our run.
         adb("logcat", "-c", allow_failure=True)
-
         launch("dev.jadan.fire/.ConsoleActivity")
-        check_foreground("ConsoleActivity")
-        snapshot("01-console-home", "FIRE  /  CONSOLE")
         key("RIGHT")
         home_after_right = snapshot("02-dpad-right")
         if home_after_right is not None:
