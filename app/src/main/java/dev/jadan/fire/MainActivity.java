@@ -39,21 +39,18 @@ public final class MainActivity extends Activity {
                 " · API "+Build.VERSION.SDK_INT+" · Console "+BuildConfig.VERSION_NAME,
             14,TvUi.SUB));
 
-        TvUi.action(this,root,"APP CATALOG  /  INSTALL & UPDATE",
+        TvUi.action(this,root,"INSTALL / UPDATE FIRE APPS",
             ()->startActivity(new Intent(this,CatalogActivity.class))).requestFocus();
-        TvUi.action(this,root,"LOCAL TERMINAL  /  APP SANDBOX",
-            ()->startActivity(new Intent(this,TerminalActivity.class)));
-        TvUi.action(this,root,"VOICE & KEYBOARD RECOVERY",
-            ()->startActivity(new Intent(this,VoiceProbeActivity.class)));
-        TvUi.action(this,root,"ADVANCED INPUT / BROWSER EXPERIMENTS",this::advanced);
+        TvUi.action(this,root,"OTHER TOOLS  /  DIAGNOSTICS",this::advanced);
         root.addView(TvUi.text(this,
-            "Updates use the single verified App Catalog installer. Nothing installs automatically. "+
-            "The hidden experimental tools still work; they no longer occupy Home.",
+            "Use updates when needed. The terminal, input labs and repair tools remain available under Other Tools.",
             14,TvUi.SUB));
     }
 
     private void advanced(){
         final String[] entries={
+            "LOCAL TERMINAL",
+            "VOICE & KEYBOARD RECOVERY",
             "INPUT LAB  /  KEY EVENTS & POINTER",
             "OLD WEBVIEW BROWSER LAB",
             "COMPUTE  /  HOST & BROWSER DIAGNOSTICS",
@@ -64,9 +61,11 @@ public final class MainActivity extends Activity {
             .setItems(entries,(dialog,choice)->{
                 Class<?> target;
                 switch(choice){
-                    case 0: target=InputLabActivity.class;break;
-                    case 1: target=FireBrowserActivity.class;break;
-                    case 2: target=CodexDeskActivity.class;break;
+                    case 0: target=TerminalActivity.class;break;
+                    case 1: target=VoiceProbeActivity.class;break;
+                    case 2: target=InputLabActivity.class;break;
+                    case 3: target=FireBrowserActivity.class;break;
+                    case 4: target=CodexDeskActivity.class;break;
                     default: target=AppLibraryActivity.class;
                 }
                 startActivity(new Intent(this,target));
