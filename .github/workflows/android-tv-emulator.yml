@@ -34,6 +34,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Check ADB smoke harness syntax
+        run: python3 -m py_compile tools/tv_emulator_smoke.py
       - name: Prepare Android SDK
         run: |
           SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
