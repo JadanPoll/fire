@@ -7,6 +7,52 @@ repeated installer/navigation work. This applies REM's "the experiment should
 eventually run itself", caution against hostage UX, and RSM's distinction
 between experiments that change a decision and tests that merely run.
 
+## REM testing-budget tiers (November 2026)
+
+**Rule:** ask what uncertainty would actually change the next decision.
+Start with the cheapest discriminating evidence; escalate only when the
+remaining uncertainty matters. A green source check is not a runtime proof,
+and repeating the emulator without a new question wastes the feedback loop.
+
+| Change or question | Default evidence | Expensive escalation only when needed |
+| --- | --- | --- |
+| Documentation, test scripts, app curation | Fast static Python contracts | None for native execution |
+| One native module / remote-input adapter | Fast checks plus only affected Gradle unit-test/compile tasks | Emulator if behavior or focus changed |
+| New signed release on `main` | Complete APK build and tests, GitHub release | Physical Fire TV when Amazon-specific |
+| "Does the published Console launch and respond to OK?" | On-demand emulator, `source=release`, `scope=quick` | Full suite if app interactions matter |
+| "Do independent apps compose correctly?" | On-demand emulator, `scope=full` | Real Fire OS remote/IME as appropriate |
+| Unmerged code needs screenshot/runtime evidence | Emulator `source=branch` compiles that ref | Physical device only for unexplained differences |
+
+**iPad / ordinary GitHub loop:** Open
+[Fast change-scoped validation](../.github/workflows/fast-validation.yml)
+to read the PR's short report. To request real emulator evidence, open
+[Android TV emulator smoke](https://github.com/JadanPoll/fire/actions/workflows/android-tv-emulator.yml),
+select **Run workflow**, and choose a source and scope. `release` downloads
+the four existing APKs with their release-notes SHA-256 checksums, skipping
+the whole Java/SDK/Gradle build. `branch` builds the selected Git ref.
+`quick` checks Console → Browser, focus/OK, and crash log;
+`full` additionally checks independent apps, Apps, Tools and navigation.
+Screenshots, UI XML, ADB commands and logcat are published as one artifact;
+the readable summary is on the run page. No new accounts, MCP services,
+repeated device setup or private GitHub credentials are needed.
+
+**Bounded measurements, not synthetic targets:**
+the earlier full-build emulator path was 197 seconds; the verified release
+download + full emulator run was 158 seconds; quick release + emulator
+was 162 seconds in one sample; pure tooling fast validation was 11 seconds.
+The 4-second quick/full difference is run-to-run noise at this scale, so
+do not pretend the narrower scope eliminates emulator cold-boot cost.
+A publicly documented AVD snapshot cache may reduce repeated emulator
+boot time, but its cold-cache creation, transfer and eviction costs need
+measurement before we add permanent machinery.
+
+**No hostage gates:** A failed optional emulator or an unrelated stale
+experiment cannot block making a new PR or publishing a correctly built
+release. Diagnose failures with the shortest relevant source/log/screenshot
+witness. For changes to Fire OS-specific keyboard, remote timing, audio
+or WebView behavior, label emulator evidence as provisional and use the
+physical TV only when it would resolve an actual question.
+
 ## Which test method answers which question?
 
 1. GitHub CI: Build APKs, catch compile errors, verify test-helper syntax.

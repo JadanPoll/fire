@@ -7,6 +7,7 @@ Failures preserve screenshots, UI hierarchy, process state and logcat.
 This does NOT emulate Amazon's Fire OS or certify a physical remote.
 """
 from pathlib import Path
+import argparse
 import subprocess
 import sys
 import time
@@ -178,8 +179,27 @@ def report():
     print("\n".join(rows), flush=True)
 
 
-def main():
+def check_crashes(packages):
+    # Crash scan only pertains to the APKs actually installed by this run.
+    log = adb("logcat", "-d", "-v", "time", timeout=35)
+    blocks = log.split("FATAL EXCEPTION:")
+    failures = [block[:1200] for block in blocks[1:]
+                if any(("Process: " + pkg) in block[:1200]
+                       for pkg, _ in packages)]
+    if failures:
+        (OUT / "target-crashes.txt").write_text(
+            "\n---\n".join(failures), encoding="utf-8")
+        raise AssertionError("FATAL EXCEPTION in tested APK process")
+    note("No target-app fatal crash", "PASS")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--scope", choices=("quick", "full"), default="full")
+    options = parser.parse_args(argv)
+    selected_apks = APKS[:2] if options.scope == "quick" else APKS
     OUT.mkdir(parents=True, exist_ok=True)
+    note("Test scope", "RECORDED", options.scope)
     try:
         assert "device" in adb("get-state"), "ADB emulator not ready"
         profile = adb("shell", "getprop", "ro.build.version.sdk").strip()
@@ -199,7 +219,7 @@ def main():
         adb("shell", "svc", "power", "stayon", "usb", allow_failure=True)
         time.sleep(3)
 
-        for index, (package, apk) in enumerate(APKS):
+        for index, (package, apk) in enumerate(selected_apks):
             if not Path(apk).is_file():
                 raise FileNotFoundError(apk)
             adb("install", "-r", apk, timeout=65)
@@ -227,6 +247,9 @@ def main():
         time.sleep(2)
         check_foreground("BrowserActivity")
         snapshot("03-browser-after-ok")
+        if options.scope == "quick":
+            check_crashes(selected_apks)
+            return 0
 
         # Separate installed app must launch without any Fire Console plugin.
         launch("dev.jadan.fire.signalstudio/.SignalActivity")
@@ -262,18 +285,7 @@ def main():
         check_foreground("MainActivity")
         snapshot("07-tools", "TOOLS  /  MAINTENANCE")
 
-        # Scope crash failures to our processes; a system service crash
-        # unrelated to the target app must not produce a false regression.
-        log = adb("logcat", "-d", "-v", "time", timeout=35)
-        blocks = log.split("FATAL EXCEPTION:")
-        target_crashes = [block[:1200] for block in blocks[1:]
-                          if any(("Process: " + pkg) in block[:1200]
-                                 for pkg, _ in APKS)]
-        if target_crashes:
-            (OUT / "target-crashes.txt").write_text(
-                "\n---\n".join(target_crashes), encoding="utf-8")
-            raise AssertionError("FATAL EXCEPTION in tested APK process")
-        note("No target-app fatal crash", "PASS")
+        check_crashes(selected_apks)
     except Exception:
         error_lines = [line for line in traceback.format_exc().splitlines() if line.strip()]
         note("Smoke suite", "FAIL", error_lines[-1])
