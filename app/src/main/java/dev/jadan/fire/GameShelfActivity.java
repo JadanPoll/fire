@@ -145,6 +145,7 @@ public final class GameShelfActivity extends Activity {
             list.addView(label("No pinned games yet. Your browser's game remains accessible through Browser → Recent.",16,0xFF638097));
             return;
         }
+        Button firstPlay=null;
         for(int i=0;i<all.length();i++){
             JSONObject entry=all.optJSONObject(i);if(entry==null)continue;
             final String url=cleanUrl(entry.optString("url"));
@@ -160,17 +161,14 @@ public final class GameShelfActivity extends Activity {
             TextView title=label(name,20,navy);title.setSingleLine(true);
             row.addView(title,new LinearLayout.LayoutParams(0,-2,1));
             Button play=TvUi.button(this,"PLAY",()->ConsoleLaunch.openBrowser(this,url,status));
-            play.setContentDescription("Play "+name+". Hold OK for more options.");
-            play.setOnLongClickListener(v->{
-                new AlertDialog.Builder(this).setTitle(name)
-                    .setItems(new String[]{"PLAY","UNPIN SHORTCUT"},(dialog,choice)->{
-                        if(choice==0)ConsoleLaunch.openBrowser(this,url,status);
-                        else confirmRemove(url,name);
-                    }).setNegativeButton("BACK",null).show();
-                return true;
-            });
+            play.setContentDescription("Play "+name);
             row.addView(play);
+            Button unpin=TvUi.button(this,"UNPIN",()->confirmRemove(url,name));
+            unpin.setContentDescription("Unpin "+name+" from Playroom");
+            row.addView(unpin);
+            if (firstPlay==null) firstPlay=play;
         }
+        if (firstPlay!=null) firstPlay.requestFocus();
     }
     private void confirmRemove(String url,String name){
         new AlertDialog.Builder(this).setTitle("Unpin "+name+"?")
