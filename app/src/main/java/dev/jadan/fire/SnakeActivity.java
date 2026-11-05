@@ -9,18 +9,27 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Tiny native Snake probe. All game rules are in the deterministic SnakeGameModel. */
 public final class SnakeActivity extends Activity {
     private SnakeView board;
     private TextView status;
     private SnakeGameModel game;
+    private SnakeStyleStore styles;
+    private SnakeStyleStore.Style visual;
+    private TextView styleStatus;
+    private boolean downloading;
+    private final ExecutorService assetWorker=Executors.newSingleThreadExecutor();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         LinearLayout root = new LinearLayout(this);
         TvUi.page(this, root);
         setContentView(root);
+        styles=new SnakeStyleStore(this);
+        visual=styles.current();
         root.addView(TvUi.header(this, "03  /  SNAKE"));
         root.addView(TvUi.text(this,
             "D-pad turns  ·  OK pauses/resumes  ·  BACK leaves. Snake moves every 230 ms.",
@@ -29,6 +38,11 @@ public final class SnakeActivity extends Activity {
         root.addView(status);
         board = new SnakeView(this);
         root.addView(board, new LinearLayout.LayoutParams(-1, 0, 1));
+        styleStatus = TvUi.text(this,"Style " + visual.version + " / cached or built-in; game rules independent",14,TvUi.SUB);
+        root.addView(styleStatus);
+        LinearLayout themeActions=TvUi.actionRow(this,root);
+        TvUi.actionInRow(this,themeActions,"CHECK ONLINE STYLE",this::checkStyle);
+        TvUi.actionInRow(this,themeActions,"PREVIOUS STYLE",this::previousStyle);
         TvUi.action(this, root, "NEW GAME", () -> {
             game = new SnakeGameModel();
             board.resume();
@@ -38,6 +52,44 @@ public final class SnakeActivity extends Activity {
         });
         game = new SnakeGameModel();
         refresh();
+        board.requestFocus();
+    }
+
+    private void checkStyle() {
+        if(downloading) return;
+        downloading=true;
+        styleStatus.setText("Checking verified asset manifest. Game keeps running.");
+        assetWorker.execute(()->{
+            SnakeStyleStore.Candidate candidate=null;
+            Exception failure=null;
+            try { candidate=styles.downloadLatest(); }
+            catch (Exception e) { failure=e; }
+            final SnakeStyleStore.Candidate next=candidate;
+            final Exception error=failure;
+            runOnUiThread(()->{
+                downloading=false;
+                if(isFinishing()||isDestroyed()) return;
+                if(error!=null) {
+                    styleStatus.setText("Update unavailable: "+error.getClass().getSimpleName()+
+                        ". Previous working style retained.");
+                    return;
+                }
+                if(styles.promote(next)) {
+                    visual=styles.current();
+                    board.invalidate();
+                    styleStatus.setText("Verified style "+visual.version+" cached. Gameplay unchanged.");
+                } else styleStatus.setText("Could not save style; previous retained.");
+            });
+        });
+    }
+
+    private void previousStyle() {
+        if(downloading) { styleStatus.setText("Update in progress; try rollback after it finishes.");return; }
+        if(styles.rollback()) {
+            visual=styles.current();
+            board.invalidate();
+            styleStatus.setText("Restored cached style "+visual.version+".");
+        } else styleStatus.setText("No previous verified style cached yet.");
         board.requestFocus();
     }
 
@@ -56,6 +108,11 @@ public final class SnakeActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         if (board != null) board.resume();
+    }
+
+    @Override protected void onDestroy() {
+        assetWorker.shutdownNow();
+        super.onDestroy();
     }
 
     private final class SnakeView extends View {
@@ -138,22 +195,22 @@ public final class SnakeActivity extends Activity {
             float left = (getWidth() - SnakeGameModel.COLS * cell) / 2;
             float top = (getHeight() - SnakeGameModel.ROWS * cell) / 2;
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(0xFF162C3E);
+            paint.setColor(visual.board);
             canvas.drawRoundRect(left - 7, top - 7,
                 left + SnakeGameModel.COLS * cell + 7,
                 top + SnakeGameModel.ROWS * cell + 7, 13, 13, paint);
             for (int y = 0; y < SnakeGameModel.ROWS; y++)
                 for (int x = 0; x < SnakeGameModel.COLS; x++) {
-                    paint.setColor(((x + y) & 1) == 0 ? 0xFF223F4F : 0xFF274657);
+                    paint.setColor(((x + y) & 1) == 0 ? visual.cellA : visual.cellB);
                     canvas.drawRect(left + x * cell + 1, top + y * cell + 1,
                         left + (x + 1) * cell - 1, top + (y + 1) * cell - 1, paint);
                 }
-            drawCell(canvas, left, top, cell, game.foodX, game.foodY, 0xFFFFB464, .23f);
+            drawCell(canvas, left, top, cell, game.foodX, game.foodY, visual.food, .23f);
             for (int i = game.length - 1; i >= 0; i--) {
                 int where = game.bodyCell(i);
                 drawCell(canvas, left, top, cell,
                     where % SnakeGameModel.COLS, where / SnakeGameModel.COLS,
-                    i == 0 ? 0xFF7AE7C8 : 0xFF58B3D2, .12f);
+                    i == 0 ? visual.head : visual.body, .12f);
             }
         }
 
