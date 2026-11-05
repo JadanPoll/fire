@@ -21,6 +21,12 @@ Agents should start here to recover the holistic purpose and the few
 consequential remaining choices before selecting engines, APIs or test
 machinery.
 
+**Week-two navigation simplification:** Console Playroom now opens a
+[fixed game-first grid](docs/CONSOLE_WEEK_TWO_UX.md), with Snake immediately
+playable; pinned favorites, real installed apps and work objectives take
+priority over diagnostic menus. Rare tools remain available but do not
+fill each core channel's first screen.
+
 ## Console v2: Compute and independent apps
 
 Fire Console Home now has **six Wii-style channels**: Inbox, Browser,

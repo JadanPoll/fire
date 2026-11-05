@@ -34,8 +34,21 @@ assert "CodexExecutorClient.submit" in compute
 assert "CodexExecutorClient.recover" in compute
 assert "CodexExecutorClient.cancel" in compute
 assert "COMPUTE  /  OFFSHORE WORK" in compute
-assert "COPY DRAFT + CODEX" in compute
-assert "ADVANCED / DIAGNOSTICS" in compute
+# REM week-two view: the game is reachable from the first Playroom screen.
+hub=(source/"PlayroomHubActivity.java").read_text()
+assert "PlayroomHubActivity.class" in home
+assert 'new Destination("SNAKE"' in hub and "SnakeActivity.class" in hub
+assert "ScrollView" not in hub, "Playable primary game shelf must not need scrolling"
+assert hub.index('new Destination("SNAKE"') < hub.index('new Destination("EXPLORE"')
+assert "pinned_games_v1" in hub and "GameShelfActivity.class" in hub
+# Recoverable but less-frequent features stay reachable, not top-priority menus.
+assert "private void showJobDetails()" in compute and "CodexExecutorClient.cancel" in compute
+app_library=(source/"AppLibraryActivity.java").read_text()
+assert "firstApp.requestFocus()" in app_library
+assert app_library.index('int limit=Math.min(entries.size(),64);') < app_library.index('Button manager=TvUi.action(this,root,')
+assert 'OTHER TOOLS  /  DIAGNOSTICS' in tools
+assert "OPEN CODEX" in compute and "this::openCodexCloud" in compute
+assert "MORE  /  DEVICES & SETTINGS" in compute and "private void advanced()" in compute
 assert "computePrefs.edit().putString(\"draft\"" in compute
 assert "LivePairing.token" in compute
 assert 'putString("token"' not in compute

@@ -76,7 +76,7 @@ public final class ConsoleActivity extends Activity {
             new Channel("Inbox","Messages and notes",0xFF23A8BF,0,()->openBrowser(INBOX)),
             new Channel("Browser","Browse and work",0xFF268ED0,1,()->openBrowser(null)),
             new Channel("Playroom","Games and experiments",0xFFE5A84C,2,
-                ()->startActivity(new Intent(this,GameShelfActivity.class))),
+                ()->startActivity(new Intent(this,PlayroomHubActivity.class))),
             new Channel("Compute","Offshore work and Codex",0xFF8573D0,3,
                 ()->startActivity(new Intent(this,CodexDeskActivity.class))),
             new Channel("Apps","Independent applications",0xFF5D9CB6,6,
@@ -241,6 +241,34 @@ public final class ConsoleActivity extends Activity {
                     canvas.drawRoundRect(34,50,66,67,3,3,p);
                     line(canvas,40,58,46,58,3);line(canvas,40,63,46,63,3);
                     line(canvas,53,63,60,63,3);
+                    break;
+                case 8: // snake: recognizable at a glance, not another generic controller
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(11);
+                    p.setStrokeCap(Paint.Cap.ROUND);
+                    p.setStrokeJoin(Paint.Join.ROUND);
+                    Path snake=new Path();
+                    snake.moveTo(26,71);
+                    snake.lineTo(26,57);
+                    snake.lineTo(43,57);
+                    snake.lineTo(43,36);
+                    snake.lineTo(66,36);
+                    snake.lineTo(66,49);
+                    snake.lineTo(76,49);
+                    canvas.drawPath(snake,p);
+                    p.setStyle(Paint.Style.FILL);
+                    p.setColor(color);
+                    canvas.drawCircle(77,44,2,p);
+                    p.setColor(0xFFFFFFFF);
+                    break;
+                case 9: // handheld cartridge
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(5);
+                    canvas.drawRoundRect(25,20,75,80,6,6,p);
+                    line(canvas,32,32,68,32,4);
+                    line(canvas,37,63,63,63,4);
+                    p.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(56,45,5,p);
                     break;
                 case 6: // four applications
                     for(int i=0;i<2;i++)for(int j=0;j<2;j++)

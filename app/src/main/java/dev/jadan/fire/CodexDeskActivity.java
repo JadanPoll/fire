@@ -54,7 +54,10 @@ public final class CodexDeskActivity extends Activity {
         private static String token="";
     }
     private LinearLayout pairingPanel;
-    private Button connectButton;
+    private LinearLayout jobPanel;
+    private Button jobDetailsButton;
+    private Button firstJobAction;
+    private Button moreButton;
     private android.content.SharedPreferences computePrefs;
 
     @Override public void onCreate(Bundle b) {
@@ -68,8 +71,6 @@ public final class CodexDeskActivity extends Activity {
         setContentView(scroller);
 
         root.addView(TvUi.header(this,"COMPUTE  /  OFFSHORE WORK"));
-        TvUi.action(this,root,"DEVICES  /  CAPABILITIES",
-            ()->startActivity(new Intent(this,ComputeDevicesActivity.class)));
         root.addView(TvUi.text(this,
             "One intention. Run in a paired Codex workspace, or open Codex Cloud without pairing.",
             16,TvUi.SUB));
@@ -109,8 +110,8 @@ public final class CodexDeskActivity extends Activity {
         });
 
         LinearLayout actions=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,actions,"RUN ON PAIRED HOST",()->remoteAction("submit"));
-        TvUi.actionInRow(this,actions,"COPY DRAFT + CODEX",this::openCodexCloud);
+        Button runButton=TvUi.actionInRow(this,actions,"RUN PAIRED HOST",()->remoteAction("submit"));
+        Button cloudButton=TvUi.actionInRow(this,actions,"OPEN CODEX",this::openCodexCloud);
 
         remoteStatus=label("No remote job active. Connect a trusted host or use Codex Cloud.",16,TvUi.SUB);
         remoteStatus.setTextIsSelectable(true);
@@ -119,16 +120,20 @@ public final class CodexDeskActivity extends Activity {
         remoteOutput.setTextIsSelectable(true);
         root.addView(remoteOutput);
 
-        LinearLayout jobActions=TvUi.actionRow(this,root);
-        TvUi.actionInRow(this,jobActions,"REFRESH / RECOVER",()->remoteAction(jobId==null?"recover":"poll"));
+        jobDetailsButton=TvUi.action(this,root,"CURRENT JOB  /  DETAILS",this::showJobDetails);
+        jobPanel=TvUi.panel(this);
+        jobPanel.addView(TvUi.section(this,"JOB CONTROLS"));
+        LinearLayout jobActions=TvUi.actionRow(this,jobPanel);
+        firstJobAction=TvUi.actionInRow(this,jobActions,"REFRESH / RECOVER",
+            ()->remoteAction(jobId==null?"recover":"poll"));
         TvUi.actionInRow(this,jobActions,"STOP JOB",()->remoteAction("cancel"));
-        TvUi.action(this,root,"COPY RESULT",this::copyResult);
+        TvUi.action(this,jobPanel,"COPY RESULT",this::copyResult);
+        root.addView(jobPanel);
+        jobPanel.setVisibility(View.GONE);
 
-        connectButton=TvUi.action(this,root,"CONNECT / CHANGE COMPUTE HOST",this::togglePairing);
+        moreButton=TvUi.action(this,root,"MORE  /  DEVICES & SETTINGS",this::more);
         buildExecutorUi(root);
         pairingPanel.setVisibility(View.GONE);
-
-        TvUi.action(this,root,"ADVANCED / DIAGNOSTICS",this::advanced);
         feedback=label("A host requires a private HTTPS endpoint and pairing token. Neither is sent to Codex Cloud.",
             14,TvUi.SUB);
         root.addView(feedback);
@@ -148,7 +153,10 @@ public final class CodexDeskActivity extends Activity {
             " · "+(pairingToken.length()>0?"Select REFRESH / RECOVER.":"Connect host to refresh."));
         else if(pairingToken.length()>0)remoteStatus.setText(
             "Previous pairing restored in this running Console process.");
-        connectButton.requestFocus();
+        jobDetailsButton.setVisibility(jobId==null?View.GONE:View.VISIBLE);
+        if(jobId!=null)jobDetailsButton.requestFocus();
+        else if(pairingToken.length()>0)runButton.requestFocus();
+        else cloudButton.requestFocus();
     }
 
     private void buildExecutorUi(LinearLayout root){
@@ -180,10 +188,27 @@ public final class CodexDeskActivity extends Activity {
     private void togglePairing(){
         boolean show=pairingPanel.getVisibility()!=View.VISIBLE;
         pairingPanel.setVisibility(show?View.VISIBLE:View.GONE);
-        connectButton.setText(show?"HIDE CONNECTION SETTINGS":"CONNECT / CHANGE COMPUTE HOST");
         if(show)executorUrl.requestFocus();
-        else connectButton.requestFocus();
     }
+    private void showJobDetails(){
+        jobPanel.setVisibility(View.VISIBLE);
+        firstJobAction.requestFocus();
+    }
+
+    private void more(){
+        String[] choices={"DEVICES & CAPABILITIES","CONNECT / CHANGE HOST",
+            "JOB CONTROLS & RECOVERY","ADVANCED DIAGNOSTICS"};
+        new AlertDialog.Builder(this).setTitle("COMPUTE  /  MORE")
+            .setItems(choices,(dialog,index)->{
+                switch(index){
+                    case 0:startActivity(new Intent(this,ComputeDevicesActivity.class));break;
+                    case 1:togglePairing();break;
+                    case 2:showJobDetails();break;
+                    default:advanced();break;
+                }
+            }).setNegativeButton("BACK",null).show();
+    }
+
     private void pasteToken(){
         ClipboardManager cb=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
         if(cb==null||!cb.hasPrimaryClip()){
@@ -251,8 +276,8 @@ public final class CodexDeskActivity extends Activity {
                 ||"poll".equals(action)||"cancel".equals(action)) &&
            (executorUrl.getText().toString().trim().isEmpty() ||
             pairingToken.getText().toString().trim().isEmpty())){
-            remoteStatus.setText("Host not paired. Select CONNECT / CHANGE COMPUTE HOST. "+
-                "OPEN CODEX CLOUD remains available.");
+            remoteStatus.setText("No paired host. Select MORE / DEVICES & SETTINGS to connect. "+
+                "OPEN CODEX remains available.");
             if(pairingPanel.getVisibility()!=View.VISIBLE)togglePairing();
             return;
         }
@@ -303,6 +328,7 @@ public final class CodexDeskActivity extends Activity {
                     rememberHost();
                     LivePairing.token=pairingToken.getText().toString();
                     computePrefs.edit().putString("job_id",jobId).apply();
+                    if(jobDetailsButton!=null)jobDetailsButton.setVisibility(View.VISIBLE);
                 }
                 String state=result.optString("state","unknown");
                 remoteStatus.setText("Executor "+state+" · Job "+result.optString("id","?")+
@@ -324,6 +350,22 @@ public final class CodexDeskActivity extends Activity {
         if(jobId!=null&&!isFinishing()&&pairingToken!=null&&
             pairingToken.length()>0)remoteClock.postDelayed(remoteTick,3500);
     }
+    @Override public void onBackPressed() {
+        // A hidden settings panel should not trap the user or force an
+        // unexpected return all the way to the Console.
+        if (pairingPanel!=null && pairingPanel.getVisibility()==View.VISIBLE) {
+            pairingPanel.setVisibility(View.GONE);
+            moreButton.requestFocus();
+            return;
+        }
+        if (jobPanel!=null && jobPanel.getVisibility()==View.VISIBLE) {
+            jobPanel.setVisibility(View.GONE);
+            moreButton.requestFocus();
+            return;
+        }
+        super.onBackPressed();
+    }
+
     @Override protected void onPause(){
         remoteClock.removeCallbacks(remoteTick);
         if(computePrefs!=null && prompt!=null)

@@ -41,10 +41,6 @@ public final class AppLibraryActivity extends Activity {
         root.addView(title);
         status=text("Choose an installed TV application. Back returns to Fire Console.",15,0xFF617A91);
         root.addView(status);
-        Button manager=TvUi.action(this,root,
-            "APP CATALOG  /  INSTALL & UPDATE FIRE CHANNELS",
-            ()->startActivity(new Intent(this,CatalogActivity.class)));
-
         PackageManager pm=getPackageManager();
         Intent launcher=new Intent(Intent.ACTION_MAIN);
         launcher.addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
@@ -63,6 +59,7 @@ public final class AppLibraryActivity extends Activity {
         Collections.sort(entries,Comparator.comparing(r->String.valueOf(r.loadLabel(pm)),
             String.CASE_INSENSITIVE_ORDER));
         int limit=Math.min(entries.size(),64);
+        View firstApp=null;
         for(int i=0;i<limit;i+=4){
             LinearLayout row=new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -77,6 +74,7 @@ public final class AppLibraryActivity extends Activity {
                 ResolveInfo app=entries.get(i+j);
                 FrameLayout tile=new FrameLayout(this);
                 tile.setFocusable(true);tile.setClickable(true);
+                if(firstApp==null)firstApp=tile;
                 LinearLayout.LayoutParams tileLP=new LinearLayout.LayoutParams(0,-1,1);
                 if(j>0)tileLP.leftMargin=dp(14);
                 row.addView(tile,tileLP);
@@ -111,9 +109,13 @@ public final class AppLibraryActivity extends Activity {
                 });
             }
         }
+        Button manager=TvUi.action(this,root,
+            "INSTALL OR UPDATE APPS",
+            ()->startActivity(new Intent(this,CatalogActivity.class)));
         if(limit==0)status.setText("No other Leanback applications visible. Open Catalog to install channels.");
         else if(entries.size()>limit)status.setText("Showing "+limit+" of "+entries.size()+" TV launchers.");
-        manager.requestFocus();
+        if(firstApp!=null)firstApp.requestFocus();
+        else manager.requestFocus();
     }
     private TextView text(String name,int size,int color){
         TextView v=new TextView(this);v.setText(name);v.setTextSize(size);

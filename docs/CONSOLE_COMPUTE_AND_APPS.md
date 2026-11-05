@@ -148,6 +148,16 @@ verified in this environment, and a deployed WSS broker has not been
 established. Keep the existing Fire Browser send/form fallback intact;
 messages do not grant device or Codex execution authority.
 
+### REM week-two navigation rule
+
+The [week-two UI audit](CONSOLE_WEEK_TWO_UX.md) documents a real complaint:
+long category panels concealed Snake despite showing the words "Snake".
+The Console's six-channel Home remains, but Playroom now opens a spatial,
+non-scrolling playable grid; the default Compute page presents work, Apps
+presents installed app icons, and Tools presents installation/updates.
+Engineering/research options remain under their appropriate secondary
+contexts without deleting existing capabilities or user data.
+
 ## Platform constraints / future decisions
 
 Android's ordinary per-app window owns its KeyEvents; a normal app

@@ -6,14 +6,14 @@ import xml.etree.ElementTree as ET
 
 ROOT=Path(__file__).resolve().parents[1]
 src=(ROOT/"app/src/main/java/dev/jadan/fire/RetroRoomActivity.java").read_text()
-shelf=(ROOT/"app/src/main/java/dev/jadan/fire/GameShelfActivity.java").read_text()
+hub=(ROOT/"app/src/main/java/dev/jadan/fire/PlayroomHubActivity.java").read_text()
 manifest=ET.parse(ROOT/"app/src/main/AndroidManifest.xml")
 android="{http://schemas.android.com/apk/res/android}"
 activities={a.get(android+"name"):a for a in manifest.findall(".//activity")}
 
 assert ".RetroRoomActivity" in activities
 assert activities[".RetroRoomActivity"].get(android+"exported")=="false"
-assert "RetroRoomActivity.class" in shelf
+assert "RetroRoomActivity.class" in hub, "GBA must be immediately playable from the visible game grid"
 assert "com.swordfish.lemuroid" in src
 assert "Swordfish90/Lemuroid/releases/download/1.17.0/" in src
 assert re.search(r'EMULATOR_SHA256\s*=\s*"([a-f0-9]{64})"',src)
