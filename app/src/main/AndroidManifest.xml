@@ -20,6 +20,12 @@
         <activity android:name=".InputLabActivity" android:exported="false" />
         <activity android:name=".AppLibraryActivity" android:exported="false" />
         <activity android:name=".RetroRoomActivity" android:exported="false" />
+        <activity android:name=".SnakeActivity" android:exported="false"
+            android:screenOrientation="landscape" />
+        <activity android:name=".AndroidDojoActivity" android:exported="false"
+            android:screenOrientation="landscape" />
+        <activity android:name=".ComputeDevicesActivity" android:exported="false"
+            android:screenOrientation="landscape" />
         <activity android:name=".MiniGameLabActivity" android:exported="false"
             android:screenOrientation="landscape" />
         <activity android:name=".GameShelfActivity" android:exported="true"

@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "purpose": "Discovery of execution/storage capability offers, not authority to invoke them. Device includes physical machines and virtual platforms.",
+  "devices": [
+    {
+      "id": "fire-console",
+      "name": "Fire Console",
+      "kind": "physical",
+      "availability": "on_device",
+      "description": "The Android/Fire OS console displaying these capabilities.",
+      "offers": [
+        {
+          "id": "android.launch",
+          "label": "Launch installed TV applications",
+          "class": "interaction",
+          "status": "implemented"
+        },
+        {
+          "id": "dpad.observe",
+          "label": "Foreground D-pad and input experiments",
+          "class": "observation",
+          "status": "implemented"
+        },
+        {
+          "id": "game.render2d",
+          "label": "Native minigame rendering",
+          "class": "execution",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "kind": "virtual_platform",
+      "availability": "provider_not_configured",
+      "description": "Projects are versioned resources; Actions are workflow execution capabilities. Discovery does not authorize workflow dispatch.",
+      "offers": [
+        {
+          "id": "git.versioned-storage",
+          "label": "Versioned project and asset storage",
+          "class": "storage",
+          "status": "upstream"
+        },
+        {
+          "id": "actions.static-build",
+          "label": "CI compilation, tests and artifact production",
+          "class": "execution",
+          "status": "upstream"
+        },
+        {
+          "id": "actions.workflow",
+          "label": "Repository-scoped, reusable Actions workflows",
+          "class": "execution",
+          "status": "upstream"
+        },
+        {
+          "id": "releases.artifacts",
+          "label": "Versioned downloadable build and game assets",
+          "class": "distribution",
+          "status": "upstream"
+        }
+      ]
+    },
+    {
+      "id": "codex-workspace",
+      "name": "Codex workspace",
+      "kind": "virtual_agent",
+      "availability": "provider_not_configured",
+      "description": "A connected coding agent or workstation may advertise tasks; an advertisement alone cannot execute tasks.",
+      "offers": [
+        {
+          "id": "code.edit",
+          "label": "Source changes and research",
+          "class": "agentic",
+          "status": "candidate"
+        },
+        {
+          "id": "code.build",
+          "label": "Project-specific compilation",
+          "class": "execution",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "id": "python-sandbox",
+      "name": "Agentic Python environment",
+      "kind": "virtual_agent",
+      "availability": "provider_not_configured",
+      "description": "A bounded Python worker can advertise interactive computation without claiming physical-device access.",
+      "offers": [
+        {
+          "id": "python.execute",
+          "label": "Python code execution",
+          "class": "execution",
+          "status": "candidate"
+        },
+        {
+          "id": "data.analyze",
+          "label": "Analysis and charts",
+          "class": "agentic",
+          "status": "candidate"
+        }
+      ]
+    }
+  ]
+}

@@ -68,6 +68,8 @@ public final class CodexDeskActivity extends Activity {
         setContentView(scroller);
 
         root.addView(TvUi.header(this,"COMPUTE  /  OFFSHORE WORK"));
+        TvUi.action(this,root,"DEVICES  /  CAPABILITIES",
+            ()->startActivity(new Intent(this,ComputeDevicesActivity.class)));
         root.addView(TvUi.text(this,
             "One intention. Run in a paired Codex workspace, or open Codex Cloud without pairing.",
             16,TvUi.SUB));

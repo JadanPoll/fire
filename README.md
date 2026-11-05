@@ -9,9 +9,13 @@ intent map](docs/VISION_AND_INTENT.md). The current Layer 2 emphasizes an **agen
 **deferred**; its existing channel remains available. These are functional
 choices, not proof that the complete experiences are implemented.
 
-[First executable Fire ↔ Logical Cloud slice](docs/FIRST_SLICE.md): two native
-2D probes, a queryable portability seed, and an Android challenge/progress
-ledger with explicit evidence limits.
+[First executable Fire ↔ Logical Cloud slice](docs/FIRST_SLICE.md): tiny native
+2D probes and an evidence-qualified portability index. **Next slice:**
+[Snake and the on-TV dark Android Dojo](docs/ANDROID_DOJO_SNAKE.md), plus
+[Compute devices as physical or virtual capability providers](docs/COMPUTE_CAPABILITY_REGISTRY.md).
+The Dojo TV journal is local-only; the Compute gallery shows static, qualified
+capability records, and the prototype GET registry has not been connected to a
+live TV endpoint.
 Agents should start here to recover the holistic purpose and the few
 consequential remaining choices before selecting engines, APIs or test
 machinery.
