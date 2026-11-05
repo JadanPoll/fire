@@ -120,6 +120,21 @@ must be treated as untrusted requests, not commands to execute. Direct
 unauthenticated remote execution is neither necessary nor safe. Independent
 agents need no shared daemon or one-off Android integration API.
 
+### Layer 2 evolution: agent-to-agent Inbox coordination
+
+The accepted [Logical Cloud communication contract](
+https://github.com/JadanPoll/Logical_Cloud/blob/main/docs/coordination-transport.md)
+standardizes **HTTPS** for durable messages, reads and recovery, **WSS**
+for live bidirectional agent/device notifications, and **GitHub** for actual
+repositories, revisions, assets, Actions and produced artifacts. The
+existing Fire Inbox `/api/messages`, `/api/send` and status routes remain
+backward-compatible; the structured recipient IDs, envelope and optional
+WSS endpoint are proposed extensions, **not an already working broker**.
+An agent adapter may poll the existing public messages without account
+setup or MCP. The Inbox itself must not execute public messages as code.
+The existing paired Codex executor and its permissions remain separate;
+no new authorization requirement is added to public idea exchange.
+
 ## Platform constraints / future decisions
 
 Android's ordinary per-app window owns its KeyEvents; a normal app
