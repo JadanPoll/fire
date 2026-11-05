@@ -47,6 +47,11 @@ public final class MiniGameLabActivity extends Activity {
             "Tap Left/Right to avoid the falling orange square. Tests frame scheduling and collision state.",
             15, TvUi.SUB));
         TvUi.action(this, panel, "PLAY DODGE", () -> startGame(ProbeGameModel.Mode.DODGE));
+        panel.addView(TvUi.section(this, "03  /  SNAKE"));
+        panel.addView(TvUi.text(this,
+            "Classic snake: eat food, avoid walls and your own body. Tests turning between timed ticks.",
+            15, TvUi.SUB));
+        TvUi.action(this, panel, "PLAY SNAKE", () -> startActivity(new android.content.Intent(this, SnakeActivity.class)));
         TvUi.addPanel(this, root, panel);
         first.requestFocus();
     }
