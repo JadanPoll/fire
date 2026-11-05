@@ -81,6 +81,8 @@ public final class SnakeActivity extends Activity {
                 } else styleStatus.setText("Could not save style; previous retained.");
             });
         });
+        // Preserve game control while an explicit network check is in flight.
+        board.requestFocus();
     }
 
     private void previousStyle() {
