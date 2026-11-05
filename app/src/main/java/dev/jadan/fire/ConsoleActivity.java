@@ -242,6 +242,34 @@ public final class ConsoleActivity extends Activity {
                     line(canvas,40,58,46,58,3);line(canvas,40,63,46,63,3);
                     line(canvas,53,63,60,63,3);
                     break;
+                case 8: // snake: recognizable at a glance, not another generic controller
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(11);
+                    p.setStrokeCap(Paint.Cap.ROUND);
+                    p.setStrokeJoin(Paint.Join.ROUND);
+                    Path snake=new Path();
+                    snake.moveTo(26,71);
+                    snake.lineTo(26,57);
+                    snake.lineTo(43,57);
+                    snake.lineTo(43,36);
+                    snake.lineTo(66,36);
+                    snake.lineTo(66,49);
+                    snake.lineTo(76,49);
+                    canvas.drawPath(snake,p);
+                    p.setStyle(Paint.Style.FILL);
+                    p.setColor(color);
+                    canvas.drawCircle(77,44,2,p);
+                    p.setColor(0xFFFFFFFF);
+                    break;
+                case 9: // handheld cartridge
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(5);
+                    canvas.drawRoundRect(25,20,75,80,6,6,p);
+                    line(canvas,32,32,68,32,4);
+                    line(canvas,37,63,63,63,4);
+                    p.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(56,45,5,p);
+                    break;
                 case 6: // four applications
                     for(int i=0;i<2;i++)for(int j=0;j<2;j++)
                         canvas.drawRoundRect(27+25*i,27+25*j,47+25*i,47+25*j,5,5,p);
