@@ -40,6 +40,8 @@ assert ".CatalogActivity" in app
 assert ".InputLabActivity" in app
 assert ".AppLibraryActivity" in app
 assert ".GameShelfActivity" in app
+assert ".PlayroomHubActivity" in app
+assert app[".PlayroomHubActivity"][0].get(attr("exported"))=="false"
 assert ".RetroRoomActivity" in app
 assert app[".RetroRoomActivity"][0].get(attr("exported"))=="false"
 console,filters=app[".ConsoleActivity"]
