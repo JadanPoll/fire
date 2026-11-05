@@ -34,6 +34,8 @@ def classify(paths):
         modules.add("remoteinput")
         packaging.update(ROOT_MODULES)
     for path in paths:
+        if path.endswith((".md", ".mdx", ".txt")) or path.endswith("/appos.json"):
+            continue
         module = None
         if path.startswith("app/"):
             module = "app"
@@ -47,6 +49,9 @@ def classify(paths):
             modules.update(("remoteinput", "signalstudio"))
             if path.endswith(".gradle") or "/res/" in path:
                 packaging.add("signalstudio")
+        elif path.startswith(("Applications/", "AppOS/")):
+            modules.update(ROOT_MODULES)
+            modules.add("remoteinput")
         if module:
             modules.add(module)
             if (path.endswith(".gradle") or
