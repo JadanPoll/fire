@@ -235,15 +235,29 @@ def main():
         key("DOWN")
         key("RIGHT")
         snapshot("05-signal-studio-dpad")
+        if (OUT / "04-independent-signal-studio.png").read_bytes() == (
+                OUT / "05-signal-studio-dpad.png").read_bytes():
+            raise AssertionError("Signal Studio display did not respond to D-pad variation")
+        note("Independent app visual changed after D-pad", "PASS")
 
         # Internal activities are deliberately not exported. Navigate as
         # the user would, through Console D-pad/OK, never through adb am start.
         launch("dev.jadan.fire/.ConsoleActivity")
         navigate_to_channel("Apps")
         check_foreground("AppLibraryActivity")
-        snapshot("06-installed-app-library", "APPLICATIONS")
+        library = snapshot("06-installed-app-library", "APPLICATIONS")
+        if library is not None:
+            items = " ".join(node.attrib.get("text", "") for node in library.iter())
+            if "Signal Studio" not in items or "Remote Canvas" not in items:
+                raise AssertionError("Installed independent apps missing from Console library")
+            note("Independent apps discoverable in library", "PASS",
+                 "Signal Studio and Remote Canvas")
 
-        launch("dev.jadan.fire/.ConsoleActivity")
+        # Back is the normal user route to the existing Console instance.
+        # ADB 'am start Console' while AppLibrary is on top merely delivers
+        # an intent to the task; it does NOT pop the current activity.
+        key("BACK")
+        check_foreground("ConsoleActivity")
         navigate_to_channel("Tools")
         check_foreground("MainActivity")
         snapshot("07-tools", "TOOLS  /  MAINTENANCE")
