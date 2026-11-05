@@ -32,7 +32,7 @@ def command(args, *, timeout=35, binary=False, allow_failure=False):
     out = cp.stdout if binary else cp.stdout.decode("utf-8", "replace")
     err = cp.stderr.decode("utf-8", "replace")
     COMMANDS.append("$ " + " ".join(map(str, args)) + "\n"
-                    + (out[:1800].decode("utf-8", "replace") if binary else out[:1800])
+                    + ("<binary output: %d bytes>" % len(out) if binary else out[:1800])
                     + "\n" + err[:1000] + "\n")
     if cp.returncode and not allow_failure:
         raise RuntimeError("%s exited %s: %s" % (args, cp.returncode, err[-900:]))
@@ -98,6 +98,46 @@ def key(name):
             "RIGHT": "22", "OK": "23", "BACK": "4"}
     adb("shell", "input", "keyevent", keys[name])
     time.sleep(0.5)
+
+
+CHANNELS = ("Inbox", "Browser", "Playroom", "Compute", "Apps", "Tools")
+
+
+def selected_channel():
+    """Read current native focus, not a guessed startup position."""
+    location = "/sdcard/window.xml"
+    dump = adb("shell", "uiautomator", "dump", location, timeout=45)
+    if "dumped" not in dump.lower():
+        raise AssertionError("Cannot inspect Console focus with UIAutomator")
+    ui = ET.fromstring(adb("shell", "cat", location, timeout=15))
+    for node in ui.iter():
+        if node.attrib.get("focused") != "true":
+            continue
+        description = node.attrib.get("content-desc", "")
+        for name in CHANNELS:
+            if description.startswith(name + ":"):
+                return name
+    raise AssertionError("Console focus was not on a recognized channel tile")
+
+
+def navigate_to_channel(target):
+    """Small deterministic intent-driven D-pad navigation over the 2x3 grid."""
+    before = selected_channel()
+    row, col = divmod(CHANNELS.index(before), 3)
+    to_row, to_col = divmod(CHANNELS.index(target), 3)
+    if row != to_row:
+        key("DOWN" if row < to_row else "UP")
+    while col < to_col:
+        key("RIGHT")
+        col += 1
+    while col > to_col:
+        key("LEFT")
+        col -= 1
+    after = selected_channel()
+    if after != target:
+        raise AssertionError("Remote navigation wanted %s, selected %s" % (target, after))
+    note("D-pad navigation %s to %s" % (before, target), "PASS")
+    key("OK")
 
 
 def launch(component):
@@ -199,17 +239,12 @@ def main():
         # Internal activities are deliberately not exported. Navigate as
         # the user would, through Console D-pad/OK, never through adb am start.
         launch("dev.jadan.fire/.ConsoleActivity")
-        key("DOWN")  # Compute
-        key("RIGHT")  # Apps
-        key("OK")
+        navigate_to_channel("Apps")
         check_foreground("AppLibraryActivity")
         snapshot("06-installed-app-library", "APPLICATIONS")
 
         launch("dev.jadan.fire/.ConsoleActivity")
-        key("DOWN")   # Compute
-        key("RIGHT")  # Apps
-        key("RIGHT")  # Tools
-        key("OK")
+        navigate_to_channel("Tools")
         check_foreground("MainActivity")
         snapshot("07-tools", "TOOLS  /  MAINTENANCE")
 
@@ -226,7 +261,7 @@ def main():
             raise AssertionError("FATAL EXCEPTION in tested APK process")
         note("No target-app fatal crash", "PASS")
     except Exception:
-        note("Smoke suite", "FAIL", traceback.format_exc().splitlines()[-1])
+        error_lines = [line for line in traceback.format_exc().splitlines() if line.strip()]\n        note("Smoke suite", "FAIL", error_lines[-1])
         (OUT / "failure.txt").write_text(traceback.format_exc(), encoding="utf-8")
         return 1
     finally:
