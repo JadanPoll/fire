@@ -65,6 +65,14 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: python3 tools/tv_emulator_smoke.py
+      - name: Show results directly in the GitHub Actions run summary
+        if: always()
+        run: |
+          if [ -f tv-emulator-report/SUMMARY.md ]; then
+            cat tv-emulator-report/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Android TV emulator did not reach the smoke script; inspect the job log." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload screenshots, UI hierarchy, logs, and test report
         if: always()
         uses: actions/upload-artifact@v4
