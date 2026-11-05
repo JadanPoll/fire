@@ -29,6 +29,7 @@ public final class AndroidDojoActivity extends Activity {
     private ScrollView scroll;
     private String currentId;
     private boolean showingStack;
+    private boolean challengeFromStack;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -59,6 +60,7 @@ public final class AndroidDojoActivity extends Activity {
             return;
         }
         currentId = state == null ? null : state.getString("challenge");
+        challengeFromStack = state != null && state.getBoolean("challenge_from_stack");
         if (find(currentId) != null) showChallenge(currentId);
         else if (state != null && state.getBoolean("stack_map")) showStackMap();
         else showCatalog();
@@ -83,6 +85,7 @@ public final class AndroidDojoActivity extends Activity {
     private void showCatalog() {
         currentId = null;
         showingStack = false;
+        challengeFromStack = false;
         header("Unranked engineering quests  •  questions first, topics as a map, experiments at your own pace.");
         Button stackButton = DojoTheme.action(this, root, "EXPLORE THE STACK  /  SCRIPT → KERNEL", this::showStackMap);
         Button first = null;
@@ -164,6 +167,7 @@ public final class AndroidDojoActivity extends Activity {
     private void showChallenge(String id) {
         JSONObject c = find(id);
         if (c == null) { showCatalog(); return; }
+        challengeFromStack = showingStack || (currentId != null && challengeFromStack);
         currentId = id;
         showingStack = false;
         header("探究 / QUESTION   •   Progress is never graded.");
@@ -271,13 +275,17 @@ public final class AndroidDojoActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (currentId != null || showingStack) showCatalog();
+        if (currentId != null) {
+            if (challengeFromStack) showStackMap();
+            else showCatalog();
+        } else if (showingStack) showCatalog();
         else super.onBackPressed();
     }
 
     @Override protected void onSaveInstanceState(Bundle out) {
         out.putString("challenge", currentId);
         out.putBoolean("stack_map", showingStack);
+        out.putBoolean("challenge_from_stack", challengeFromStack);
         super.onSaveInstanceState(out);
     }
 }
