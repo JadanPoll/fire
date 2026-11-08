@@ -63,6 +63,17 @@ assert 'String(m.id)===id||String(o.id)===id' in browser
 assert 'Draft retained.' in browser
 assert 'final boolean useJsonPost=value.length()>1200;' in browser
 assert 'fire-inbox.vercel.app' in browser and 'https://fire-inbox.vercel.app/' in home
+# Repeated Fire TV Inbox messages must have a recognizable stable sender.
+# Native SharedPreferences preserve the address independently of WebView cookies
+# and page-local storage; the Site displays and permits renaming its public label.
+assert 'INBOX_SENDER_PREF = "fire_inbox_sender_v1"' in browser
+assert 'prefs.getString(INBOX_SENDER_PREF' in browser
+assert 'prefs.edit().putString(INBOX_SENDER_PREF,sender).apply()' in browser
+assert '"device:fire-tv-"+java.util.UUID.randomUUID()' in browser
+assert 'appendQueryParameter("from",inboxSenderId())' in browser
+assert 'inboxUrlWithSender(url)' in browser
+assert 'from_label:senderLabel' in browser
+assert "'&from='+encodeURIComponent(sender)+'&from_label='+encodeURIComponent(senderLabel)" in browser
 # Independent native app can opt into a single adapter, no Console dependency.
 assert "TvRemoteAdapter" in signal
 assert "import dev.jadan.fire.remote" in signal
