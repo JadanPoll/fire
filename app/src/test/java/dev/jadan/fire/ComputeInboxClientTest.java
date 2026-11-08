@@ -58,6 +58,8 @@ public final class ComputeInboxClientTest {
         assertFalse(ComputeInboxClient.savedRequest(source,"device:other","my-request"));
         assertEquals("valid-last",ComputeInboxClient.latestReply(source,
             "device:fire-console-0123456789ab","my-request").getString("id"));
-        assertNull(ComputeInboxClient.latestReply(source,"device:other","my-request"));
+        assertEquals("unrelated",ComputeInboxClient.latestReply(source,
+            "device:other","my-request").getString("id"));
+        assertNull(ComputeInboxClient.latestReply(source,"device:unknown","my-request"));
     }
 }
