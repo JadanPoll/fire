@@ -56,11 +56,13 @@ assert "setShowSoftInputOnFocus(true);" in compute
 assert "setShowSoftInputOnFocus(false);" in compute
 # Inbox form is now a compatibility fallback, not the only transport.
 browser=(repo/"browser/src/main/java/dev/jadan/fire/browser/BrowserActivity.java").read_text()
-assert "fetch(url,{method:'GET',credentials:'same-origin',cache:'no-store'})" in browser
+assert "fetch(url,options)" in browser and "var options=usePost?" in browser
+assert "method:'POST'" in browser and "method:'GET'" in browser
 assert 'private void submitInboxForm(WebView target,String value)' in browser
 assert 'String(m.id)===id||String(o.id)===id' in browser
 assert 'Draft retained.' in browser
-assert 'if(value.length()>1200)' in browser
+assert 'final boolean useJsonPost=value.length()>1200;' in browser
+assert 'fire-inbox.vercel.app' in browser and 'https://fire-inbox.vercel.app/' in home
 # Independent native app can opt into a single adapter, no Console dependency.
 assert "TvRemoteAdapter" in signal
 assert "import dev.jadan.fire.remote" in signal
