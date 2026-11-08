@@ -158,6 +158,40 @@ presents installed app icons, and Tools presents installation/updates.
 Engineering/research options remain under their appropriate secondary
 contexts without deleting existing capabilities or user data.
 
+### Fire Inbox hosting cutover (2026-11-08)
+
+Fire Console now opens **https://fire-inbox.vercel.app/** from the
+Console's Inbox channel and the Fire Browser's Inbox button. Its HTTPS
+API is a real Vercel deployment with a private durable Blob store.
+A live test independently verified GET compatibility, POST message
+submission, durable history, checkbox state, exact-ID deduplication,
+WSS agent-to-agent question/reply, and recovery through HTTPS.
+
+The original [ChatGPT Site Inbox](
+https://fire-inbox-jadan.brinyduck2.chatgpt.site/) remains online and
+untouched, with a visible legacy link in the new Inbox. A read-only
+import copied **21/21 existing messages**, preserving their IDs, text,
+timestamps and **19 completed flags**; all 21 records passed field-by-field
+comparison with the source. This is a verified copy, not a redirect of
+the original Site. The new Vercel app is sourced under
+[`Logical_Cloud/apps/fire-inbox`](
+https://github.com/JadanPoll/Logical_Cloud/tree/main/apps/fire-inbox).
+
+Short browser messages use the original unique-ID GET receipt; long
+messages now use Vercel JSON POST with the same receipt and no blind
+retry. Previous ChatGPT Site nonce-only form is no longer required for
+the new endpoint. Messages remain untrusted public data; no code runs
+merely because someone posts to the Inbox.
+
+**Operational limitation:** The Vercel account's GitHub integration does
+not currently have access to the Logical_Cloud repository, so automatic
+Git-linked deployment remains unconfigured; the tested source revision
+was deployed through Vercel's deployment API. The Vercel site is live
+independently of this integration. Before relying on Git-push
+redeployments, grant Vercel's GitHub App repository access or configure
+an authorized GitHub Actions release workflow. Do not assume a merge
+automatically updates Vercel until that connection is confirmed.
+
 ## Platform constraints / future decisions
 
 Android's ordinary per-app window owns its KeyEvents; a normal app
