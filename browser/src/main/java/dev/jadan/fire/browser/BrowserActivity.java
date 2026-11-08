@@ -66,6 +66,7 @@ import org.json.JSONObject;
 public final class BrowserActivity extends Activity {
     private static final String HOME = "https://chatgpt.com/";
     private static final String FIRE_INBOX = "https://fire-inbox.vercel.app/";
+    private static final String INBOX_SENDER_PREF = "fire_inbox_sender_v1";
     private static final String SEARCH = "https://www.google.com/search?q=";
     private static final String PREFS = "browser_state";
     private SharedPreferences prefs;
@@ -758,8 +759,9 @@ public final class BrowserActivity extends Activity {
             status.setText("Only HTTPS websites are supported in this lab.");
             return;
         }
-        address.setText(url);
-        web.loadUrl(url);
+        String destination=inboxUrlWithSender(url);
+        address.setText(destination);
+        web.loadUrl(destination);
     }
     private void goAddress(){
         String u=address.getText().toString().trim();
@@ -1246,6 +1248,32 @@ public final class BrowserActivity extends Activity {
     private boolean isFireInbox(){
         return web!=null && isFireInboxUrl(web.getUrl());
     }
+
+    /**
+     * A stable per-installation participant address, separate from per-message
+     * UUID receipts. Android SharedPreferences survive normal app restarts and
+     * upgrades even when browser site data is cleared. No hardware identifier,
+     * account name, or private Android ID is transmitted.
+     */
+    private String inboxSenderId(){
+        String sender=prefs.getString(INBOX_SENDER_PREF,"");
+        if(sender.matches("device:fire-tv-[a-f0-9]{12}"))return sender;
+        sender="device:fire-tv-"+java.util.UUID.randomUUID().toString()
+            .replace("-","").substring(0,12);
+        prefs.edit().putString(INBOX_SENDER_PREF,sender).apply();
+        return sender;
+    }
+
+    private String inboxUrlWithSender(String url){
+        if(!isFireInboxUrl(url))return url;
+        Uri parsed=Uri.parse(url);
+        String path=parsed.getPath();
+        if(path!=null && !path.isEmpty() && !"/".equals(path))return url;
+        // Site reads ?from once, saves it locally, and removes the query
+        // from its visible address. Not an authentication token.
+        return Uri.parse(FIRE_INBOX).buildUpon()
+            .appendQueryParameter("from",inboxSenderId()).build().toString();
+    }
     /**
      * Fire Inbox is a standard signed-in HTML form, not a ChatGPT model API.
      * Reuse the existing native dictation input; hand it to the site's form
@@ -1292,9 +1320,13 @@ public final class BrowserActivity extends Activity {
             "if(location.origin!=='https://fire-inbox.vercel.app')return 'UNAVAILABLE';"+
             "window.__fireInboxTx={id:id,state:'PENDING'};"+
             "var text="+JSONObject.quote(value)+";"+
+            "var nativeSender="+JSONObject.quote(inboxSenderId())+";"+
+            "var participant=window.__fireInboxParticipant||{};"+
+            "var sender=(typeof participant.id==='string'&&participant.id===nativeSender)?participant.id:nativeSender;"+
+            "var senderLabel=(typeof participant.label==='string'&&participant.label.length<=64)?participant.label:'Fire TV';"+
             "var usePost="+(useJsonPost?"true":"false")+";"+
-            "var url=usePost?'/api/messages':'/api/send?q='+encodeURIComponent(text)+'&id='+encodeURIComponent(id);"+
-            "var options=usePost?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,text:text}),credentials:'same-origin',cache:'no-store'}:{method:'GET',credentials:'same-origin',cache:'no-store'};"+
+            "var url=usePost?'/api/messages':'/api/send?q='+encodeURIComponent(text)+'&id='+encodeURIComponent(id)+'&from='+encodeURIComponent(sender)+'&from_label='+encodeURIComponent(senderLabel);"+
+            "var options=usePost?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,text:text,from:sender,from_label:senderLabel}),credentials:'same-origin',cache:'no-store'}:{method:'GET',credentials:'same-origin',cache:'no-store'};"+
             "fetch(url,options).then(function(r){"+
             "if(r.status===404||r.status===405||r.status===414){window.__fireInboxTx.state='UNAVAILABLE';return;}"+
             "if(!r.ok){window.__fireInboxTx.state='UNKNOWN_HTTP_'+r.status;return;}"+
