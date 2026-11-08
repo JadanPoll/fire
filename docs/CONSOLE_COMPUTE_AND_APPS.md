@@ -219,6 +219,39 @@ redeployments, grant Vercel's GitHub App repository access or configure
 an authorized GitHub Actions release workflow. Do not assume a merge
 automatically updates Vercel until that connection is confirmed.
 
+### Compute week-two work loop (2026-11-08)
+
+Compute's primary surface is now **What should we work on?**
+with **SEND TO AGENTS**, **OPEN CODEX** and a contextual
+**CHECK AGENT RESPONSE** action after the first submitted request.
+The native TV app posts a bounded, non-sensitive JSON request to the
+Vercel Inbox with a stable app-installation sender, a separate
+per-message UUID and exact-ID receipt; it never blindly retries
+uncertain writes. The last request ID/draft survive relaunch.
+Replies must match both `reply_to` and recipient; verified GitHub
+work references become a direct **VIEW RESULT ON GITHUB** action.
+
+The public [Compute web board](
+https://fire-inbox.vercel.app/compute.html) also runs a genuine,
+read-only **Check project work** action against GitHub (latest
+public commit, PRs, workflow result) and reports missing upstream
+results as unavailable rather than inventing certainty. Other
+experimental device-discovery and host-pairing functions remain
+inside the Compute options menu. The pre-existing private trusted
+Codex executor's protocol and cancellation/recovery remain intact,
+and opening a job makes its progress visible immediately.
+
+**Critical boundary:** The Inbox is a transport, not an authenticated
+execution kernel. A public task does not run itself. An independently
+running, operator-authorized adapter may inspect requests, use a
+dedicated Codex workspace, and reply with real GitHub provenance.
+Do not claim autonomous execution until the agent is actually connected.
+A public task should never include secrets, confidential code, or
+personal records.
+
+Source: [Logical Cloud task loop](
+https://github.com/JadanPoll/Logical_Cloud/blob/main/docs/compute-task-loop.md).
+
 ## Platform constraints / future decisions
 
 Android's ordinary per-app window owns its KeyEvents; a normal app

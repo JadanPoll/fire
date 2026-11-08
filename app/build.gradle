@@ -52,4 +52,7 @@ android {
 dependencies {
     implementation 'androidx.core:core:1.15.0'
     testImplementation 'junit:junit:4.13.2'
+    // Host JVM's Android org.json stubs throw by default; use the real
+    // JSON implementation in unit tests without changing the shipped APK.
+    testImplementation 'org.json:json:20240303'
 }

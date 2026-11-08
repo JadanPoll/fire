@@ -41,6 +41,10 @@ public final class CodexDeskActivity extends Activity {
     private final ExecutorService remoteWorker = Executors.newSingleThreadExecutor();
     private final Handler remoteClock = new Handler(Looper.getMainLooper());
     private boolean remoteBusy;
+    private boolean inboxBusy;
+    private String inboxSender, inboxRequestId, inboxResultUrl;
+    private TextView inboxStatus, inboxResult;
+    private Button inboxRefreshButton, inboxGitHubButton;
     private String jobId;
     private final Runnable remoteTick = () -> {
         if (jobId != null && !remoteBusy) remoteAction("poll");
@@ -70,16 +74,16 @@ public final class CodexDeskActivity extends Activity {
         scroller.addView(root);
         setContentView(scroller);
 
-        root.addView(TvUi.header(this,"COMPUTE  /  OFFSHORE WORK"));
+        root.addView(TvUi.header(this,"COMPUTE"));
         root.addView(TvUi.text(this,
-            "One intention. Run in a paired Codex workspace, or open Codex Cloud without pairing.",
+            "Describe what you want done. Send it to your agents, or work directly in Codex.",
             16,TvUi.SUB));
 
         prompt=new EditText(this);
         prompt.setSingleLine(false);
         prompt.setMinLines(3);
         prompt.setMaxLines(6);
-        prompt.setHint("What should Compute build or investigate?");
+        prompt.setHint("What should we work on?");
         prompt.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI|EditorInfo.IME_ACTION_DONE);
         TvUi.field(this,prompt);
         prompt.setShowSoftInputOnFocus(false);
@@ -109,20 +113,35 @@ public final class CodexDeskActivity extends Activity {
             speechStatus.setText("Fire keyboard requested. Dictation depends on the system IME.");
         });
 
+        root.addView(TvUi.text(this,
+            "Agent tasks are public messages. Do not send secrets. A task is not executed until an agent with its own permissions accepts it.",
+            13,TvUi.SUB));
         LinearLayout actions=TvUi.actionRow(this,root);
-        Button runButton=TvUi.actionInRow(this,actions,"RUN PAIRED HOST",()->remoteAction("submit"));
+        Button sendButton=TvUi.actionInRow(this,actions,"SEND TO AGENTS",this::sendInboxTask);
         Button cloudButton=TvUi.actionInRow(this,actions,"OPEN CODEX",this::openCodexCloud);
+        inboxStatus=label("No agent request submitted. Nothing runs automatically.",16,TvUi.SUB);
+        inboxStatus.setTextIsSelectable(true);
+        root.addView(inboxStatus);
+        inboxResult=label("",16,TvUi.SUB);
+        inboxResult.setTextIsSelectable(true);
+        root.addView(inboxResult);
+        inboxRefreshButton=TvUi.action(this,root,"CHECK AGENT RESPONSE",this::checkInboxTask);
+        inboxGitHubButton=TvUi.action(this,root,"VIEW RESULT ON GITHUB",this::openInboxGitHub);
+        inboxRefreshButton.setVisibility(View.GONE);
+        inboxGitHubButton.setVisibility(View.GONE);
 
-        remoteStatus=label("No remote job active. Connect a trusted host or use Codex Cloud.",16,TvUi.SUB);
+        remoteStatus=label("No paired Codex job active.",16,TvUi.SUB);
         remoteStatus.setTextIsSelectable(true);
-        root.addView(remoteStatus);
         remoteOutput=label("",15,TvUi.SUB);
         remoteOutput.setTextIsSelectable(true);
-        root.addView(remoteOutput);
+        // Paired-host diagnostics are important but not every-visit navigation.
+        // Keep the existing executor's status/results in the job details panel.
 
         jobDetailsButton=TvUi.action(this,root,"CURRENT JOB  /  DETAILS",this::showJobDetails);
         jobPanel=TvUi.panel(this);
-        jobPanel.addView(TvUi.section(this,"JOB CONTROLS"));
+        jobPanel.addView(TvUi.section(this,"TRUSTED CODEX JOB"));
+        jobPanel.addView(remoteStatus);
+        jobPanel.addView(remoteOutput);
         LinearLayout jobActions=TvUi.actionRow(this,jobPanel);
         firstJobAction=TvUi.actionInRow(this,jobActions,"REFRESH / RECOVER",
             ()->remoteAction(jobId==null?"recover":"poll"));
@@ -131,11 +150,10 @@ public final class CodexDeskActivity extends Activity {
         root.addView(jobPanel);
         jobPanel.setVisibility(View.GONE);
 
-        moreButton=TvUi.action(this,root,"MORE  /  DEVICES & SETTINGS",this::more);
+        moreButton=TvUi.action(this,root,"MORE  /  COMPUTE OPTIONS",this::more);
         buildExecutorUi(root);
         pairingPanel.setVisibility(View.GONE);
-        feedback=label("A host requires a private HTTPS endpoint and pairing token. Neither is sent to Codex Cloud.",
-            14,TvUi.SUB);
+        feedback=label("",14,TvUi.SUB);
         root.addView(feedback);
 
         if(b!=null){
@@ -144,6 +162,13 @@ public final class CodexDeskActivity extends Activity {
         } else {
             prompt.setText(computePrefs.getString("draft",""));
             jobId=computePrefs.getString("job_id",null);
+        }
+        inboxSender=ComputeInboxClient.senderId(computePrefs.getString("inbox_sender",""));
+        computePrefs.edit().putString("inbox_sender",inboxSender).apply();
+        inboxRequestId=computePrefs.getString("inbox_request_id",null);
+        if(inboxRequestId!=null) {
+            inboxStatus.setText("Last public task "+inboxRequestId+" · Check response to see agent progress.");
+            inboxRefreshButton.setVisibility(View.VISIBLE);
         }
         executorUrl.setText(computePrefs.getString("host_origin",""));
         pairingToken.setText(LivePairing.token);
@@ -154,9 +179,9 @@ public final class CodexDeskActivity extends Activity {
         else if(pairingToken.length()>0)remoteStatus.setText(
             "Previous pairing restored in this running Console process.");
         jobDetailsButton.setVisibility(jobId==null?View.GONE:View.VISIBLE);
-        if(jobId!=null)jobDetailsButton.requestFocus();
-        else if(pairingToken.length()>0)runButton.requestFocus();
-        else cloudButton.requestFocus();
+        sendButton.requestFocus();
+        // A returning user can check the last request without reopening setup.
+        // Keep the everyday action spatially stable across fresh and returning sessions.
     }
 
     private void buildExecutorUi(LinearLayout root){
@@ -196,17 +221,119 @@ public final class CodexDeskActivity extends Activity {
     }
 
     private void more(){
-        String[] choices={"DEVICES & CAPABILITIES","CONNECT / CHANGE HOST",
-            "JOB CONTROLS & RECOVERY","ADVANCED DIAGNOSTICS"};
+        String[] choices={"CHECK GITHUB PROJECT WORK","OPEN LIVE COMPUTE BOARD",
+            "RUN TRUSTED CODEX HOST","DEVICES & CAPABILITIES",
+            "CONNECT / CHANGE HOST","JOB CONTROLS & RECOVERY","ADVANCED DIAGNOSTICS"};
         new AlertDialog.Builder(this).setTitle("COMPUTE  /  MORE")
             .setItems(choices,(dialog,index)->{
                 switch(index){
-                    case 0:startActivity(new Intent(this,ComputeDevicesActivity.class));break;
-                    case 1:togglePairing();break;
-                    case 2:showJobDetails();break;
+                    case 0:openComputeBoard();break;
+                    case 1:openComputeBoard();break;
+                    case 2:remoteAction("submit");break;
+                    case 3:startActivity(new Intent(this,ComputeDevicesActivity.class));break;
+                    case 4:togglePairing();break;
+                    case 5:showJobDetails();break;
                     default:advanced();break;
                 }
             }).setNegativeButton("BACK",null).show();
+    }
+
+    private void openComputeBoard() {
+        launchSite("https://fire-inbox.vercel.app/compute.html");
+    }
+
+    private void sendInboxTask() {
+        if(inboxBusy)return;
+        final String goal=prompt.getText().toString().trim();
+        final JSONObject task;
+        try {
+            task=ComputeInboxClient.makeRequest(inboxSender,
+                ComputeInboxClient.DEFAULT_NAME,goal,null);
+        }catch(Exception e) {
+            inboxStatus.setText("Describe a non-sensitive task first. "+e.getMessage());
+            return;
+        }
+        inboxBusy=true;
+        final String id=task.optString("id");
+        // Persist before network I/O: if the write succeeds but the reply is
+        // lost, the human can reconcile by ID rather than submitting twice.
+        inboxRequestId=id;
+        computePrefs.edit().putString("inbox_request_id",id)
+            .putString("draft",goal).apply();
+        inboxStatus.setText("Saving public request "+id+"…");
+        inboxRefreshButton.setVisibility(View.VISIBLE);
+        inboxGitHubButton.setVisibility(View.GONE);
+        inboxResult.setText("");
+        remoteWorker.execute(()->{
+            JSONObject receipt=null;
+            Exception failure=null;
+            try{receipt=ComputeInboxClient.submit(task);}
+            catch(Exception e){failure=e;}
+            final JSONObject saved=receipt;
+            final Exception error=failure;
+            runOnUiThread(()->{
+                inboxBusy=false;
+                if(isFinishing()||isDestroyed())return;
+                if(error!=null){
+                    inboxStatus.setText("Delivery uncertain for "+id+
+                        ". Draft kept. CHECK AGENT RESPONSE reconciles before any retry. "+
+                        error.getClass().getSimpleName()+": "+error.getMessage());
+                    return;
+                }
+                inboxStatus.setText("Saved request "+saved.optString("id")+
+                    ". Awaiting a connected agent; no code executed by sending.");
+                if(goal.equals(prompt.getText().toString().trim()))prompt.setText("");
+                checkInboxTask();
+            });
+        });
+    }
+
+    private void checkInboxTask() {
+        if(inboxBusy || inboxRequestId==null)return;
+        inboxBusy=true;
+        final String current=inboxRequestId;
+        inboxStatus.setText("Checking durable Inbox history for "+current+"…");
+        remoteWorker.execute(()->{
+            JSONObject history=null;
+            Exception failure=null;
+            try{history=ComputeInboxClient.fetchRecent();}
+            catch(Exception e){failure=e;}
+            final JSONObject response=history;
+            final Exception error=failure;
+            runOnUiThread(()->{
+                inboxBusy=false;
+                if(isFinishing()||isDestroyed()||!current.equals(inboxRequestId))return;
+                if(error!=null){
+                    inboxStatus.setText("Could not fetch agent responses: "+
+                        error.getClass().getSimpleName()+". Request ID "+current+" retained.");
+                    return;
+                }
+                JSONObject reply=ComputeInboxClient.latestReply(response,inboxSender,current);
+                if(reply!=null) {
+                    String kind=reply.optString("kind","message");
+                    inboxStatus.setText("Agent "+kind+" received · Request "+current);
+                    inboxResult.setText(reply.optString("text",""));
+                    org.json.JSONArray refs=reply.optJSONArray("refs");
+                    inboxResultUrl=null;
+                    if(refs!=null)for(int i=0;i<refs.length();i++){
+                        String ref=refs.optString(i);
+                        if(ref.startsWith("https://github.com/")&&ref.length()<180){
+                            inboxResultUrl=ref;break;
+                        }
+                    }
+                    inboxGitHubButton.setVisibility(inboxResultUrl==null?View.GONE:View.VISIBLE);
+                } else {
+                    boolean saved=ComputeInboxClient.savedRequest(response,inboxSender,current);
+                    inboxStatus.setText(saved
+                        ? "Task saved. Awaiting a connected agent. Select CHECK AGENT RESPONSE later."
+                        : "Request not in the latest Inbox page. Delivery still unverified; no automatic retry.");
+                }
+            });
+        });
+    }
+
+    private void openInboxGitHub() {
+        if(inboxResultUrl!=null)ConsoleLaunch.openBrowser(this,inboxResultUrl,inboxStatus);
     }
 
     private void pasteToken(){
@@ -288,6 +415,8 @@ public final class CodexDeskActivity extends Activity {
         final String secret=pairingToken.getText().toString();
         final String draft=prompt.getText().toString();
         final String currentId=jobId;
+        if("submit".equals(action)||"probe".equals(action))
+            showJobDetails();  // never hide the actual outcome after the user acts
         remoteClock.removeCallbacks(remoteTick);
         remoteBusy=true;
         remoteStatus.setText("Compute host: "+action+" requested…");

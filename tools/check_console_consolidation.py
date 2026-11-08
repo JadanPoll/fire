@@ -33,7 +33,15 @@ assert "HttpURLConnection" not in tools
 assert "CodexExecutorClient.submit" in compute
 assert "CodexExecutorClient.recover" in compute
 assert "CodexExecutorClient.cancel" in compute
-assert "COMPUTE  /  OFFSHORE WORK" in compute
+assert 'TvUi.header(this,"COMPUTE")' in compute
+# The day-to-day task path is directly visible; pairing remains a contextual action.
+assert 'SEND TO AGENTS' in compute and 'this::sendInboxTask' in compute
+assert 'CHECK AGENT RESPONSE' in compute and 'this::checkInboxTask' in compute
+assert 'VIEW RESULT ON GITHUB' in compute
+assert 'ComputeInboxClient.submit(task)' in compute
+assert 'ComputeInboxClient.latestReply(response,inboxSender,current)' in compute
+assert 'inbox_request_id' in compute and 'inbox_sender' in compute
+assert 'https://fire-inbox.vercel.app/compute.html' in compute
 # REM week-two view: the game is reachable from the first Playroom screen.
 hub=(source/"PlayroomHubActivity.java").read_text()
 assert "PlayroomHubActivity.class" in home
@@ -48,7 +56,7 @@ assert "firstApp.requestFocus()" in app_library
 assert app_library.index('int limit=Math.min(entries.size(),64);') < app_library.index('Button manager=TvUi.action(this,root,')
 assert 'OTHER TOOLS  /  DIAGNOSTICS' in tools
 assert "OPEN CODEX" in compute and "this::openCodexCloud" in compute
-assert "MORE  /  DEVICES & SETTINGS" in compute and "private void advanced()" in compute
+assert "MORE  /  COMPUTE OPTIONS" in compute and "private void advanced()" in compute
 assert "computePrefs.edit().putString(\"draft\"" in compute
 assert "LivePairing.token" in compute
 assert 'putString("token"' not in compute

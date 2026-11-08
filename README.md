@@ -27,6 +27,23 @@ playable; pinned favorites, real installed apps and work objectives take
 priority over diagnostic menus. Rare tools remain available but do not
 fill each core channel's first screen.
 
+## Compute: real work and agent handoff from the TV
+
+Compute now has a [task-first practical path](https://github.com/JadanPoll/Logical_Cloud/blob/main/docs/compute-task-loop.md):
+enter a public, non-sensitive intention on the Fire TV, **SEND TO AGENTS**,
+then later **CHECK AGENT RESPONSE**. Messages are stored at the Vercel
+Fire Inbox, addressed to `agent:compute`; agent replies correlate to
+the original request and link to real GitHub work. No public Inbox
+message authorizes automatic execution.
+
+The [live Compute board](https://fire-inbox.vercel.app/compute.html)
+can inspect current public GitHub commits, PRs and build results even
+when no agent is running. Existing paired Codex execution remains
+available under Compute options for an authenticated trusted host.
+The default experience is a concrete objective and observable result,
+not a list of hypothetical providers. A separately connected agent
+must actually accept and process tasks before the TV can show agent work.
+
 ## Console v2: Compute and independent apps
 
 Fire Console Home now has **six Wii-style channels**: Inbox, Browser,
