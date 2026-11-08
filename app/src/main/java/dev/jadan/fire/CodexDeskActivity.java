@@ -154,6 +154,7 @@ public final class CodexDeskActivity extends Activity {
         buildExecutorUi(root);
         pairingPanel.setVisibility(View.GONE);
         feedback=label("",14,TvUi.SUB);
+        root.addView(feedback);
 
         if(b!=null){
             prompt.setText(b.getString("fire_draft",""));
@@ -414,6 +415,8 @@ public final class CodexDeskActivity extends Activity {
         final String secret=pairingToken.getText().toString();
         final String draft=prompt.getText().toString();
         final String currentId=jobId;
+        if("submit".equals(action)||"probe".equals(action))
+            showJobDetails();  // never hide the actual outcome after the user acts
         remoteClock.removeCallbacks(remoteTick);
         remoteBusy=true;
         remoteStatus.setText("Compute host: "+action+" requested…");
