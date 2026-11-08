@@ -158,6 +158,33 @@ presents installed app icons, and Tools presents installation/updates.
 Engineering/research options remain under their appropriate secondary
 contexts without deleting existing capabilities or user data.
 
+### Persistent Inbox participants (REM week-two usability)
+
+The Fire Browser now keeps a stable public `device:fire-tv-<12 hex>` sender
+address in its own Android `SharedPreferences`. It survives ordinary
+browser restarts and updates and is passed to the Vercel Inbox on opening
+the Inbox channel. When sending from the Browser's native text/voice draft,
+both legacy short GET and long JSON POST requests carry that address and
+the current display name.
+
+The Inbox shows the sender as **Fire TV**, lets the human give it a more
+recognizable name such as **Living Room TV**, and remembers that alias
+in website local storage. Renaming does not change message addressing.
+Other browsers get their own persistent `device:browser-…` sender ID,
+also with an editable local alias such as **Windows - Alex**.
+
+**Message IDs remain unique per send**; they are not device IDs. Labels
+and public addresses are self-declared and grant no authorization. Old
+anonymous messages remain anonymous rather than being silently assigned
+to this TV. Wiping Fire Browser app data or uninstalling the app can reset
+its local identity; ordinary upgrades do not.
+
+This applies REM's practical week/month question: people should be able
+to recognize which device spoke, without rediscovering a new ID or
+understanding an agent-routing protocol. The technical identifier is
+visible in the Inbox; rare renaming is one deliberate action, not another
+menu.
+
 ### Fire Inbox hosting cutover (2026-11-08)
 
 Fire Console now opens **https://fire-inbox.vercel.app/** from the
