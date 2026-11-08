@@ -30,7 +30,7 @@ import android.widget.TextView;
  */
 public final class ConsoleActivity extends Activity {
     static final String BROWSER="dev.jadan.fire.browser";
-    static final String INBOX="https://fire-inbox-jadan.brinyduck2.chatgpt.site/";
+    static final String INBOX="https://fire-inbox.vercel.app/";
     private TextView status;
     private final int navy=0xFF0F2441, muted=0xFFACBED4;
     private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}

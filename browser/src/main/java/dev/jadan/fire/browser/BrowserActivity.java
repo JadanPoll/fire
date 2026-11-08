@@ -65,7 +65,7 @@ import org.json.JSONObject;
  */
 public final class BrowserActivity extends Activity {
     private static final String HOME = "https://chatgpt.com/";
-    private static final String FIRE_INBOX = "https://fire-inbox-jadan.brinyduck2.chatgpt.site/";
+    private static final String FIRE_INBOX = "https://fire-inbox.vercel.app/";
     private static final String SEARCH = "https://www.google.com/search?q=";
     private static final String PREFS = "browser_state";
     private SharedPreferences prefs;
@@ -1240,7 +1240,7 @@ public final class BrowserActivity extends Activity {
         try{
             Uri uri=Uri.parse(raw);
             return "https".equalsIgnoreCase(uri.getScheme()) &&
-                "fire-inbox-jadan.brinyduck2.chatgpt.site".equalsIgnoreCase(uri.getHost());
+                "fire-inbox.vercel.app".equalsIgnoreCase(uri.getHost());
         }catch(Exception ex){return false;}
     }
     private boolean isFireInbox(){
@@ -1281,19 +1281,21 @@ public final class BrowserActivity extends Activity {
         InputMethodManager imm=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
         if(imm!=null)imm.hideSoftInputFromWindow(draft.getWindowToken(),0);
 
-        // GET query parameters can be logged by proxies and URL size is
-        // bounded. Longer/sensitive messages use the existing POST form.
-        if(value.length()>1200){
-            submitInboxForm(target,value);return;
-        }
+        // Short text retains the exact-ID legacy GET receipt. Longer notes use
+        // JSON POST on Vercel instead of the old ChatGPT Site nonce form.
+        // Neither path retries after an ambiguous save; both are public.
+        final boolean useJsonPost=value.length()>1200;
         final String requestId=java.util.UUID.randomUUID().toString();
         status.setText("Submitting via Inbox HTTP endpoint…");
         final String js="(function(){"+
             "var id="+JSONObject.quote(requestId)+";"+
-            "if(location.origin!=='https://fire-inbox-jadan.brinyduck2.chatgpt.site')return 'UNAVAILABLE';"+
+            "if(location.origin!=='https://fire-inbox.vercel.app')return 'UNAVAILABLE';"+
             "window.__fireInboxTx={id:id,state:'PENDING'};"+
-            "var url='/api/send?q='+encodeURIComponent("+JSONObject.quote(value)+")+'&id='+encodeURIComponent(id);"+
-            "fetch(url,{method:'GET',credentials:'same-origin',cache:'no-store'}).then(function(r){"+
+            "var text="+JSONObject.quote(value)+";"+
+            "var usePost="+(useJsonPost?"true":"false")+";"+
+            "var url=usePost?'/api/messages':'/api/send?q='+encodeURIComponent(text)+'&id='+encodeURIComponent(id);"+
+            "var options=usePost?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,text:text}),credentials:'same-origin',cache:'no-store'}:{method:'GET',credentials:'same-origin',cache:'no-store'};"+
+            "fetch(url,options).then(function(r){"+
             "if(r.status===404||r.status===405||r.status===414){window.__fireInboxTx.state='UNAVAILABLE';return;}"+
             "if(!r.ok){window.__fireInboxTx.state='UNKNOWN_HTTP_'+r.status;return;}"+
             "return r.text().then(function(body){"+
